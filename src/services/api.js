@@ -6,6 +6,7 @@
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
 import { signRequest, isHmacSupported } from '../utils/hmac.js';
 import { captureError, addApiCallBreadcrumb } from '../utils/sentry.js';
+import { trackApiResponse } from '../utils/analytics.js';
 
 // ============================================
 // CACHE CONFIGURATION
@@ -154,6 +155,7 @@ const RETRY_OPTIONS = {
  */
 async function signedFetch(url, options = {}) {
     const method = options.method || 'GET';
+    const startTime = performance.now();
     let body = null;
     
     // Parse body if present
@@ -186,8 +188,13 @@ async function signedFetch(url, options = {}) {
         headers
     });
     
+    const endTime = performance.now();
+    
     // Add breadcrumb for Sentry tracking
     addApiCallBreadcrumb(method, url, response.status);
+    
+    // Track API response time
+    trackApiResponse(url, method, startTime, endTime, response.status);
     
     return response;
 }
