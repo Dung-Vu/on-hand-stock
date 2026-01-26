@@ -13,6 +13,20 @@ import {
 } from '../services/api.js';
 import { SAMPLE_DATA } from './sampleData.js';
 import { exportToExcel } from '../utils/export.js';
+
+// ============================================
+// TOAST NOTIFICATION SYSTEM
+// ============================================
+
+// Create toast container if not exists
+function getToastContainer() {
+    let container = document.getElementById("toastContainer");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "toastContainer";
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
             right: 20px;
             z-index: 9999;
             display: flex;
