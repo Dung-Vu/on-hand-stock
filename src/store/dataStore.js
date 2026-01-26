@@ -13,10 +13,6 @@ import {
 } from '../services/api.js';
 import { SAMPLE_DATA } from './sampleData.js';
 import { exportToExcel, exportToPDF } from '../utils/export.js';
-import { VirtualList, createProductCard } from '../components/VirtualList.js';
-
-// Virtual list instance (singleton)
-let virtualListInstance = null;
 
 // ============================================
 // TOAST NOTIFICATION SYSTEM
@@ -758,8 +754,45 @@ export function applyFilters() {
         categoryValue
     );
 
+    // Initialize or update query builder with current categories
+    initQueryBuilder(filteredData);
 
     renderStockData(filteredData);
+}
+
+// Initialize Query Builder
+function initQueryBuilder(groupedData) {
+    const container = document.getElementById("queryBuilderContainer");
+    if (!container) return;
+    
+    // Get unique categories from data
+    const categories = new Set();
+    const warehouses = new Set();
+    
+    Object.entries(groupedData || {}).forEach(([warehouseName, warehouse]) => {
+        warehouses.add(warehouseName);
+        Object.keys(warehouse.categories || {}).forEach(cat => categories.add(cat));
+    });
+    
+    if (!queryBuilderInstance) {
+        queryBuilderInstance = new QueryBuilder({
+            container,
+            categories: [...categories].sort(),
+            warehouses: [...warehouses].sort(),
+            onFilterChange: (config) => {
+                currentQueryBuilderConfig = config;
+                applyFilters();
+            }
+        });
+        queryBuilderInstance.init();
+    } else {
+        queryBuilderInstance.updateOptions([...categories].sort(), [...warehouses].sort());
+    }
+}
+
+// Get query builder filter config
+export function getQueryBuilderConfig() {
+    return currentQueryBuilderConfig;
 }
 
 // Clear filters
@@ -995,18 +1028,12 @@ function getStockBadge(status) {
 }
 
 // Render stock data - Card-based layout for sales team
-// Uses Virtual List for large datasets (>50 products) for better performance
 function renderStockData(groupedData) {
     const container = document.getElementById("stockData");
     if (!container) return;
 
     if (Object.keys(groupedData).length === 0) {
         container.innerHTML = "";
-        // Destroy virtual list if exists
-        if (virtualListInstance) {
-            virtualListInstance.destroy();
-            virtualListInstance = null;
-        }
         container.appendChild(
             createEmptyState("Không tìm thấy dữ liệu phù hợp")
         );
@@ -1029,10 +1056,6 @@ function renderStockData(groupedData) {
     // Only render active warehouse
     if (!activeWarehouse || !groupedData[activeWarehouse]) {
         container.innerHTML = "";
-        if (virtualListInstance) {
-            virtualListInstance.destroy();
-            virtualListInstance = null;
-        }
         container.appendChild(createEmptyState("Vui lòng chọn kho"));
         return;
     }
@@ -1068,10 +1091,6 @@ function renderStockData(groupedData) {
         ...new Set(allProducts.map((p) => p.categoryName)),
     ].sort();
 
-    // Threshold for using virtual scrolling
-    const VIRTUAL_SCROLL_THRESHOLD = 50;
-    const useVirtualScroll = allProducts.length > VIRTUAL_SCROLL_THRESHOLD;
-
     // Build HTML with card-based layout
     let html = `
         <div class="max-w-7xl mx-auto px-4 py-6">
@@ -1079,7 +1098,6 @@ function renderStockData(groupedData) {
             <div class="mb-6 animate-fade-in hidden md:block" id="quickFilterSection">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-semibold" style="color: #3f3630;">🏷️ Lọc nhanh theo nhóm:</span>
-                    ${useVirtualScroll ? `<span class="text-xs px-2 py-1 rounded-full" style="background: #e8f4f8; color: #0066cc;">⚡ Virtual Scroll (${allProducts.length} items)</span>` : ''}
                 </div>
                 <div class="flex flex-wrap gap-2 transition-all duration-300" id="quickCategoryFilter">
                     <button class="category-filter-chip active" data-category="">
@@ -1098,129 +1116,125 @@ function renderStockData(groupedData) {
                 </div>
             </div>
 
-            <!-- Product cards container -->
-            <div id="productCardsGrid" ${useVirtualScroll ? 'class="virtual-scroll-container"' : 'class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch"'}>
+            <!-- Product cards grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch" id="productCardsGrid">
     `;
 
-    // If using virtual scroll, don't render products in HTML
-    if (useVirtualScroll) {
-        html += `</div></div>`;
-        container.innerHTML = html;
-
-        // Initialize or update virtual list
-        const gridContainer = document.getElementById("productCardsGrid");
-        
-        if (!virtualListInstance) {
-            virtualListInstance = new VirtualList({
-                container: gridContainer,
-                items: allProducts,
-                itemHeight: 260,
-                buffer: 3,
-                gap: 16,
-                renderItem: (product, index) => createProductCard(product, index, { hideIncoming })
-            });
-            virtualListInstance.init();
-        } else {
-            // Update existing virtual list
-            virtualListInstance.setItems(allProducts);
-        }
-    } else {
-        // Destroy virtual list if exists (switching from large to small dataset)
-        if (virtualListInstance) {
-            virtualListInstance.destroy();
-            virtualListInstance = null;
-        }
-
-        // Traditional rendering for smaller datasets
-        allProducts.forEach((product, index) => {
-            html += createProductCardHTML(product, index, hideIncoming);
-        });
+    allProducts.forEach((product, index) => {
+        const productName =
+            product.product_name || `Sản phẩm ID: ${product.product_id[0]}`;
+        const lotIds = (product.lot_ids && product.lot_ids.length > 0)
+                ? product.lot_ids
+                    .map((l) => {
+                        if (typeof l === "string") return l;
+                        if (l && typeof l === "object") {
+                            if (typeof l.name === "string") return l.name;
+                            if (Array.isArray(l) && typeof l[1] === "string") return l[1];
+                        }
+                        return null;
+                    })
+                    .filter(Boolean)
+                    .join(", ")
+                : null;
+        const status = getStockStatus(
+            product.quantity,
+            product.available_quantity
+        );
+        const badge = getStockBadge(status);
+        const unit =
+            product.uom_id && product.uom_id[1] ? product.uom_id[1] : "";
 
         html += `
+            <div class="stock-card animate-slide-down flex flex-col" data-category="${product.categoryName}" style="animation-delay: ${Math.min(
+                index * 0.02,
+                0.5
+            )}s; height: 100%;">
+                <div class="flex items-start justify-between mb-4" style="min-height: 70px;">
+                    <div class="flex-1 pr-2">
+                        <h3 class="text-sm font-semibold mb-1 line-clamp-2" style="color: #2a231f; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            ${productName}
+                        </h3>
+                        <span class="category-badge">${
+                            product.categoryName
+                        }</span>
+                    </div>
+                    ${badge}
                 </div>
+
+                <div class="grid ${hideIncoming ? "grid-cols-2" : "grid-cols-3"} gap-2 mt-auto pt-4" style="border-top: 1px solid #e8ddd4;">
+                    <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #faf8f5; min-height: 90px;">
+                        <p class="quantity-label mb-1.5">Tồn kho</p>
+                        <p class="quantity-display mb-1">${(
+                            product.quantity || 0
+                        ).toLocaleString()}</p>
+                        ${
+                            unit
+                                ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${unit}</p>`
+                                : `<div style="height: 16px;"></div>`
+                        }
+                    </div>
+                    <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: ${
+                        status === "low" ? "#fff8e6" : "#f5f9f5"
+                    }; min-height: 90px;">
+                        <p class="quantity-label mb-1.5">Khả dụng</p>
+                        <p class="quantity-display mb-1" style="color: ${
+                            status === "low" ? "#856404" : "#2a231f"
+                        };">${(
+            product.available_quantity || 0
+        ).toLocaleString()}</p>
+                        ${
+                            unit
+                                ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${unit}</p>`
+                                : `<div style="height: 16px;"></div>`
+                        }
+                    </div>
+                    ${
+                        hideIncoming
+                            ? ""
+                            : `<div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #e8f4f8; min-height: 90px;">
+                        <p class="quantity-label mb-1.5">Đang đến</p>
+                        <p class="quantity-display mb-1" style="color: #0066cc;">
+                            ${(Number.isFinite(product.incoming_qty) ? product.incoming_qty : Number(product.incoming_qty) || 0).toLocaleString()}
+                        </p>
+                        <div class="flex flex-col" style="margin-top: auto;">
+                        ${
+                            product.incoming_date
+                                ? `<p class="text-[10px] mb-1" style="color: #4b83a6;">ETA: ${new Date(product.incoming_date).toLocaleDateString('vi-VN')}</p>`
+                                : `<div style="height: 12px;"></div>`
+                        }
+                        ${
+                            unit
+                                ? `<p class="text-xs" style="color: #8b7355;">${unit}</p>`
+                                : `<div style="height: 16px;"></div>`
+                        }
+                        </div>
+                    </div>`
+                    }
+                </div>
+
+                ${
+                    lotIds
+                        ? `
+                <div class="mt-3 pt-3" style="border-top: 1px solid #f5f1ea;">
+                    <p class="text-xs" style="color: #7d6d5a;">
+                        <strong>Số lô:</strong> ${lotIds}
+                    </p>
+                </div>
+                `
+                        : ""
+                }
             </div>
         `;
+    });
 
-        container.innerHTML = html;
-    }
-
-    // Add event listeners for quick category filter (desktop only)
-    setupCategoryFilter(allProducts, useVirtualScroll, hideIncoming);
-}
-
-// Helper function to create product card HTML (for non-virtual rendering)
-function createProductCardHTML(product, index, hideIncoming) {
-    const productName =
-        product.product_name || `Sản phẩm ID: ${product.product_id[0]}`;
-    const lotIds = (product.lot_ids && product.lot_ids.length > 0)
-        ? product.lot_ids
-            .map((l) => {
-                if (typeof l === "string") return l;
-                if (l && typeof l === "object") {
-                    if (typeof l.name === "string") return l.name;
-                    if (Array.isArray(l) && typeof l[1] === "string") return l[1];
-                }
-                return null;
-            })
-            .filter(Boolean)
-            .join(", ")
-        : null;
-    const status = getStockStatus(product.quantity, product.available_quantity);
-    const badge = getStockBadge(status);
-    const unit = product.uom_id && product.uom_id[1] ? product.uom_id[1] : "";
-
-    return `
-        <div class="stock-card animate-slide-down flex flex-col" data-category="${product.categoryName}" style="animation-delay: ${Math.min(index * 0.02, 0.5)}s; height: 100%;">
-            <div class="flex items-start justify-between mb-4" style="min-height: 70px;">
-                <div class="flex-1 pr-2">
-                    <h3 class="text-sm font-semibold mb-1 line-clamp-2" style="color: #2a231f; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                        ${productName}
-                    </h3>
-                    <span class="category-badge">${product.categoryName}</span>
-                </div>
-                ${badge}
+    html += `
             </div>
-
-            <div class="grid ${hideIncoming ? "grid-cols-2" : "grid-cols-3"} gap-2 mt-auto pt-4" style="border-top: 1px solid #e8ddd4;">
-                <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #faf8f5; min-height: 90px;">
-                    <p class="quantity-label mb-1.5">Tồn kho</p>
-                    <p class="quantity-display mb-1">${(product.quantity || 0).toLocaleString()}</p>
-                    ${unit ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${unit}</p>` : `<div style="height: 16px;"></div>`}
-                </div>
-                <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: ${status === "low" ? "#fff8e6" : "#f5f9f5"}; min-height: 90px;">
-                    <p class="quantity-label mb-1.5">Khả dụng</p>
-                    <p class="quantity-display mb-1" style="color: ${status === "low" ? "#856404" : "#2a231f"};">${(product.available_quantity || 0).toLocaleString()}</p>
-                    ${unit ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${unit}</p>` : `<div style="height: 16px;"></div>`}
-                </div>
-                ${hideIncoming ? "" : `
-                <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #e8f4f8; min-height: 90px;">
-                    <p class="quantity-label mb-1.5">Đang đến</p>
-                    <p class="quantity-display mb-1" style="color: #0066cc;">
-                        ${(Number.isFinite(product.incoming_qty) ? product.incoming_qty : Number(product.incoming_qty) || 0).toLocaleString()}
-                    </p>
-                    <div class="flex flex-col" style="margin-top: auto;">
-                    ${product.incoming_date 
-                        ? `<p class="text-[10px] mb-1" style="color: #4b83a6;">ETA: ${new Date(product.incoming_date).toLocaleDateString('vi-VN')}</p>` 
-                        : `<div style="height: 12px;"></div>`
-                    }
-                    ${unit ? `<p class="text-xs" style="color: #8b7355;">${unit}</p>` : `<div style="height: 16px;"></div>`}
-                    </div>
-                </div>`}
-            </div>
-
-            ${lotIds ? `
-            <div class="mt-3 pt-3" style="border-top: 1px solid #f5f1ea;">
-                <p class="text-xs" style="color: #7d6d5a;">
-                    <strong>Số lô:</strong> ${lotIds}
-                </p>
-            </div>
-            ` : ""}
         </div>
     `;
-}
 
-// Setup category filter functionality
-function setupCategoryFilter(allProducts, useVirtualScroll, hideIncoming) {
+    container.innerHTML = html;
+
+    // Add event listeners for quick category filter (desktop only)
     const filterChips = document.querySelectorAll(".category-filter-chip");
     filterChips.forEach((chip) => {
         chip.addEventListener("click", () => {
@@ -1230,26 +1244,21 @@ function setupCategoryFilter(allProducts, useVirtualScroll, hideIncoming) {
             filterChips.forEach((c) => c.classList.remove("active"));
             chip.classList.add("active");
 
-            if (useVirtualScroll && virtualListInstance) {
-                // Filter and update virtual list
-                const filteredProducts = selectedCategory 
-                    ? allProducts.filter(p => p.categoryName === selectedCategory)
-                    : allProducts;
-                virtualListInstance.setItems(filteredProducts);
-            } else {
-                // Filter products - traditional DOM filtering
-                const productCards = document.querySelectorAll(
-                    "#productCardsGrid .stock-card"
-                );
-                productCards.forEach((card) => {
-                    const cardCategory = card.getAttribute("data-category");
-                    if (!selectedCategory || cardCategory === selectedCategory) {
-                        card.style.display = "";
-                    } else {
-                        card.style.display = "none";
-                    }
-                });
-            }
+            // Filter products
+            const productCards = document.querySelectorAll(
+                "#productCardsGrid .stock-card"
+            );
+            productCards.forEach((card) => {
+                const cardCategory = card.getAttribute("data-category");
+                if (
+                    !selectedCategory ||
+                    cardCategory === selectedCategory
+                ) {
+                    card.style.display = "";
+                } else {
+                    card.style.display = "none";
+                }
+            });
         });
     });
 }

@@ -127,12 +127,8 @@
 
 ### 2.4 Performance
 
-- [x] **Virtual Scrolling** ✅
-  - Vanilla JS implementation
-  - Render only visible items + buffer
-  - Auto-activates when >50 products
-  - Responsive columns (1/2/3 based on viewport)
-  - File: `src/components/VirtualList.js` (new)
+- [ ] **Virtual Scrolling** (Removed - Not necessary)
+  - Removed: Không cần thiết cho lượng dữ liệu hiện tại
 
 - [ ] **Lazy Load Tabs** (Partially Done)
   - Fetch data only when tab is clicked
@@ -198,20 +194,14 @@
 
 ### 3.4 Advanced Filtering
 
-- [ ] **Query Builder UI**
-  - Multiple conditions
-  - AND/OR logic
-  - File: `src/components/QueryBuilder.js` (new)
+- [ ] **Query Builder UI** (Removed - Not necessary)
+  - Removed: Bộ lọc cơ bản đã đủ dùng
 
-- [ ] **Save Filter Presets**
-  - Save to localStorage
-  - Quick apply saved filters
-  - File: `src/store/modules/filter.js`
+- [ ] **Save Filter Presets** (Removed)
+  - Removed: Đi kèm với Query Builder
 
-- [ ] **Filter by Quantity Range**
-  - Min/Max inputs
-  - Slider component
-  - File: `src/components/RangeFilter.js` (new)
+- [ ] **Filter by Quantity Range** (Removed)
+  - Removed: Đi kèm với Query Builder
 
 ---
 
