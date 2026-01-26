@@ -127,9 +127,11 @@
 
 ### 2.4 Performance
 
-- [ ] **Virtual Scrolling** (Future - Large Lists)
-  - Package: Vanilla implementation
-  - Render only visible items
+- [x] **Virtual Scrolling** ✅
+  - Vanilla JS implementation
+  - Render only visible items + buffer
+  - Auto-activates when >50 products
+  - Responsive columns (1/2/3 based on viewport)
   - File: `src/components/VirtualList.js` (new)
 
 - [ ] **Lazy Load Tabs** (Partially Done)

@@ -302,3 +302,31 @@
     border-color: #c9b99e;
     transform: translateY(-1px);
 }
+
+/* Virtual Scrolling Styles */
+.virtual-scroll-container {
+    min-height: 500px;
+}
+
+.virtual-list-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #c9b99e #f5f1ea;
+}
+
+.virtual-list-wrapper::-webkit-scrollbar {
+    width: 8px;
+}
+
+.virtual-list-wrapper::-webkit-scrollbar-track {
+    background: #f5f1ea;
+    border-radius: 4px;
+}
+
+.virtual-list-wrapper::-webkit-scrollbar-thumb {
+    background: #c9b99e;
+    border-radius: 4px;
+}
+
+.virtual-list-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #8b7355;
+}
