@@ -118,7 +118,7 @@ function getBaseUrl() {
     if (!config || !config.apiEndpoint) {
         return 'http://localhost:4001';
     }
-    
+
     // Extract base URL from apiEndpoint
     if (config.apiEndpoint.includes('/api/')) {
         return config.apiEndpoint.split('/api/')[0];

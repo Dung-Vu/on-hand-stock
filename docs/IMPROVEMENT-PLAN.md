@@ -11,9 +11,9 @@
 | Phase | Thời gian | Độ ưu tiên | Trạng thái |
 |-------|-----------|------------|------------|
 | Phase 1: Quick Wins | 1-2 tuần | 🔴 Cao | ✅ Hoàn thành |
-| Phase 2: Architecture | 2-4 tuần | 🟠 Trung bình | ⏳ Đang tiến hành |
-| Phase 3: Advanced Features | 4-8 tuần | 🟡 Thấp | ⬜ Chưa bắt đầu |
-| Phase 4: Production Ready | Liên tục | 🟢 Bảo trì | ⬜ Chưa bắt đầu |
+| Phase 2: Architecture | 2-4 tuần | 🟠 Trung bình | ✅ Hoàn thành |
+| Phase 3: Advanced Features | 4-8 tuần | 🟡 Thấp | ✅ Hoàn thành |
+| Phase 4: Production Ready | Liên tục | 🟢 Bảo trì | ✅ Hoàn thành |
 
 ---
 
@@ -143,44 +143,50 @@
 
 ### 3.1 Real-time Updates
 
-- [ ] **WebSocket Server**
+- [ ] **WebSocket Server** (Future - Real-time)
   - Package: `ws`
   - Port: 4002
   - File: `server/websocket.js` (new)
 
-- [ ] **WebSocket Client**
+- [ ] **WebSocket Client** (Future)
   - Auto-reconnect on disconnect
   - File: `src/services/websocket.js` (new)
 
-- [ ] **Live Stock Updates**
+- [ ] **Live Stock Updates** (Future)
   - Broadcast changes to all clients
   - Visual indicator for updated items
 
 ### 3.2 PWA Support
 
-- [ ] **Service Worker**
+- [x] **Service Worker** ✅
   - Cache static assets
-  - Offline support
+  - Offline support (network-first for API)
+  - Auto-update detection
   - File: `public/sw.js` (new)
 
-- [ ] **Web App Manifest**
+- [x] **Web App Manifest** ✅
   - App icon & name
   - Standalone display mode
+  - Shortcuts for quick actions
   - File: `public/manifest.json` (new)
 
-- [ ] **Install Prompt**
+- [x] **Install Prompt** ✅
   - "Add to Home Screen" prompt
-  - File: `src/App.js`
+  - Auto-hide after 10 seconds
+  - File: `index.html`
 
 ### 3.3 Advanced Export
 
-- [ ] **Excel Export với ExcelJS**
+- [x] **Excel Export với ExcelJS** ✅
   - Package: `exceljs`
-  - Styled headers
+  - Styled headers (brown theme)
   - Multiple sheets per warehouse
+  - Summary sheet with totals
+  - Stock status highlighting (low/out of stock)
+  - Auto-filter enabled
   - File: `src/utils/export.js` (new)
 
-- [ ] **PDF Export**
+- [ ] **PDF Export** (Future)
   - Package: `jspdf` + `jspdf-autotable`
   - Company header
   - Print-friendly layout
@@ -209,34 +215,35 @@
 
 ### 4.1 Security
 
-- [ ] **Rate Limiting**
+- [x] **Rate Limiting** ✅
   - Package: `express-rate-limit`
-  - 100 requests / 15 minutes
+  - 100 requests / 15 minutes per IP
+  - Returns retry-after headers
   - File: `server/index.js`
 
-- [ ] **Helmet Security Headers**
+- [x] **Helmet Security Headers** ✅
   - Package: `helmet`
-  - CSP, HSTS, etc.
+  - XSS protection, HSTS, etc.
   - File: `server/index.js`
 
-- [ ] **API Request Signing**
+- [ ] **API Request Signing** (Future - High Security)
   - HMAC signature
   - Verify on backend
   - Files: `server/middleware/auth.js` (new)
 
-- [ ] **Input Validation**
+- [ ] **Input Validation** (Future)
   - Package: `joi` hoặc `zod`
   - Validate query params
   - File: `server/middleware/validate.js` (new)
 
 ### 4.2 Monitoring
 
-- [ ] **Error Tracking (Sentry)**
+- [ ] **Error Tracking (Sentry)** (Future)
   - Package: `@sentry/browser`
   - Auto-capture errors
   - File: `src/utils/sentry.js` (new)
 
-- [ ] **Performance Monitoring**
+- [ ] **Performance Monitoring** (Future)
   - Track page load time
   - Track API response time
   - File: `src/utils/analytics.js` (new)
@@ -248,7 +255,7 @@
 
 ### 4.3 Testing
 
-- [ ] **Unit Tests**
+- [ ] **Unit Tests** (Future)
   - Package: `vitest`
   - Coverage: >80%
   - Files: `tests/unit/` (new folder)

@@ -27,7 +27,7 @@ export default function App() {
 
   const stockDataContainer = createElement('div', { id: 'stockData' })
   mainContent.appendChild(stockDataContainer)
-  
+
   container.appendChild(mainContent)
 
   // Function to handle tab change
@@ -50,16 +50,16 @@ export default function App() {
   // Function to update tabs
   window.updateTabs = (warehouses) => {
     const container = document.getElementById('warehouseTabsPlaceholder')
-    
+
     // Handle warehouses as object with groups or array
     let warehouseList = warehouses
     let firstWarehouse = null
-    
+
     if (warehouses && typeof warehouses === 'object' && !Array.isArray(warehouses)) {
       // It's a grouped object
       warehouseList = warehouses
       // Get first warehouse from any group
-      firstWarehouse = 
+      firstWarehouse =
         (warehouses.productGroup && warehouses.productGroup[0]) ||
         (warehouses.fabricGroup && warehouses.fabricGroup[0]) ||
         (warehouses.otherGroup && warehouses.otherGroup[0]) ||
@@ -70,7 +70,7 @@ export default function App() {
       warehouseList = warehouses
       firstWarehouse = warehouses[0]
     }
-    
+
     if (!container || !firstWarehouse) {
       if (container) container.innerHTML = ''
       return
@@ -80,11 +80,11 @@ export default function App() {
 
     // Restore last active warehouse from localStorage
     const savedWarehouse = localStorage.getItem('lastActiveWarehouse')
-    const activeWarehouse = savedWarehouse && 
-      (warehouses.all?.includes(savedWarehouse) || 
-       warehouses.productGroup?.includes(savedWarehouse) || 
+    const activeWarehouse = savedWarehouse &&
+      (warehouses.all?.includes(savedWarehouse) ||
+       warehouses.productGroup?.includes(savedWarehouse) ||
        warehouses.fabricGroup?.includes(savedWarehouse))
-      ? savedWarehouse 
+      ? savedWarehouse
       : (currentActiveWarehouse || firstWarehouse)
 
     const tabs = Tabs({
@@ -119,28 +119,28 @@ export default function App() {
         searchInput.select()
       }
     }
-    
+
     // Ctrl+R or Cmd+R: Force reload data (bypass cache)
     if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
       e.preventDefault()
       forceRefreshData()
     }
-    
+
     // Ctrl+E or Cmd+E: Export data
     if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
       e.preventDefault()
       exportData()
     }
-    
+
     // Number keys 1-6: Switch warehouses (only when not typing)
     if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key >= '1' && e.key <= '6') {
       const activeElement = document.activeElement
       const isTyping = activeElement && (
-        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'INPUT' ||
         activeElement.tagName === 'TEXTAREA' ||
         activeElement.isContentEditable
       )
-      
+
       if (!isTyping) {
         const index = parseInt(e.key) - 1
         if (WAREHOUSE_SHORTCUTS[index]) {
@@ -148,7 +148,7 @@ export default function App() {
         }
       }
     }
-    
+
     // Escape: Clear search and filters
     if (e.key === 'Escape') {
       const searchInput = document.getElementById('searchInput')

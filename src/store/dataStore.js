@@ -2,30 +2,17 @@
 // DATA STORE - State Management & Business Logic
 // ============================================
 
-import { 
-    fetchStock, 
-    fetchIncoming, 
-    clearCache, 
+import {
+    fetchStock,
+    fetchIncoming,
+    clearCache,
     getCacheStats,
     markWarehouseLoaded,
     isWarehouseLoaded,
     clearLoadedWarehouses
 } from '../services/api.js';
 import { SAMPLE_DATA } from './sampleData.js';
-
-// ============================================
-// TOAST NOTIFICATION SYSTEM
-// ============================================
-
-// Create toast container if not exists
-function getToastContainer() {
-    let container = document.getElementById("toastContainer");
-    if (!container) {
-        container = document.createElement("div");
-        container.id = "toastContainer";
-        container.style.cssText = `
-            position: fixed;
-            top: 20px;
+import { exportToExcel } from '../utils/export.js';
             right: 20px;
             z-index: 9999;
             display: flex;
@@ -41,7 +28,7 @@ function getToastContainer() {
 // Show toast notification
 export function showToast(message, type = "info", duration = 3000) {
     const container = getToastContainer();
-    
+
     const toast = document.createElement("div");
     toast.style.cssText = `
         padding: 12px 20px;
@@ -59,7 +46,7 @@ export function showToast(message, type = "info", duration = 3000) {
         gap: 8px;
         max-width: 350px;
     `;
-    
+
     // Set color based on type
     const colors = {
         success: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
@@ -68,7 +55,7 @@ export function showToast(message, type = "info", duration = 3000) {
         info: "linear-gradient(135deg, #6b5a45 0%, #8b7355 100%)"
     };
     toast.style.background = colors[type] || colors.info;
-    
+
     // Set icon based on type
     const icons = {
         success: "✅",
@@ -76,16 +63,16 @@ export function showToast(message, type = "info", duration = 3000) {
         warning: "⚠️",
         info: "ℹ️"
     };
-    
+
     toast.innerHTML = `<span>${icons[type] || icons.info}</span><span>${message}</span>`;
     container.appendChild(toast);
-    
+
     // Animate in
     requestAnimationFrame(() => {
         toast.style.transform = "translateX(0)";
         toast.style.opacity = "1";
     });
-    
+
     // Auto remove
     setTimeout(() => {
         toast.style.transform = "translateX(100%)";
@@ -563,7 +550,7 @@ function calculateStats(groupedData) {
     return { totalProducts, totalQuantity, totalWarehouses };
 }
 
-// NOTE: API functions (callOdooAPI, callFabricProductsAPI, callIncomingAPI) 
+// NOTE: API functions (callOdooAPI, callFabricProductsAPI, callIncomingAPI)
 // have been moved to src/services/api.js for better separation of concerns
 
 // Update filter options and tabs
@@ -636,7 +623,7 @@ export async function loadData(options = {}) {
     isLoading = true;
     const stockDataContainer = document.getElementById("stockData");
     const loadBtn = document.getElementById("loadDataBtn");
-    
+
     // Show loading state on button
     if (loadBtn) {
         loadBtn.disabled = true;
@@ -696,7 +683,7 @@ export async function loadData(options = {}) {
 
         updateFilterOptions(groupedData);
         applyFilters();
-        
+
         // Show success toast with cache indicator
         const totalProducts = Object.values(groupedData).reduce((acc, wh) => {
             return acc + Object.values(wh.categories || {}).reduce((catAcc, cat) => {
@@ -713,7 +700,7 @@ export async function loadData(options = {}) {
         showToast("Lỗi khi tải dữ liệu: " + error.message, "error");
     } finally {
         isLoading = false;
-        
+
         // Reset button state
         const loadBtn = document.getElementById("loadDataBtn");
         if (loadBtn) {
@@ -773,9 +760,29 @@ export function clearFilters() {
 // Export data
 export function exportData() {
     if (!currentGroupedData) {
-        alert("Vui lòng tải dữ liệu trước");
+        showToast("Vui lòng tải dữ liệu trước", "warning");
         return;
     }
+
+    // Use ExcelJS for professional Excel export
+    exportToExcel(currentGroupedData, {
+        filename: `stock_data_${new Date().toISOString().split('T')[0]}`,
+        includeStats: true,
+        includeSummary: true
+    }).then(() => {
+        showToast("Đã xuất file Excel thành công!", "success");
+    }).catch((error) => {
+        console.error("Export error:", error);
+        showToast("Lỗi khi xuất file: " + error.message, "error");
+        
+        // Fallback to CSV export
+        fallbackExportCSV();
+    });
+}
+
+// Fallback CSV export (in case ExcelJS fails)
+function fallbackExportCSV() {
+    if (!currentGroupedData) return;
 
     let csv = "Kho,Nhóm,Sản phẩm,Số lượng tồn,Số lượng khả dụng,Đang đến,Số lô\n";
 
@@ -827,6 +834,8 @@ export function exportData() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    showToast("Đã xuất file CSV (fallback)", "info");
 }
 
 // Render statistics
@@ -865,10 +874,10 @@ function createLoadingIndicator() {
 function createSkeletonCards(count = 6) {
     const container = document.createElement("div");
     container.className = "max-w-7xl mx-auto px-4 py-6";
-    
+
     const grid = document.createElement("div");
     grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
-    
+
     for (let i = 0; i < count; i++) {
         const card = document.createElement("div");
         card.className = "stock-card animate-pulse";
@@ -897,7 +906,7 @@ function createSkeletonCards(count = 6) {
         `;
         grid.appendChild(card);
     }
-    
+
     container.appendChild(grid);
     return container;
 }

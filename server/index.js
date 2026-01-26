@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import compression from "compression";
 import morgan from "morgan";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
 
 // Load environment variables
@@ -13,6 +15,28 @@ const PORT = process.env.PORT || 4001;
 // ============================================
 // MIDDLEWARE
 // ============================================
+
+// Security headers with Helmet
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable for API
+    crossOriginEmbedderPolicy: false
+}));
+
+// Rate limiting - 100 requests per 15 minutes per IP
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Max 100 requests per window
+    message: {
+        success: false,
+        error: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút',
+        retryAfter: 15 * 60
+    },
+    standardHeaders: true, // Return rate limit info in headers
+    legacyHeaders: false
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', limiter);
 
 // Response compression (gzip) - reduces payload ~70%
 app.use(compression());
@@ -30,11 +54,13 @@ app.use(
             "http://localhost:5175",
             "http://localhost:5176",
             "http://localhost:5177",
+            "http://localhost:5178",
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
             "http://127.0.0.1:5175",
             "http://127.0.0.1:5176",
             "http://127.0.0.1:5177",
+            "http://127.0.0.1:5178",
             // Cloudflare Tunnel domains
             "https://stock.bonstu.site",
             "http://stock.bonstu.site",
