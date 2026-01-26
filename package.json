@@ -1,0 +1,23 @@
+{
+  "name": "onhand-stock",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check-ports": "node check-ports.js",
+    "check-ports:ps1": "powershell -ExecutionPolicy Bypass -File check-ports.ps1",
+    "check-archived": "node check-archived-products.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "lucide-react": "^0.294.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
+    "vite": "^5.0.0"
+  }
+}

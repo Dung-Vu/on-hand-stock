@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <!-- Purple background with rounded corners -->
+  <rect width="64" height="64" rx="12" fill="#4f46e5"/>
+
+  <!-- Stylised stacked boxes icon -->
+  <!-- Bottom box -->
+  <rect x="16" y="30" width="32" height="18" rx="2" fill="#ffffff"/>
+  <path d="M32 30v18" stroke="#4f46e5" stroke-width="2"/>
+  <path d="M16 39h32" stroke="#4f46e5" stroke-width="2"/>
+
+  <!-- Top box offset -->
+  <rect x="24" y="16" width="24" height="14" rx="2" fill="#ffffff"/>
+  <path d="M36 16v14" stroke="#4f46e5" stroke-width="2"/>
+  <path d="M24 23h24" stroke="#4f46e5" stroke-width="2"/>
+</svg>
