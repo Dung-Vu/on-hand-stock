@@ -11,7 +11,7 @@
 | Phase | Thời gian | Độ ưu tiên | Trạng thái |
 |-------|-----------|------------|------------|
 | Phase 1: Quick Wins | 1-2 tuần | 🔴 Cao | ✅ Hoàn thành |
-| Phase 2: Architecture | 2-4 tuần | 🟠 Trung bình | ⬜ Chưa bắt đầu |
+| Phase 2: Architecture | 2-4 tuần | 🟠 Trung bình | ⏳ Đang tiến hành |
 | Phase 3: Advanced Features | 4-8 tuần | 🟡 Thấp | ⬜ Chưa bắt đầu |
 | Phase 4: Production Ready | Liên tục | 🟢 Bảo trì | ⬜ Chưa bắt đầu |
 
@@ -74,19 +74,20 @@
 
 ### 2.1 State Management
 
-- [ ] **Migrate to Signals**
+- [ ] **Migrate to Signals** (Optional - Low Priority)
   - Package: `@preact/signals-core`
   - Reactive state management
   - Files: 
     - `src/store/signals.js` (new)
     - `src/store/dataStore.js` (refactor)
 
-- [ ] **Create API Service Layer**
+- [x] **Create API Service Layer** ✅
   - Tách API calls ra khỏi dataStore
   - File: `src/services/api.js` (new)
-  - Methods: `fetchStock()`, `fetchIncoming()`
+  - Methods: `fetchStock()`, `fetchIncoming()`, `fetchFabricProducts()`
+  - Features: Caching, retry logic, graceful degradation
 
-- [ ] **Modular Store Architecture**
+- [ ] **Modular Store Architecture** (Optional)
   - Split store thành modules
   - Files:
     - `src/store/modules/warehouse.js`
@@ -95,41 +96,43 @@
 
 ### 2.2 Error Handling
 
-- [ ] **Retry Logic với Exponential Backoff**
+- [x] **Retry Logic với Exponential Backoff** ✅
   - Max retries: 3
-  - Delays: 1s, 2s, 4s
+  - Delays: 1s, 2s, 4s (with jitter)
   - File: `src/utils/retry.js` (new)
 
-- [ ] **Circuit Breaker Pattern**
+- [ ] **Circuit Breaker Pattern** (Optional - Future)
   - Threshold: 5 failures
   - Timeout: 60 seconds
   - File: `src/utils/circuitBreaker.js` (new)
 
-- [ ] **Graceful Degradation**
+- [x] **Graceful Degradation** ✅
   - Cache last successful data
   - Show stale data when API fails
-  - File: `src/store/dataStore.js`
+  - File: `src/services/api.js`
 
 ### 2.3 Caching
 
-- [ ] **Backend Redis Cache**
+- [ ] **Backend Redis Cache** (Optional - High Traffic)
   - Package: `redis`
   - TTL: 5 minutes
   - File: `server/index.js`
 
-- [ ] **Frontend Memory Cache**
-  - Cache per warehouse
-  - Invalidate on manual refresh
+- [x] **Frontend Memory Cache** ✅
+  - Cache per API endpoint (stock, incoming, fabric)
+  - TTL: 5 minutes
+  - Auto-invalidate on manual refresh (Ctrl+R)
+  - Graceful stale-data fallback
   - File: `src/services/api.js`
 
 ### 2.4 Performance
 
-- [ ] **Virtual Scrolling**
+- [ ] **Virtual Scrolling** (Future - Large Lists)
   - Package: Vanilla implementation
   - Render only visible items
   - File: `src/components/VirtualList.js` (new)
 
-- [ ] **Lazy Load Tabs**
+- [ ] **Lazy Load Tabs** (Partially Done)
   - Fetch data only when tab is clicked
   - Cache fetched data
   - File: `src/store/dataStore.js`

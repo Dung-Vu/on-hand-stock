@@ -1,4 +1,19 @@
 // ============================================
+// DATA STORE - State Management & Business Logic
+// ============================================
+
+import { 
+    fetchStock, 
+    fetchIncoming, 
+    clearCache, 
+    getCacheStats,
+    markWarehouseLoaded,
+    isWarehouseLoaded,
+    clearLoadedWarehouses
+} from '../services/api.js';
+import { SAMPLE_DATA } from './sampleData.js';
+
+// ============================================
 // TOAST NOTIFICATION SYSTEM
 // ============================================
 
@@ -24,7 +39,7 @@ function getToastContainer() {
 }
 
 // Show toast notification
-function showToast(message, type = "info", duration = 3000) {
+export function showToast(message, type = "info", duration = 3000) {
     const container = getToastContainer();
     
     const toast = document.createElement("div");
@@ -146,64 +161,7 @@ function sortWarehouses(warehouses) {
     };
 }
 
-// Sample data
-const SAMPLE_DATA = [
-    {
-        id: 1,
-        product_id: [1, "Product A"],
-        location_id: [157, "ORDAP/Stock"],
-        quantity: 100,
-        available_quantity: 95,
-        lot_id: [1, "LOT001"],
-        package_id: false,
-        owner_id: false,
-        product_categ_id: [1, "Category 1"],
-    },
-    {
-        id: 2,
-        product_id: [2, "Product B"],
-        location_id: [157, "ORDAP/Stock"],
-        quantity: 50,
-        available_quantity: 50,
-        lot_id: false,
-        package_id: false,
-        owner_id: false,
-        product_categ_id: [1, "Category 1"],
-    },
-    {
-        id: 3,
-        product_id: [3, "Product C"],
-        location_id: [165, "BONAP/Stock"],
-        quantity: 200,
-        available_quantity: 180,
-        lot_id: [2, "LOT002"],
-        package_id: false,
-        owner_id: false,
-        product_categ_id: [2, "Category 2"],
-    },
-    {
-        id: 4,
-        product_id: [4, "Product D"],
-        location_id: [165, "BONAP/Stock"],
-        quantity: 75,
-        available_quantity: 75,
-        lot_id: false,
-        package_id: false,
-        owner_id: false,
-        product_categ_id: [2, "Category 2"],
-    },
-    {
-        id: 5,
-        product_id: [5, "Product E"],
-        location_id: [20, "ORDHL/Stock"],
-        quantity: 30,
-        available_quantity: 30,
-        lot_id: false,
-        package_id: false,
-        owner_id: false,
-        product_categ_id: [1, "Category 1"],
-    },
-];
+// NOTE: SAMPLE_DATA moved to src/store/sampleData.js
 
 // Global state
 let currentGroupedData = null;
@@ -605,176 +563,8 @@ function calculateStats(groupedData) {
     return { totalProducts, totalQuantity, totalWarehouses };
 }
 
-// Call Backend API (which proxies to Odoo securely)
-async function callOdooAPI() {
-    // Check if using sample data
-    const config = typeof window !== "undefined" ? window.ODOO_CONFIG : null;
-
-    // If no config or useSampleData is true, use sample data
-    if (
-        !config ||
-        config.useSampleData === true ||
-        config.useSampleData === undefined
-    ) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        return SAMPLE_DATA;
-    }
-
-    try {
-        // Call backend API - credentials are handled server-side
-        const response = await fetch(config.apiEndpoint, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-                `HTTP error! status: ${response.status} - ${errorText}`
-            );
-        }
-
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.error || "API call failed");
-        }
-
-        return result.data || [];
-    } catch (error) {
-        // If it's a network error, provide helpful message
-        if (
-            error.message.includes("Failed to fetch") ||
-            error.message.includes("CORS") ||
-            error.message.includes("NetworkError")
-        ) {
-            throw new Error(
-                "Không thể kết nối đến server. Vui lòng kiểm tra backend đã chạy chưa (npm start trong folder server)."
-            );
-        }
-        throw error;
-    }
-}
-
-// Call Fabric Products API (which proxies to Odoo securely)
-async function callFabricProductsAPI() {
-    // Check if using sample data
-    const config = typeof window !== "undefined" ? window.ODOO_CONFIG : null;
-
-    // If no config or useSampleData is true, return empty array
-    if (
-        !config ||
-        config.useSampleData === true ||
-        config.useSampleData === undefined
-    ) {
-        return [];
-    }
-
-    try {
-        // Construct fabric products API URL from stock API endpoint
-        let fabricProductsUrl;
-        if (config.apiEndpoint.includes('/api/stock')) {
-            fabricProductsUrl = config.apiEndpoint.replace('/api/stock', '/api/fabric-products');
-        } else {
-            // Fallback: try to extract base URL
-            const baseUrl = config.apiEndpoint.includes('/api/')
-                ? config.apiEndpoint.split('/api/')[0]
-                : config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4001';
-            fabricProductsUrl = `${baseUrl}/api/fabric-products`;
-        }
-
-        const response = await fetch(fabricProductsUrl, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-                `HTTP error! status: ${response.status} - ${errorText}`
-            );
-        }
-
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.error || "API call failed");
-        }
-
-        const fabricProducts = result.data || [];
-        return fabricProducts;
-    } catch (error) {
-        // If it's a network error, just return empty array (fabric products is optional)
-        if (
-            error.message.includes("Failed to fetch") ||
-            error.message.includes("CORS") ||
-            error.message.includes("NetworkError")
-        ) {
-            console.warn("Could not fetch fabric products data:", error.message);
-            return [];
-        }
-        console.warn("Error fetching fabric products data:", error.message);
-        return [];
-    }
-}
-
-// Call Incoming API (which proxies to Odoo securely)
-async function callIncomingAPI() {
-    // Check if using sample data
-    const config = typeof window !== "undefined" ? window.ODOO_CONFIG : null;
-
-    // If no config or useSampleData is true, return empty array
-    if (
-        !config ||
-        config.useSampleData === true ||
-        config.useSampleData === undefined
-    ) {
-        return [];
-    }
-
-    try {
-        // Call incoming API endpoint
-        const apiUrl = config.apiEndpoint.replace('/api/stock', '/api/incoming');
-        const response = await fetch(apiUrl, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-                `HTTP error! status: ${response.status} - ${errorText}`
-            );
-        }
-
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.error || "API call failed");
-        }
-
-        const incomingData = result.data || [];
-        return incomingData;
-    } catch (error) {
-        // If it's a network error, just return empty array (incoming is optional)
-        if (
-            error.message.includes("Failed to fetch") ||
-            error.message.includes("CORS") ||
-            error.message.includes("NetworkError")
-        ) {
-            console.warn("Could not fetch incoming data:", error.message);
-            return [];
-        }
-        console.warn("Error fetching incoming data:", error.message);
-        return [];
-    }
-}
+// NOTE: API functions (callOdooAPI, callFabricProductsAPI, callIncomingAPI) 
+// have been moved to src/services/api.js for better separation of concerns
 
 // Update filter options and tabs
 export function updateFilterOptions(groupedData) {
@@ -837,8 +627,9 @@ export function refreshCategoryFilter() {
     updateFilterOptions(currentGroupedData);
 }
 
-// Load data
-export async function loadData() {
+// Load data with caching and retry support
+export async function loadData(options = {}) {
+    const { forceRefresh = false } = options;
     const config = typeof window !== "undefined" ? window.ODOO_CONFIG : null;
     if (isLoading) return;
 
@@ -861,10 +652,11 @@ export async function loadData() {
     }
 
     try {
-        // Fetch onhand and incoming data in parallel
+        // Fetch onhand and incoming data in parallel using API service
+        // API service handles caching, retry, and graceful degradation
         const [onhandData, incomingData] = await Promise.all([
-            callOdooAPI(),
-            callIncomingAPI()
+            fetchStock({ useCache: !forceRefresh, forceRefresh }),
+            fetchIncoming({ useCache: !forceRefresh, forceRefresh })
         ]);
 
         if (!onhandData || onhandData.length === 0) {
@@ -878,6 +670,10 @@ export async function loadData() {
             showToast("Không tìm thấy dữ liệu", "warning");
             return;
         }
+
+        // Check if data came from cache
+        const cacheStats = getCacheStats();
+        const fromCache = cacheStats.validEntries > 0 && !forceRefresh;
 
         // Process onhand and incoming data separately
         const processedOnhand = processOdooData(onhandData);
@@ -895,16 +691,20 @@ export async function loadData() {
 
         currentGroupedData = groupedData;
 
+        // Mark all warehouses as loaded
+        Object.keys(groupedData).forEach(wh => markWarehouseLoaded(wh));
+
         updateFilterOptions(groupedData);
         applyFilters();
         
-        // Show success toast
+        // Show success toast with cache indicator
         const totalProducts = Object.values(groupedData).reduce((acc, wh) => {
             return acc + Object.values(wh.categories || {}).reduce((catAcc, cat) => {
                 return catAcc + Object.keys(cat.products || {}).length;
             }, 0);
         }, 0);
-        showToast(`Đã tải ${totalProducts.toLocaleString()} sản phẩm`, "success");
+        const cacheIndicator = fromCache ? " (từ cache)" : "";
+        showToast(`Đã tải ${totalProducts.toLocaleString()} sản phẩm${cacheIndicator}`, "success");
     } catch (error) {
         if (stockDataContainer) {
             stockDataContainer.innerHTML = "";
@@ -923,6 +723,13 @@ export async function loadData() {
             loadBtn.style.cursor = "pointer";
         }
     }
+}
+
+// Force refresh data (clear cache and reload)
+export async function forceRefreshData() {
+    clearCache();
+    clearLoadedWarehouses();
+    await loadData({ forceRefresh: true });
 }
 
 // Apply filters
@@ -1419,3 +1226,6 @@ window.toggleCategory = toggleCategory;
 
 // Listen for filter change events
 document.addEventListener("filterChange", applyFilters);
+
+// Export cache management functions from API service
+export { clearCache, getCacheStats } from '../services/api.js';

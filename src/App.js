@@ -1,7 +1,7 @@
 import { createElement } from './utils/dom.js'
 import Header from './components/Header.js'
 import Tabs from './components/Tabs.js'
-import { loadData, applyFilters, clearFilters, exportData, refreshCategoryFilter } from './store/dataStore.js'
+import { loadData, applyFilters, clearFilters, exportData, refreshCategoryFilter, forceRefreshData, clearCache } from './store/dataStore.js'
 
 let currentActiveWarehouse = null
 
@@ -120,10 +120,10 @@ export default function App() {
       }
     }
     
-    // Ctrl+R or Cmd+R: Reload data (prevent browser refresh)
+    // Ctrl+R or Cmd+R: Force reload data (bypass cache)
     if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
       e.preventDefault()
-      loadData()
+      forceRefreshData()
     }
     
     // Ctrl+E or Cmd+E: Export data
