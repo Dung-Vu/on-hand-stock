@@ -647,7 +647,7 @@ export async function exportToPDF(groupedData, options = {}) {
         const pdfHeight = 210; // A4 landscape height in mm
         const margin = 10;
         const contentWidth = pdfWidth - (margin * 2);
-        
+
         // Scale factor
         const scale = contentWidth / (imgWidth / 2); // /2 because we used scale: 2
         const scaledHeight = (imgHeight / 2) * scale;
@@ -676,7 +676,7 @@ export async function exportToPDF(groupedData, options = {}) {
             pageCanvas.width = imgWidth;
             pageCanvas.height = sourceHeight;
             const ctx = pageCanvas.getContext('2d');
-            
+
             ctx.drawImage(
                 canvas,
                 0, sourceY, imgWidth, sourceHeight,

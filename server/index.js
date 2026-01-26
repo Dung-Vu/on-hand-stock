@@ -5,6 +5,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
+import { sanitizeRequest } from "./middleware/validate.js";
 
 // Load environment variables
 config();
@@ -69,6 +70,9 @@ app.use(
     })
 );
 app.use(express.json());
+
+// Input sanitization - remove XSS vectors
+app.use(sanitizeRequest);
 
 // Odoo API Configuration from environment
 const ODOO_CONFIG = {

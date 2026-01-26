@@ -186,10 +186,12 @@
   - Auto-filter enabled
   - File: `src/utils/export.js` (new)
 
-- [ ] **PDF Export** (Future)
-  - Package: `jspdf` + `jspdf-autotable`
-  - Company header
-  - Print-friendly layout
+- [x] **PDF Export** ✅
+  - Package: `jspdf` + `html2canvas`
+  - Full Vietnamese Unicode support
+  - Company header with Bonario branding
+  - Print-friendly landscape layout
+  - Auto-pagination
   - File: `src/utils/export.js`
 
 ### 3.4 Advanced Filtering
@@ -231,9 +233,10 @@
   - Verify on backend
   - Files: `server/middleware/auth.js` (new)
 
-- [ ] **Input Validation** (Future)
-  - Package: `joi` hoặc `zod`
-  - Validate query params
+- [x] **Input Validation** ✅
+  - Package: `zod`
+  - Request sanitization middleware
+  - XSS protection
   - File: `server/middleware/validate.js` (new)
 
 ### 4.2 Monitoring
@@ -248,9 +251,10 @@
   - Track API response time
   - File: `src/utils/analytics.js` (new)
 
-- [ ] **Health Check Endpoint**
-  - Status: ✅ Already exists
-  - Add: uptime, memory usage
+- [x] **Health Check Endpoint** ✅
+  - Status: Enhanced
+  - Added: uptime, memory usage (heapUsed, heapTotal, rss)
+  - Added: Node version, platform info
   - File: `server/index.js`
 
 ### 4.3 Testing
@@ -271,20 +275,25 @@
 
 ### 4.4 DevOps
 
-- [ ] **Docker Setup**
-  - Dockerfile for frontend
-  - Dockerfile for backend
-  - docker-compose.yml
+- [x] **Docker Setup** ✅
+  - Multi-stage Dockerfile for frontend (Vite build + Nginx)
+  - Dockerfile for backend (Node.js Express)
+  - docker-compose.yml with health checks
+  - nginx.conf with caching & security headers
+  - .dockerignore for optimized builds
 
-- [ ] **CI/CD Pipeline**
-  - GitHub Actions
-  - Auto-deploy on merge
-  - File: `.github/workflows/deploy.yml`
+- [x] **CI/CD Pipeline** ✅
+  - GitHub Actions workflow
+  - Lint → Build → Docker → Deploy stages
+  - Auto-deploy on merge to main
+  - Docker image build & push
+  - File: `.github/workflows/ci-cd.yml`
 
-- [ ] **Environment Management**
-  - Staging environment
-  - Production environment
-  - Config per environment
+- [x] **Environment Management** ✅
+  - .env.example - Template with documentation
+  - .env.staging - Staging configuration
+  - .env.production - Production configuration
+  - Files: `server/.env.*`
 
 ---
 
