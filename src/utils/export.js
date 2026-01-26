@@ -505,17 +505,17 @@ export async function exportToPDF(groupedData, options = {}) {
         const warningColor = [255, 193, 7];    // #ffc107
         const successColor = [40, 167, 69];    // #28a745
 
-        // Title
+        // Title (avoid Vietnamese with diacritics in header for font compatibility)
         doc.setFontSize(18);
         doc.setTextColor(...primaryColor);
-        doc.text(title, pageWidth / 2, 15, { align: 'center' });
+        doc.text('BAO CAO TON KHO - BONARIO', pageWidth / 2, 15, { align: 'center' });
 
         // Subtitle with date
         doc.setFontSize(10);
         doc.setTextColor(...secondaryColor);
         const now = new Date();
         doc.text(
-            `Xuất ngày: ${now.toLocaleDateString('vi-VN')} ${now.toLocaleTimeString('vi-VN')}`,
+            `Xuat ngay: ${now.toLocaleDateString('vi-VN')} ${now.toLocaleTimeString('vi-VN')}`,
             pageWidth / 2, 22, { align: 'center' }
         );
 
@@ -546,10 +546,10 @@ export async function exportToPDF(groupedData, options = {}) {
             }
 
             // Warehouse header
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setTextColor(...primaryColor);
-            doc.text(`📦 ${warehouseName}`, margin, yPosition);
-            yPosition += 8;
+            doc.text(warehouseName, margin, yPosition);
+            yPosition += 6;
 
             // Prepare table data
             const tableData = [];
@@ -575,6 +575,11 @@ export async function exportToPDF(groupedData, options = {}) {
                     if (qty <= 0) outOfStockCount++;
                     else if (available < qty * 0.2) lowStockCount++;
 
+                    // Status text without emoji
+                    let status = 'OK';
+                    if (qty <= 0) status = 'Het';
+                    else if (available < qty * 0.2) status = 'Thap';
+
                     tableData.push([
                         category,
                         product.product_name || product.name || 'N/A',
@@ -582,22 +587,22 @@ export async function exportToPDF(groupedData, options = {}) {
                         formatNumber(qty),
                         formatNumber(available),
                         formatNumber(incoming),
-                        qty <= 0 ? '⚠️ Hết' : available < qty * 0.2 ? '⚡ Thấp' : '✓ OK'
+                        status
                     ]);
                 });
             });
 
-            // Create table
+            // Create table - auto width for landscape A4
             autoTable(doc, {
                 startY: yPosition,
                 head: [[
-                    'Danh mục',
-                    'Tên sản phẩm',
-                    'Mã SP',
-                    'Tồn kho',
-                    'Có thể bán',
-                    'Đang về',
-                    'Trạng thái'
+                    'Danh muc',
+                    'Ten san pham',
+                    'Ma SP',
+                    'Ton kho',
+                    'Co the ban',
+                    'Dang ve',
+                    'Trang thai'
                 ]],
                 body: tableData,
                 margin: { left: margin, right: margin },
@@ -611,7 +616,7 @@ export async function exportToPDF(groupedData, options = {}) {
                 headStyles: {
                     fillColor: primaryColor,
                     textColor: [255, 255, 255],
-                    fontSize: 9,
+                    fontSize: 8,
                     fontStyle: 'bold',
                     halign: 'center'
                 },
@@ -619,30 +624,31 @@ export async function exportToPDF(groupedData, options = {}) {
                     fillColor: lightBg
                 },
                 columnStyles: {
-                    0: { cellWidth: 30 },  // Danh mục
-                    1: { cellWidth: 60 },  // Tên SP
-                    2: { cellWidth: 25 },  // Mã SP
-                    3: { cellWidth: 20, halign: 'right' },  // Tồn kho
-                    4: { cellWidth: 20, halign: 'right' },  // Có thể bán
-                    5: { cellWidth: 20, halign: 'right' },  // Đang về
-                    6: { cellWidth: 20, halign: 'center' }  // Trạng thái
+                    0: { cellWidth: 35 },   // Danh muc
+                    1: { cellWidth: 'auto' }, // Ten SP - auto expand
+                    2: { cellWidth: 30 },   // Ma SP
+                    3: { cellWidth: 22, halign: 'right' },  // Ton kho
+                    4: { cellWidth: 22, halign: 'right' },  // Co the ban
+                    5: { cellWidth: 22, halign: 'right' },  // Dang ve
+                    6: { cellWidth: 22, halign: 'center' }  // Trang thai
                 },
+                tableWidth: 'auto',
                 didParseCell: function(data) {
                     // Color coding for status column
                     if (data.column.index === 6 && data.section === 'body') {
                         const status = data.cell.raw;
-                        if (status.includes('Hết')) {
+                        if (status === 'Het') {
                             data.cell.styles.textColor = dangerColor;
                             data.cell.styles.fontStyle = 'bold';
-                        } else if (status.includes('Thấp')) {
+                        } else if (status === 'Thap') {
                             data.cell.styles.textColor = [133, 100, 4];
-                        } else if (status.includes('OK')) {
+                        } else if (status === 'OK') {
                             data.cell.styles.textColor = successColor;
                         }
                     }
                     // Color coding for quantity cells
                     if (data.column.index === 3 && data.section === 'body') {
-                        const qty = parseInt(data.cell.raw.replace(/[,\.]/g, '')) || 0;
+                        const qty = parseInt(String(data.cell.raw).replace(/[,\.]/g, '')) || 0;
                         if (qty <= 0) {
                             data.cell.styles.textColor = dangerColor;
                             data.cell.styles.fontStyle = 'bold';
@@ -664,16 +670,16 @@ export async function exportToPDF(groupedData, options = {}) {
 
             doc.setFontSize(12);
             doc.setTextColor(...primaryColor);
-            doc.text('📊 TỔNG KẾT', margin, yPosition);
+            doc.text('TONG KET', margin, yPosition);
             yPosition += 8;
 
             const summaryData = [
-                ['Tổng số sản phẩm', formatNumber(totalProducts)],
-                ['Tổng tồn kho', formatNumber(totalQuantity)],
-                ['Tổng có thể bán', formatNumber(totalAvailable)],
-                ['Tổng đang về', formatNumber(totalIncoming)],
-                ['Sản phẩm hết hàng', formatNumber(outOfStockCount)],
-                ['Sản phẩm tồn thấp', formatNumber(lowStockCount)]
+                ['Tong so san pham', formatNumber(totalProducts)],
+                ['Tong ton kho', formatNumber(totalQuantity)],
+                ['Tong co the ban', formatNumber(totalAvailable)],
+                ['Tong dang ve', formatNumber(totalIncoming)],
+                ['San pham het hang', formatNumber(outOfStockCount)],
+                ['San pham ton thap', formatNumber(lowStockCount)]
             ];
 
             autoTable(doc, {
@@ -685,8 +691,8 @@ export async function exportToPDF(groupedData, options = {}) {
                     cellPadding: 3
                 },
                 columnStyles: {
-                    0: { fontStyle: 'bold', cellWidth: 50 },
-                    1: { halign: 'right', cellWidth: 30 }
+                    0: { fontStyle: 'bold', cellWidth: 60 },
+                    1: { halign: 'right', cellWidth: 40 }
                 },
                 theme: 'plain'
             });
