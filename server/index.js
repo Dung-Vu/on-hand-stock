@@ -529,7 +529,7 @@ const serverStartTime = Date.now();
 app.get("/api/health", (req, res) => {
     const memoryUsage = process.memoryUsage();
     const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
-    
+
     // Format uptime
     const days = Math.floor(uptimeSeconds / 86400);
     const hours = Math.floor((uptimeSeconds % 86400) / 3600);

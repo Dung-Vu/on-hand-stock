@@ -464,69 +464,31 @@ export async function quickExportToExcel(groupedData) {
 
 // ============================================
 // PDF EXPORT UTILITIES
-// Using jsPDF for professional PDF exports
+// Using html2canvas + jsPDF for Vietnamese support
 // ============================================
 
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 /**
- * Export stock data to PDF
+ * Export stock data to PDF with full Vietnamese support
  * @param {Object} groupedData - Stock data grouped by warehouse
  * @param {Object} options - Export options
  */
 export async function exportToPDF(groupedData, options = {}) {
     const {
         filename = `stock_report_${new Date().toISOString().split('T')[0]}`,
-        title = 'BÁO CÁO TỒN KHO - BONARIO',
         warehouseFilter = null,
-        includeStats = true,
-        includeSummary = true,
-        orientation = 'landscape'
+        includeSummary = true
     } = options;
 
     try {
-        // Create PDF document
-        const doc = new jsPDF({
-            orientation,
-            unit: 'mm',
-            format: 'a4'
-        });
-
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 10;
-
-        // Colors matching Bonario theme
-        const primaryColor = [107, 90, 69];    // #6B5A45
-        const secondaryColor = [93, 80, 68];   // #5D5044
-        const lightBg = [245, 240, 235];       // #F5F0EB
-        const dangerColor = [220, 53, 69];     // #dc3545
-        const warningColor = [255, 193, 7];    // #ffc107
-        const successColor = [40, 167, 69];    // #28a745
-
-        // Title (avoid Vietnamese with diacritics in header for font compatibility)
-        doc.setFontSize(18);
-        doc.setTextColor(...primaryColor);
-        doc.text('BAO CAO TON KHO - BONARIO', pageWidth / 2, 15, { align: 'center' });
-
-        // Subtitle with date
-        doc.setFontSize(10);
-        doc.setTextColor(...secondaryColor);
-        const now = new Date();
-        doc.text(
-            `Xuat ngay: ${now.toLocaleDateString('vi-VN')} ${now.toLocaleTimeString('vi-VN')}`,
-            pageWidth / 2, 22, { align: 'center' }
-        );
-
-        let yPosition = 30;
-
         // Collect warehouses and data
-        const warehouses = warehouseFilter 
-            ? [warehouseFilter] 
+        const warehouses = warehouseFilter
+            ? [warehouseFilter]
             : Object.keys(groupedData).filter(w => w !== 'Tất cả kho');
 
-        // Calculate totals for summary
+        // Calculate totals
         let totalProducts = 0;
         let totalQuantity = 0;
         let totalAvailable = 0;
@@ -534,34 +496,61 @@ export async function exportToPDF(groupedData, options = {}) {
         let outOfStockCount = 0;
         let lowStockCount = 0;
 
+        // Create hidden container for HTML rendering
+        const container = document.createElement('div');
+        container.style.cssText = `
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1100px;
+            background: white;
+            font-family: 'Inter', Arial, sans-serif;
+            padding: 20px;
+        `;
+        document.body.appendChild(container);
+
+        // Build HTML content
+        let htmlContent = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="color: #6b5a45; font-size: 24px; margin: 0;">BÁO CÁO TỒN KHO - BONARIO</h1>
+                <p style="color: #5d5044; font-size: 12px; margin: 5px 0;">
+                    Xuất ngày: ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}
+                </p>
+            </div>
+        `;
+
         // Process each warehouse
-        warehouses.forEach((warehouseName, warehouseIndex) => {
+        warehouses.forEach(warehouseName => {
             const warehouseData = groupedData[warehouseName];
             if (!warehouseData) return;
 
-            // Check if we need a new page
-            if (warehouseIndex > 0 && yPosition > pageHeight - 60) {
-                doc.addPage();
-                yPosition = 15;
-            }
+            htmlContent += `
+                <div style="margin-bottom: 20px;">
+                    <h2 style="color: #6b5a45; font-size: 16px; margin: 10px 0; padding: 8px; background: #f5f0eb; border-radius: 4px;">
+                        📦 ${warehouseName}
+                    </h2>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                        <thead>
+                            <tr style="background: #6b5a45; color: white;">
+                                <th style="padding: 8px; text-align: left; border: 1px solid #5d5044;">Danh mục</th>
+                                <th style="padding: 8px; text-align: left; border: 1px solid #5d5044;">Tên sản phẩm</th>
+                                <th style="padding: 8px; text-align: left; border: 1px solid #5d5044;">Mã SP</th>
+                                <th style="padding: 8px; text-align: right; border: 1px solid #5d5044;">Tồn kho</th>
+                                <th style="padding: 8px; text-align: right; border: 1px solid #5d5044;">Có thể bán</th>
+                                <th style="padding: 8px; text-align: right; border: 1px solid #5d5044;">Đang về</th>
+                                <th style="padding: 8px; text-align: center; border: 1px solid #5d5044;">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
 
-            // Warehouse header
-            doc.setFontSize(12);
-            doc.setTextColor(...primaryColor);
-            doc.text(warehouseName, margin, yPosition);
-            yPosition += 6;
-
-            // Prepare table data
-            const tableData = [];
-            
-            // Handle nested structure: warehouseData.categories.categoryName.products
             const categories = warehouseData.categories || warehouseData;
-            
+            let rowIndex = 0;
+
             Object.entries(categories).forEach(([category, categoryData]) => {
-                // Products can be in categoryData.products (object) or categoryData directly (array)
                 const products = categoryData.products || categoryData;
                 const productList = Array.isArray(products) ? products : Object.values(products);
-                
+
                 productList.forEach(product => {
                     const qty = product.quantity || 0;
                     const available = product.available_quantity || 0;
@@ -575,144 +564,142 @@ export async function exportToPDF(groupedData, options = {}) {
                     if (qty <= 0) outOfStockCount++;
                     else if (available < qty * 0.2) lowStockCount++;
 
-                    // Status text without emoji
-                    let status = 'OK';
-                    if (qty <= 0) status = 'Het';
-                    else if (available < qty * 0.2) status = 'Thap';
+                    // Status
+                    let status = '✓ OK';
+                    let statusColor = '#28a745';
+                    if (qty <= 0) {
+                        status = '⚠ Hết';
+                        statusColor = '#dc3545';
+                    } else if (available < qty * 0.2) {
+                        status = '⚡ Thấp';
+                        statusColor = '#856404';
+                    }
 
-                    tableData.push([
-                        category,
-                        product.product_name || product.name || 'N/A',
-                        product.default_code || '',
-                        formatNumber(qty),
-                        formatNumber(available),
-                        formatNumber(incoming),
-                        status
-                    ]);
+                    const bgColor = rowIndex % 2 === 0 ? '#ffffff' : '#f5f0eb';
+                    const qtyColor = qty <= 0 ? '#dc3545' : '#2a231f';
+
+                    htmlContent += `
+                        <tr style="background: ${bgColor};">
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4;">${category}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4;">${product.product_name || product.name || 'N/A'}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4;">${product.default_code || ''}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4; text-align: right; color: ${qtyColor}; font-weight: ${qty <= 0 ? 'bold' : 'normal'};">${formatNumber(qty)}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4; text-align: right;">${formatNumber(available)}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4; text-align: right;">${formatNumber(incoming)}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #e8ddd4; text-align: center; color: ${statusColor}; font-weight: bold;">${status}</td>
+                        </tr>
+                    `;
+                    rowIndex++;
                 });
             });
 
-            // Create table - auto width for landscape A4
-            autoTable(doc, {
-                startY: yPosition,
-                head: [[
-                    'Danh muc',
-                    'Ten san pham',
-                    'Ma SP',
-                    'Ton kho',
-                    'Co the ban',
-                    'Dang ve',
-                    'Trang thai'
-                ]],
-                body: tableData,
-                margin: { left: margin, right: margin },
-                styles: {
-                    fontSize: 8,
-                    cellPadding: 2,
-                    overflow: 'linebreak',
-                    lineColor: [232, 221, 212],
-                    lineWidth: 0.1
-                },
-                headStyles: {
-                    fillColor: primaryColor,
-                    textColor: [255, 255, 255],
-                    fontSize: 8,
-                    fontStyle: 'bold',
-                    halign: 'center'
-                },
-                alternateRowStyles: {
-                    fillColor: lightBg
-                },
-                columnStyles: {
-                    0: { cellWidth: 35 },   // Danh muc
-                    1: { cellWidth: 'auto' }, // Ten SP - auto expand
-                    2: { cellWidth: 30 },   // Ma SP
-                    3: { cellWidth: 22, halign: 'right' },  // Ton kho
-                    4: { cellWidth: 22, halign: 'right' },  // Co the ban
-                    5: { cellWidth: 22, halign: 'right' },  // Dang ve
-                    6: { cellWidth: 22, halign: 'center' }  // Trang thai
-                },
-                tableWidth: 'auto',
-                didParseCell: function(data) {
-                    // Color coding for status column
-                    if (data.column.index === 6 && data.section === 'body') {
-                        const status = data.cell.raw;
-                        if (status === 'Het') {
-                            data.cell.styles.textColor = dangerColor;
-                            data.cell.styles.fontStyle = 'bold';
-                        } else if (status === 'Thap') {
-                            data.cell.styles.textColor = [133, 100, 4];
-                        } else if (status === 'OK') {
-                            data.cell.styles.textColor = successColor;
-                        }
-                    }
-                    // Color coding for quantity cells
-                    if (data.column.index === 3 && data.section === 'body') {
-                        const qty = parseInt(String(data.cell.raw).replace(/[,\.]/g, '')) || 0;
-                        if (qty <= 0) {
-                            data.cell.styles.textColor = dangerColor;
-                            data.cell.styles.fontStyle = 'bold';
-                        }
-                    }
-                }
-            });
-
-            yPosition = (doc.lastAutoTable?.finalY || yPosition) + 10;
+            htmlContent += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
         });
 
         // Summary section
         if (includeSummary && !warehouseFilter) {
-            // Check if we need a new page for summary
-            if (yPosition > pageHeight - 50) {
-                doc.addPage();
-                yPosition = 15;
-            }
-
-            doc.setFontSize(12);
-            doc.setTextColor(...primaryColor);
-            doc.text('TONG KET', margin, yPosition);
-            yPosition += 8;
-
-            const summaryData = [
-                ['Tong so san pham', formatNumber(totalProducts)],
-                ['Tong ton kho', formatNumber(totalQuantity)],
-                ['Tong co the ban', formatNumber(totalAvailable)],
-                ['Tong dang ve', formatNumber(totalIncoming)],
-                ['San pham het hang', formatNumber(outOfStockCount)],
-                ['San pham ton thap', formatNumber(lowStockCount)]
-            ];
-
-            autoTable(doc, {
-                startY: yPosition,
-                body: summaryData,
-                margin: { left: margin },
-                styles: {
-                    fontSize: 10,
-                    cellPadding: 3
-                },
-                columnStyles: {
-                    0: { fontStyle: 'bold', cellWidth: 60 },
-                    1: { halign: 'right', cellWidth: 40 }
-                },
-                theme: 'plain'
-            });
+            htmlContent += `
+                <div style="margin-top: 20px; padding: 15px; background: #f5f0eb; border-radius: 8px;">
+                    <h3 style="color: #6b5a45; margin: 0 0 10px 0;">📊 TỔNG KẾT</h3>
+                    <table style="font-size: 12px;">
+                        <tr><td style="padding: 4px 20px 4px 0; font-weight: bold;">Tổng số sản phẩm:</td><td>${formatNumber(totalProducts)}</td></tr>
+                        <tr><td style="padding: 4px 20px 4px 0; font-weight: bold;">Tổng tồn kho:</td><td>${formatNumber(totalQuantity)}</td></tr>
+                        <tr><td style="padding: 4px 20px 4px 0; font-weight: bold;">Tổng có thể bán:</td><td>${formatNumber(totalAvailable)}</td></tr>
+                        <tr><td style="padding: 4px 20px 4px 0; font-weight: bold;">Tổng đang về:</td><td>${formatNumber(totalIncoming)}</td></tr>
+                        <tr><td style="padding: 4px 20px 4px 0; font-weight: bold; color: #dc3545;">Sản phẩm hết hàng:</td><td style="color: #dc3545;">${formatNumber(outOfStockCount)}</td></tr>
+                        <tr><td style="padding: 4px 20px 4px 0; font-weight: bold; color: #856404;">Sản phẩm tồn thấp:</td><td style="color: #856404;">${formatNumber(lowStockCount)}</td></tr>
+                    </table>
+                </div>
+            `;
         }
 
-        // Footer on each page
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
+        // Footer
+        htmlContent += `
+            <div style="text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #e8ddd4; color: #999; font-size: 10px;">
+                Bonario Stock Management System
+            </div>
+        `;
+
+        container.innerHTML = htmlContent;
+
+        // Convert to canvas
+        const canvas = await html2canvas(container, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+
+        // Remove temp container
+        document.body.removeChild(container);
+
+        // Create PDF
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+
+        // Calculate PDF dimensions (A4 landscape)
+        const pdfWidth = 297; // A4 landscape width in mm
+        const pdfHeight = 210; // A4 landscape height in mm
+        const margin = 10;
+        const contentWidth = pdfWidth - (margin * 2);
+        
+        // Scale factor
+        const scale = contentWidth / (imgWidth / 2); // /2 because we used scale: 2
+        const scaledHeight = (imgHeight / 2) * scale;
+
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Calculate pages needed
+        const pageContentHeight = pdfHeight - (margin * 2);
+        const totalPages = Math.ceil(scaledHeight / pageContentHeight);
+
+        for (let page = 0; page < totalPages; page++) {
+            if (page > 0) {
+                doc.addPage();
+            }
+
+            // Calculate source coordinates
+            const sourceY = (page * pageContentHeight / scale) * 2; // *2 because of scale
+            const sourceHeight = Math.min((pageContentHeight / scale) * 2, imgHeight - sourceY);
+
+            // Create temporary canvas for this page
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = imgWidth;
+            pageCanvas.height = sourceHeight;
+            const ctx = pageCanvas.getContext('2d');
+            
+            ctx.drawImage(
+                canvas,
+                0, sourceY, imgWidth, sourceHeight,
+                0, 0, imgWidth, sourceHeight
+            );
+
+            const pageImgData = pageCanvas.toDataURL('image/png');
+            const pageScaledHeight = (sourceHeight / 2) * scale;
+
+            doc.addImage(pageImgData, 'PNG', margin, margin, contentWidth, pageScaledHeight);
+
+            // Page number
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
             doc.text(
-                `Trang ${i}/${pageCount} - Bonario Stock Management`,
-                pageWidth / 2,
-                pageHeight - 5,
+                `Trang ${page + 1}/${totalPages}`,
+                pdfWidth / 2,
+                pdfHeight - 5,
                 { align: 'center' }
             );
         }
 
-        // Save the PDF
+        // Save PDF
         doc.save(`${filename}.pdf`);
 
         return { success: true, filename: `${filename}.pdf` };
@@ -732,27 +719,21 @@ function formatNumber(num) {
 
 /**
  * Export current warehouse only to PDF
- * @param {Object} groupedData
- * @param {string} warehouseName
  */
 export async function exportWarehouseToPDF(groupedData, warehouseName) {
     return exportToPDF(groupedData, {
         filename: `stock_${warehouseName.replace(/\//g, '_')}_${new Date().toISOString().split('T')[0]}`,
         warehouseFilter: warehouseName,
-        includeSummary: false,
-        title: `BÁO CÁO TỒN KHO - ${warehouseName.toUpperCase()}`
+        includeSummary: false
     });
 }
 
 /**
  * Quick PDF export - compact version
- * @param {Object} groupedData
  */
 export async function quickExportToPDF(groupedData) {
     return exportToPDF(groupedData, {
-        includeStats: false,
-        includeSummary: false,
-        orientation: 'portrait'
+        includeSummary: false
     });
 }
 

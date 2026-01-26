@@ -89,17 +89,17 @@ export default function Controls({ onLoad, onExport, onExportPDF, onClear }) {
     const event = new CustomEvent('filterChange')
     document.dispatchEvent(event)
   })
-  
+
   warehouseFilter.addEventListener('change', () => {
     const event = new CustomEvent('filterChange')
     document.dispatchEvent(event)
   })
-  
+
   categoryFilter.addEventListener('change', () => {
     const event = new CustomEvent('filterChange')
     document.dispatchEvent(event)
   })
-  
+
   clearBtn.addEventListener('click', () => {
     searchInput.value = ''
     warehouseFilter.value = ''
