@@ -179,19 +179,6 @@ export default function Header({ onLoad, onExport, onExportPDF }) {
     filtersContent.appendChild(clearBtn);
     filtersSection.appendChild(filtersContent);
 
-    // Query Builder section (advanced filtering)
-    const queryBuilderSection = createElement("div", {
-        id: "queryBuilderContainer",
-        class: "px-4 py-2",
-    });
-    queryBuilderSection.style.backgroundColor = "#ffffff";
-    queryBuilderSection.style.borderBottom = "1px solid #e8ddd4";
-    queryBuilderSection.innerHTML = `
-        <div class="max-w-3xl mx-auto">
-            <!-- Query Builder will be initialized here by dataStore.js -->
-        </div>
-    `;
-
     // Warehouse tabs section
     const warehouseTabsSection = createElement("div", {
         id: "warehouseTabsPlaceholder",
@@ -203,7 +190,6 @@ export default function Header({ onLoad, onExport, onExportPDF }) {
     header.appendChild(topBar);
     header.appendChild(searchSection);
     header.appendChild(filtersSection);
-    header.appendChild(queryBuilderSection);
     header.appendChild(warehouseTabsSection);
 
     // Debounce helper function

@@ -67,7 +67,7 @@ async function sha256(message) {
 async function hmacSha256(message, secret) {
     const keyData = stringToArrayBuffer(secret);
     const msgData = stringToArrayBuffer(message);
-    
+
     // Import the secret as a CryptoKey
     const key = await crypto.subtle.importKey(
         'raw',
@@ -76,7 +76,7 @@ async function hmacSha256(message, secret) {
         false,
         ['sign']
     );
-    
+
     // Sign the message
     const signature = await crypto.subtle.sign('HMAC', key, msgData);
     return arrayBufferToHex(signature);
@@ -97,12 +97,12 @@ async function hmacSha256(message, secret) {
  */
 async function createSigningPayload({ timestamp, method, path, body }) {
     let bodyPart = '';
-    
+
     if (body && Object.keys(body).length > 0) {
         const bodyStr = JSON.stringify(body);
         bodyPart = await sha256(bodyStr);
     }
-    
+
     return `${timestamp}:${method.toUpperCase()}:${path}:${bodyPart}`;
 }
 
@@ -117,7 +117,7 @@ async function createSigningPayload({ timestamp, method, path, body }) {
 export async function signRequest({ method, url, body = null }) {
     const secret = getApiSecret();
     const timestamp = Date.now();
-    
+
     // Extract path from URL (remove origin)
     let path;
     try {
@@ -127,11 +127,11 @@ export async function signRequest({ method, url, body = null }) {
         // If URL parsing fails, use as-is
         path = url;
     }
-    
+
     // Create payload and sign
     const payload = await createSigningPayload({ timestamp, method, path, body });
     const signature = await hmacSha256(payload, secret);
-    
+
     return {
         'X-Timestamp': timestamp.toString(),
         'X-Signature': signature
@@ -147,16 +147,16 @@ export async function signRequest({ method, url, body = null }) {
 export async function signedFetch(url, options = {}) {
     const method = options.method || 'GET';
     const body = options.body ? JSON.parse(options.body) : null;
-    
+
     // Generate signature headers
     const signatureHeaders = await signRequest({ method, url, body });
-    
+
     // Merge with existing headers
     const headers = {
         ...options.headers,
         ...signatureHeaders
     };
-    
+
     return fetch(url, {
         ...options,
         headers
@@ -168,7 +168,7 @@ export async function signedFetch(url, options = {}) {
  * @returns {boolean}
  */
 export function isHmacSupported() {
-    return typeof crypto !== 'undefined' && 
+    return typeof crypto !== 'undefined' &&
            typeof crypto.subtle !== 'undefined' &&
            typeof crypto.subtle.importKey === 'function';
 }

@@ -157,7 +157,7 @@ async function signedFetch(url, options = {}) {
     const method = options.method || 'GET';
     const startTime = performance.now();
     let body = null;
-    
+
     // Parse body if present
     if (options.body) {
         try {
@@ -166,7 +166,7 @@ async function signedFetch(url, options = {}) {
             body = null;
         }
     }
-    
+
     // Get signature headers if HMAC is supported
     let signatureHeaders = {};
     if (isHmacSupported()) {
@@ -176,26 +176,26 @@ async function signedFetch(url, options = {}) {
             console.warn('[API] Failed to sign request:', err.message);
         }
     }
-    
+
     // Merge headers
     const headers = {
         ...options.headers,
         ...signatureHeaders
     };
-    
+
     const response = await fetch(url, {
         ...options,
         headers
     });
-    
+
     const endTime = performance.now();
-    
+
     // Add breadcrumb for Sentry tracking
     addApiCallBreadcrumb(method, url, response.status);
-    
+
     // Track API response time
     trackApiResponse(url, method, startTime, endTime, response.status);
-    
+
     return response;
 }
 

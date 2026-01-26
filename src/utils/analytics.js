@@ -50,7 +50,7 @@ function trackLCP() {
         const observer = new PerformanceObserver((list) => {
             const entries = list.getEntries();
             const lastEntry = entries[entries.length - 1];
-            
+
             metrics.webVitals.lcp = {
                 value: lastEntry.startTime,
                 element: lastEntry.element?.tagName || 'unknown',
@@ -78,7 +78,7 @@ function trackFID() {
         const observer = new PerformanceObserver((list) => {
             const entries = list.getEntries();
             const firstEntry = entries[0];
-            
+
             metrics.webVitals.fid = {
                 value: firstEntry.processingStart - firstEntry.startTime,
                 eventType: firstEntry.name,
@@ -141,7 +141,7 @@ function trackTTFB() {
         const observer = new PerformanceObserver((list) => {
             const entries = list.getEntries();
             const navigationEntry = entries[0];
-            
+
             metrics.webVitals.ttfb = {
                 value: navigationEntry.responseStart - navigationEntry.requestStart,
                 timestamp: Date.now(),
@@ -239,7 +239,7 @@ function getFirstContentfulPaint() {
  */
 export function trackApiResponse(url, method, startTime, endTime, status, cached = false) {
     const duration = endTime - startTime;
-    
+
     const entry = {
         url: sanitizeUrl(url),
         method,
@@ -276,9 +276,9 @@ export async function trackedFetch(url, options = {}) {
     try {
         const response = await fetch(url, options);
         const endTime = performance.now();
-        
+
         trackApiResponse(url, method, startTime, endTime, response.status);
-        
+
         return response;
     } catch (error) {
         const endTime = performance.now();
@@ -387,7 +387,7 @@ export function measure(name, startMark, endMark = null) {
 
         const entries = performance.getEntriesByName(name, 'measure');
         const entry = entries[entries.length - 1];
-        
+
         if (entry) {
             trackMetric(name, entry.duration);
             return entry.duration;
@@ -425,7 +425,7 @@ export function getWebVitals() {
  */
 export function getApiMetrics() {
     const apiCalls = metrics.api;
-    
+
     if (apiCalls.length === 0) {
         return { count: 0 };
     }
@@ -475,7 +475,7 @@ export function getNavigationMetrics() {
  */
 export async function sendMetrics() {
     const config = getConfig();
-    
+
     if (!config.endpoint) {
         if (DEBUG) {
             console.log('[Analytics] No endpoint configured, metrics not sent');
@@ -534,7 +534,7 @@ export function initAnalytics(options = {}) {
     }
 
     const config = getConfig();
-    
+
     if (!config.enabled) {
         console.info('[Analytics] Performance monitoring disabled');
         return;
