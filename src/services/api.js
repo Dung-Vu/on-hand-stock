@@ -4,6 +4,7 @@
 // ============================================
 
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
+import { signRequest, isHmacSupported } from '../utils/hmac.js';
 
 // ============================================
 // CACHE CONFIGURATION
@@ -141,6 +142,51 @@ const RETRY_OPTIONS = {
 };
 
 // ============================================
+// SIGNED FETCH HELPER
+// ============================================
+
+/**
+ * Perform a signed fetch request with HMAC authentication
+ * @param {string} url - Request URL
+ * @param {Object} options - Fetch options
+ * @returns {Promise<Response>}
+ */
+async function signedFetch(url, options = {}) {
+    const method = options.method || 'GET';
+    let body = null;
+    
+    // Parse body if present
+    if (options.body) {
+        try {
+            body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+        } catch {
+            body = null;
+        }
+    }
+    
+    // Get signature headers if HMAC is supported
+    let signatureHeaders = {};
+    if (isHmacSupported()) {
+        try {
+            signatureHeaders = await signRequest({ method, url, body });
+        } catch (err) {
+            console.warn('[API] Failed to sign request:', err.message);
+        }
+    }
+    
+    // Merge headers
+    const headers = {
+        ...options.headers,
+        ...signatureHeaders
+    };
+    
+    return fetch(url, {
+        ...options,
+        headers
+    });
+}
+
+// ============================================
 // API METHODS
 // ============================================
 
@@ -175,7 +221,7 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
 
     try {
         const data = await retryWithBackoff(async () => {
-            const response = await fetch(url, {
+            const response = await signedFetch(url, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -253,7 +299,7 @@ export async function fetchIncoming({ useCache = true, forceRefresh = false } = 
 
     try {
         const data = await retryWithBackoff(async () => {
-            const response = await fetch(url, {
+            const response = await signedFetch(url, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -323,7 +369,7 @@ export async function fetchFabricProducts({ useCache = true, forceRefresh = fals
 
     try {
         const data = await retryWithBackoff(async () => {
-            const response = await fetch(url, {
+            const response = await signedFetch(url, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",

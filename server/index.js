@@ -6,6 +6,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
 import { sanitizeRequest } from "./middleware/validate.js";
+import { optionalHmacVerification, verifyHmacSignature } from "./middleware/auth.js";
 
 // Load environment variables
 config();
@@ -77,6 +78,10 @@ app.use(express.json());
 
 // Input sanitization - remove XSS vectors
 app.use(sanitizeRequest);
+
+// HMAC signature verification (optional mode - logs but doesn't block)
+// Set NODE_ENV=production and API_SECRET to enforce strict verification
+app.use(optionalHmacVerification());
 
 // Odoo API Configuration from environment
 const ODOO_CONFIG = {

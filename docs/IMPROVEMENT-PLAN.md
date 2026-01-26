@@ -81,12 +81,6 @@
     - `src/store/signals.js` (new)
     - `src/store/dataStore.js` (refactor)
 
-- [x] **Create API Service Layer** ✅
-  - Tách API calls ra khỏi dataStore
-  - File: `src/services/api.js` (new)
-  - Methods: `fetchStock()`, `fetchIncoming()`, `fetchFabricProducts()`
-  - Features: Caching, retry logic, graceful degradation
-
 - [ ] **Modular Store Architecture** (Optional)
   - Split store thành modules
   - Files:
@@ -96,20 +90,10 @@
 
 ### 2.2 Error Handling
 
-- [x] **Retry Logic với Exponential Backoff** ✅
-  - Max retries: 3
-  - Delays: 1s, 2s, 4s (with jitter)
-  - File: `src/utils/retry.js` (new)
-
 - [ ] **Circuit Breaker Pattern** (Optional - Future)
   - Threshold: 5 failures
   - Timeout: 60 seconds
   - File: `src/utils/circuitBreaker.js` (new)
-
-- [x] **Graceful Degradation** ✅
-  - Cache last successful data
-  - Show stale data when API fails
-  - File: `src/services/api.js`
 
 ### 2.3 Caching
 
@@ -118,17 +102,7 @@
   - TTL: 5 minutes
   - File: `server/index.js`
 
-- [x] **Frontend Memory Cache** ✅
-  - Cache per API endpoint (stock, incoming, fabric)
-  - TTL: 5 minutes
-  - Auto-invalidate on manual refresh (Ctrl+R)
-  - Graceful stale-data fallback
-  - File: `src/services/api.js`
-
 ### 2.4 Performance
-
-- [ ] **Virtual Scrolling** (Removed - Not necessary)
-  - Removed: Không cần thiết cho lượng dữ liệu hiện tại
 
 - [ ] **Lazy Load Tabs** (Partially Done)
   - Fetch data only when tab is clicked
@@ -154,54 +128,33 @@
   - Broadcast changes to all clients
   - Visual indicator for updated items
 
-### 3.2 PWA Support
+### 3.4 Monitoring
 
-- [x] **Service Worker** ✅
-  - Cache static assets
-  - Offline support (network-first for API)
-  - Auto-update detection
-  - File: `public/sw.js` (new)
+- [ ] **Error Tracking (Sentry)** (Future)
+  - Package: `@sentry/browser`
+  - Auto-capture errors
+  - File: `src/utils/sentry.js` (new)
 
-- [x] **Web App Manifest** ✅
-  - App icon & name
-  - Standalone display mode
-  - Shortcuts for quick actions
-  - File: `public/manifest.json` (new)
+- [ ] **Performance Monitoring** (Future)
+  - Track page load time
+  - Track API response time
+  - File: `src/utils/analytics.js` (new)
 
-- [x] **Install Prompt** ✅
-  - "Add to Home Screen" prompt
-  - Auto-hide after 10 seconds
-  - File: `index.html`
+### 3.3 Testing
 
-### 3.3 Advanced Export
+- [ ] **Unit Tests** (Future)
+  - Package: `vitest`
+  - Coverage: >80%
+  - Files: `tests/unit/` (new folder)
 
-- [x] **Excel Export với ExcelJS** ✅
-  - Package: `exceljs`
-  - Styled headers (brown theme)
-  - Multiple sheets per warehouse
-  - Summary sheet with totals
-  - Stock status highlighting (low/out of stock)
-  - Auto-filter enabled
-  - File: `src/utils/export.js` (new)
+- [ ] **Integration Tests**
+  - API endpoint tests
+  - Files: `tests/integration/` (new folder)
 
-- [x] **PDF Export** ✅
-  - Package: `jspdf` + `html2canvas`
-  - Full Vietnamese Unicode support
-  - Company header with Bonario branding
-  - Print-friendly landscape layout
-  - Auto-pagination
-  - File: `src/utils/export.js`
-
-### 3.4 Advanced Filtering
-
-- [ ] **Query Builder UI** (Removed - Not necessary)
-  - Removed: Bộ lọc cơ bản đã đủ dùng
-
-- [ ] **Save Filter Presets** (Removed)
-  - Removed: Đi kèm với Query Builder
-
-- [ ] **Filter by Quantity Range** (Removed)
-  - Removed: Đi kèm với Query Builder
+- [ ] **E2E Tests**
+  - Package: `playwright`
+  - Critical user flows
+  - Files: `tests/e2e/` (new folder)
 
 ---
 
@@ -220,10 +173,12 @@
   - XSS protection, HSTS, etc.
   - File: `server/index.js`
 
-- [ ] **API Request Signing** (Future - High Security)
-  - HMAC signature
-  - Verify on backend
-  - Files: `server/middleware/auth.js` (new)
+- [x] **API Request Signing** ✅
+  - HMAC-SHA256 signature verification
+  - Timestamp validation (5-minute window)
+  - Timing-safe comparison to prevent attacks
+  - Optional mode for gradual rollout
+  - Files: `server/middleware/auth.js`, `src/utils/hmac.js`
 
 - [x] **Input Validation** ✅
   - Package: `zod`
