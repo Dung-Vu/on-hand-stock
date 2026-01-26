@@ -13,6 +13,10 @@ config();
 const app = express();
 const PORT = process.env.PORT || 4001;
 
+// Trust proxy - required for rate limiting behind reverse proxy (nginx, cloudflare, etc.)
+// This allows express-rate-limit to correctly identify users by X-Forwarded-For header
+app.set('trust proxy', 1);
+
 // ============================================
 // MIDDLEWARE
 // ============================================
