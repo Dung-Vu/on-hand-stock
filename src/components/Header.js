@@ -1,6 +1,6 @@
 import { createElement } from "../utils/dom.js";
 
-export default function Header({ onLoad }) {
+export default function Header({ onLoad, onExport, onExportPDF }) {
     const header = createElement("header", {
         class: "bg-white shadow-sm z-50",
     });
@@ -60,7 +60,43 @@ export default function Header({ onLoad }) {
         '<span>🔄</span><span class="hidden sm:inline">Tải dữ liệu</span>';
     loadBtn.addEventListener("click", onLoad);
 
+    // Excel export button
+    const exportExcelBtn = createElement("button", {
+        id: "exportExcelBtn",
+        class: "text-xs flex items-center gap-1 px-3 py-2 rounded-lg transition-all",
+    });
+    exportExcelBtn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+    exportExcelBtn.style.color = "white";
+    exportExcelBtn.innerHTML =
+        '<span>📊</span><span class="hidden sm:inline">Excel</span>';
+    exportExcelBtn.addEventListener("click", onExport);
+    exportExcelBtn.addEventListener("mouseenter", () => {
+        exportExcelBtn.style.transform = "scale(1.05)";
+    });
+    exportExcelBtn.addEventListener("mouseleave", () => {
+        exportExcelBtn.style.transform = "scale(1)";
+    });
+
+    // PDF export button
+    const exportPDFBtn = createElement("button", {
+        id: "exportPDFBtn",
+        class: "text-xs flex items-center gap-1 px-3 py-2 rounded-lg transition-all",
+    });
+    exportPDFBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+    exportPDFBtn.style.color = "white";
+    exportPDFBtn.innerHTML =
+        '<span>📄</span><span class="hidden sm:inline">PDF</span>';
+    exportPDFBtn.addEventListener("click", onExportPDF);
+    exportPDFBtn.addEventListener("mouseenter", () => {
+        exportPDFBtn.style.transform = "scale(1.05)";
+    });
+    exportPDFBtn.addEventListener("mouseleave", () => {
+        exportPDFBtn.style.transform = "scale(1)";
+    });
+
     buttonGroup.appendChild(loadBtn);
+    buttonGroup.appendChild(exportExcelBtn);
+    buttonGroup.appendChild(exportPDFBtn);
 
     topBarContent.appendChild(branding);
     topBarContent.appendChild(buttonGroup);

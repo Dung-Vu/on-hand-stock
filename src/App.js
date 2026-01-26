@@ -1,7 +1,7 @@
 import { createElement } from './utils/dom.js'
 import Header from './components/Header.js'
 import Tabs from './components/Tabs.js'
-import { loadData, applyFilters, clearFilters, exportData, refreshCategoryFilter, forceRefreshData, clearCache } from './store/dataStore.js'
+import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refreshCategoryFilter, forceRefreshData, clearCache } from './store/dataStore.js'
 
 let currentActiveWarehouse = null
 
@@ -16,7 +16,9 @@ export default function App() {
 
   // Header with controls
   const header = Header({
-    onLoad: loadData
+    onLoad: loadData,
+    onExport: exportData,
+    onExportPDF: exportDataPDF
   })
   container.appendChild(header)
 

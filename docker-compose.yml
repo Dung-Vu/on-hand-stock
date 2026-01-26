@@ -1,0 +1,60 @@
+# ============================================
+# DOCKER COMPOSE
+# Bonario Stock Management - Full Stack
+# ============================================
+
+version: '3.8'
+
+services:
+  # Frontend (Nginx + Vite build)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bonario-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - bonario-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Backend (Express API Server)
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: bonario-backend
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      # Odoo connection - use docker secrets or env file in production
+      - ODOO_URL=${ODOO_URL:-https://bonario.odoo.com}
+      - ODOO_DB=${ODOO_DB:-bonario}
+    networks:
+      - bonario-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  bonario-network:
+    driver: bridge
+
+# To use environment variables, create a .env file:
+# ODOO_URL=https://your-odoo-instance.odoo.com
+# ODOO_DB=your_database_name

@@ -519,18 +519,42 @@ app.get("/api/archived-products-with-stock", async (req, res) => {
     }
 });
 
+// Track server start time for uptime calculation
+const serverStartTime = Date.now();
+
 /**
  * GET /api/health
- * Health check endpoint
+ * Health check endpoint with system metrics
  */
 app.get("/api/health", (req, res) => {
+    const memoryUsage = process.memoryUsage();
+    const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+    
+    // Format uptime
+    const days = Math.floor(uptimeSeconds / 86400);
+    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const seconds = uptimeSeconds % 60;
+    const uptimeFormatted = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+
     res.json({
         status: "ok",
         timestamp: new Date().toISOString(),
+        uptime: {
+            seconds: uptimeSeconds,
+            formatted: uptimeFormatted
+        },
+        memory: {
+            heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`,
+            heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`,
+            rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`,
+            external: `${Math.round(memoryUsage.external / 1024 / 1024)} MB`
+        },
+        nodeVersion: process.version,
+        platform: process.platform,
         config: {
             database: ODOO_CONFIG.database,
             userId: ODOO_CONFIG.userId,
-            // Never expose API key
             hasApiKey: !!ODOO_CONFIG.apiKey,
         },
     });

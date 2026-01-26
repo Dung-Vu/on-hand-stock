@@ -32,5 +32,21 @@ export default defineConfig({
         },
       }
     }
+  },
+  build: {
+    // Code splitting for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split large libraries into separate chunks
+          'exceljs': ['exceljs'],
+          'jspdf': ['jspdf', 'jspdf-autotable'],
+          'html2canvas': ['html2canvas'],
+          'dompurify': ['dompurify']
+        }
+      }
+    },
+    // Increase warning limit (optional)
+    chunkSizeWarningLimit: 600
   }
 })

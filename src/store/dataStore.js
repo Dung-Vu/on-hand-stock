@@ -12,7 +12,7 @@ import {
     clearLoadedWarehouses
 } from '../services/api.js';
 import { SAMPLE_DATA } from './sampleData.js';
-import { exportToExcel } from '../utils/export.js';
+import { exportToExcel, exportToPDF } from '../utils/export.js';
 
 // ============================================
 // TOAST NOTIFICATION SYSTEM
@@ -788,7 +788,7 @@ export function exportData() {
     }).catch((error) => {
         console.error("Export error:", error);
         showToast("Lỗi khi xuất file: " + error.message, "error");
-        
+
         // Fallback to CSV export
         fallbackExportCSV();
     });
@@ -848,8 +848,29 @@ function fallbackExportCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     showToast("Đã xuất file CSV (fallback)", "info");
+}
+
+// Export data to PDF
+export function exportDataPDF() {
+    if (!currentGroupedData) {
+        showToast("Vui lòng tải dữ liệu trước", "warning");
+        return;
+    }
+
+    showToast("Đang tạo PDF...", "info");
+
+    exportToPDF(currentGroupedData, {
+        filename: `stock_report_${new Date().toISOString().split('T')[0]}`,
+        includeStats: true,
+        includeSummary: true
+    }).then(() => {
+        showToast("Đã xuất file PDF thành công!", "success");
+    }).catch((error) => {
+        console.error("PDF export error:", error);
+        showToast("Lỗi khi xuất PDF: " + error.message, "error");
+    });
 }
 
 // Render statistics

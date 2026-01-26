@@ -1,7 +1,7 @@
 import { createElement } from '../utils/dom.js'
 import { updateFilterOptions } from '../store/dataStore.js'
 
-export default function Controls({ onLoad, onExport, onClear }) {
+export default function Controls({ onLoad, onExport, onExportPDF, onClear }) {
   const controls = createElement('div', {
     class: 'glass rounded-xl p-6 space-y-4 border border-white/10'
   })
@@ -22,11 +22,20 @@ export default function Controls({ onLoad, onExport, onClear }) {
     id: 'exportBtn',
     class: 'px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2'
   })
-  exportBtn.innerHTML = '<span>📥</span> <span>Xuất Excel (CSV)</span>'
+  exportBtn.innerHTML = '<span>📊</span> <span>Xuất Excel</span>'
   exportBtn.addEventListener('click', onExport)
+
+  // PDF Export button
+  const exportPDFBtn = createElement('button', {
+    id: 'exportPDFBtn',
+    class: 'px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2'
+  })
+  exportPDFBtn.innerHTML = '<span>📄</span> <span>Xuất PDF</span>'
+  exportPDFBtn.addEventListener('click', onExportPDF)
 
   buttonGroup.appendChild(loadBtn)
   buttonGroup.appendChild(exportBtn)
+  buttonGroup.appendChild(exportPDFBtn)
 
   // Search and filter group
   const searchFilterGroup = createElement('div', {

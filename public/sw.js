@@ -29,7 +29,7 @@ const API_CACHE_URLS = [
 // ============================================
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing service worker...');
-    
+
     event.waitUntil(
         caches.open(FULL_CACHE_NAME)
             .then((cache) => {
@@ -52,7 +52,7 @@ self.addEventListener('install', (event) => {
 // ============================================
 self.addEventListener('activate', (event) => {
     console.log('[SW] Activating service worker...');
-    
+
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => {
@@ -110,27 +110,27 @@ self.addEventListener('fetch', (event) => {
  */
 async function networkFirstStrategy(request) {
     const cache = await caches.open(FULL_CACHE_NAME);
-    
+
     try {
         const networkResponse = await fetch(request);
-        
+
         // Only cache successful responses
         if (networkResponse.ok) {
             // Clone response before caching (response can only be consumed once)
             cache.put(request, networkResponse.clone());
         }
-        
+
         return networkResponse;
     } catch (error) {
         console.log('[SW] Network failed, trying cache:', request.url);
-        
+
         const cachedResponse = await cache.match(request);
-        
+
         if (cachedResponse) {
             console.log('[SW] Serving from cache:', request.url);
             return cachedResponse;
         }
-        
+
         // Return offline response if no cache available
         return new Response(
             JSON.stringify({
@@ -154,31 +154,31 @@ async function networkFirstStrategy(request) {
 async function cacheFirstStrategy(request) {
     const cache = await caches.open(FULL_CACHE_NAME);
     const cachedResponse = await cache.match(request);
-    
+
     if (cachedResponse) {
         // Return cached response immediately
         // Also update cache in background (stale-while-revalidate)
         updateCacheInBackground(cache, request);
         return cachedResponse;
     }
-    
+
     // Not in cache, fetch from network
     try {
         const networkResponse = await fetch(request);
-        
+
         if (networkResponse.ok) {
             cache.put(request, networkResponse.clone());
         }
-        
+
         return networkResponse;
     } catch (error) {
         console.log('[SW] Network failed for static asset:', request.url);
-        
+
         // Return offline page for navigation requests
         if (request.mode === 'navigate') {
             return cache.match('/index.html');
         }
-        
+
         return new Response('Offline', { status: 503 });
     }
 }
@@ -215,7 +215,7 @@ self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
-    
+
     if (event.data && event.data.type === 'CLEAR_CACHE') {
         caches.delete(FULL_CACHE_NAME).then(() => {
             console.log('[SW] Cache cleared');

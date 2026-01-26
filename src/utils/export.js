@@ -76,8 +76,8 @@ const STYLES = {
 
 /**
  * Apply style to a cell
- * @param {ExcelJS.Cell} cell 
- * @param {Object} style 
+ * @param {ExcelJS.Cell} cell
+ * @param {Object} style
  */
 function applyStyle(cell, style) {
     if (style.font) cell.font = style.font;
@@ -89,8 +89,8 @@ function applyStyle(cell, style) {
 
 /**
  * Get stock status
- * @param {number} quantity 
- * @param {number} availableQty 
+ * @param {number} quantity
+ * @param {number} availableQty
  * @returns {string}
  */
 function getStockStatus(quantity, availableQty) {
@@ -101,7 +101,7 @@ function getStockStatus(quantity, availableQty) {
 
 /**
  * Format date to Vietnamese format
- * @param {Date} date 
+ * @param {Date} date
  * @returns {string}
  */
 function formatDate(date) {
@@ -142,7 +142,7 @@ export async function exportToExcel(groupedData, options = {}) {
     workbook.modified = new Date();
 
     // Filter warehouses if needed
-    const warehouses = warehouseFilter 
+    const warehouses = warehouseFilter
         ? { [warehouseFilter]: groupedData[warehouseFilter] }
         : groupedData;
 
@@ -159,16 +159,16 @@ export async function exportToExcel(groupedData, options = {}) {
 
     // Generate and download
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
     saveAs(blob, `${filename}.xlsx`);
 }
 
 /**
  * Create summary sheet with all warehouses overview
- * @param {ExcelJS.Workbook} workbook 
- * @param {Object} groupedData 
+ * @param {ExcelJS.Workbook} workbook
+ * @param {Object} groupedData
  */
 function createSummarySheet(workbook, groupedData) {
     const sheet = workbook.addWorksheet('Tổng quan', {
@@ -273,10 +273,10 @@ function createSummarySheet(workbook, groupedData) {
 
 /**
  * Create warehouse sheet with detailed product data
- * @param {ExcelJS.Workbook} workbook 
- * @param {string} warehouseName 
- * @param {Object} warehouseData 
- * @param {boolean} includeStats 
+ * @param {ExcelJS.Workbook} workbook
+ * @param {string} warehouseName
+ * @param {Object} warehouseData
+ * @param {boolean} includeStats
  */
 function createWarehouseSheet(workbook, warehouseName, warehouseData, includeStats) {
     // Sanitize sheet name (max 31 chars, no special chars)
@@ -371,7 +371,7 @@ function createWarehouseSheet(workbook, warehouseName, warehouseData, includeSta
         const lotIds = product.lot_ids && product.lot_ids.length > 0
             ? product.lot_ids.join(', ')
             : '-';
-        const incomingDate = product.incoming_date 
+        const incomingDate = product.incoming_date
             ? new Date(product.incoming_date).toLocaleDateString('vi-VN')
             : '-';
         const unit = product.uom_id && product.uom_id[1] ? product.uom_id[1] : '';
@@ -416,7 +416,7 @@ function createWarehouseSheet(workbook, warehouseName, warehouseData, includeSta
     if (includeStats) {
         rowIndex++; // Empty row
         const statsRow = sheet.getRow(rowIndex);
-        statsRow.values = ['', '', 'TỔNG:', 
+        statsRow.values = ['', '', 'TỔNG:',
             allProducts.reduce((sum, p) => sum + (p.quantity || 0), 0),
             allProducts.reduce((sum, p) => sum + (p.available_quantity || 0), 0),
             allProducts.reduce((sum, p) => sum + (p.incoming_qty || 0), 0),
@@ -440,8 +440,8 @@ function createWarehouseSheet(workbook, warehouseName, warehouseData, includeSta
 
 /**
  * Export current warehouse only
- * @param {Object} groupedData 
- * @param {string} warehouseName 
+ * @param {Object} groupedData
+ * @param {string} warehouseName
  */
 export async function exportWarehouseToExcel(groupedData, warehouseName) {
     return exportToExcel(groupedData, {
@@ -453,7 +453,7 @@ export async function exportWarehouseToExcel(groupedData, warehouseName) {
 
 /**
  * Quick export - just the essentials
- * @param {Object} groupedData 
+ * @param {Object} groupedData
  */
 export async function quickExportToExcel(groupedData) {
     return exportToExcel(groupedData, {
@@ -462,8 +462,292 @@ export async function quickExportToExcel(groupedData) {
     });
 }
 
+// ============================================
+// PDF EXPORT UTILITIES
+// Using jsPDF for professional PDF exports
+// ============================================
+
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+/**
+ * Export stock data to PDF
+ * @param {Object} groupedData - Stock data grouped by warehouse
+ * @param {Object} options - Export options
+ */
+export async function exportToPDF(groupedData, options = {}) {
+    const {
+        filename = `stock_report_${new Date().toISOString().split('T')[0]}`,
+        title = 'BÁO CÁO TỒN KHO - BONARIO',
+        warehouseFilter = null,
+        includeStats = true,
+        includeSummary = true,
+        orientation = 'landscape'
+    } = options;
+
+    try {
+        // Create PDF document
+        const doc = new jsPDF({
+            orientation,
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 10;
+
+        // Colors matching Bonario theme
+        const primaryColor = [107, 90, 69];    // #6B5A45
+        const secondaryColor = [93, 80, 68];   // #5D5044
+        const lightBg = [245, 240, 235];       // #F5F0EB
+        const dangerColor = [220, 53, 69];     // #dc3545
+        const warningColor = [255, 193, 7];    // #ffc107
+        const successColor = [40, 167, 69];    // #28a745
+
+        // Title
+        doc.setFontSize(18);
+        doc.setTextColor(...primaryColor);
+        doc.text(title, pageWidth / 2, 15, { align: 'center' });
+
+        // Subtitle with date
+        doc.setFontSize(10);
+        doc.setTextColor(...secondaryColor);
+        const now = new Date();
+        doc.text(
+            `Xuất ngày: ${now.toLocaleDateString('vi-VN')} ${now.toLocaleTimeString('vi-VN')}`,
+            pageWidth / 2, 22, { align: 'center' }
+        );
+
+        let yPosition = 30;
+
+        // Collect warehouses and data
+        const warehouses = warehouseFilter 
+            ? [warehouseFilter] 
+            : Object.keys(groupedData).filter(w => w !== 'Tất cả kho');
+
+        // Calculate totals for summary
+        let totalProducts = 0;
+        let totalQuantity = 0;
+        let totalAvailable = 0;
+        let totalIncoming = 0;
+        let outOfStockCount = 0;
+        let lowStockCount = 0;
+
+        // Process each warehouse
+        warehouses.forEach((warehouseName, warehouseIndex) => {
+            const warehouseData = groupedData[warehouseName];
+            if (!warehouseData) return;
+
+            // Check if we need a new page
+            if (warehouseIndex > 0 && yPosition > pageHeight - 60) {
+                doc.addPage();
+                yPosition = 15;
+            }
+
+            // Warehouse header
+            doc.setFontSize(14);
+            doc.setTextColor(...primaryColor);
+            doc.text(`📦 ${warehouseName}`, margin, yPosition);
+            yPosition += 8;
+
+            // Prepare table data
+            const tableData = [];
+            
+            Object.entries(warehouseData).forEach(([category, products]) => {
+                products.forEach(product => {
+                    const qty = product.quantity || 0;
+                    const available = product.available_quantity || 0;
+                    const incoming = product.incoming_qty || 0;
+
+                    totalProducts++;
+                    totalQuantity += qty;
+                    totalAvailable += available;
+                    totalIncoming += incoming;
+
+                    if (qty <= 0) outOfStockCount++;
+                    else if (available < qty * 0.2) lowStockCount++;
+
+                    tableData.push([
+                        category,
+                        product.product_name || product.name || 'N/A',
+                        product.default_code || '',
+                        formatNumber(qty),
+                        formatNumber(available),
+                        formatNumber(incoming),
+                        qty <= 0 ? '⚠️ Hết' : available < qty * 0.2 ? '⚡ Thấp' : '✓ OK'
+                    ]);
+                });
+            });
+
+            // Create table
+            doc.autoTable({
+                startY: yPosition,
+                head: [[
+                    'Danh mục',
+                    'Tên sản phẩm',
+                    'Mã SP',
+                    'Tồn kho',
+                    'Có thể bán',
+                    'Đang về',
+                    'Trạng thái'
+                ]],
+                body: tableData,
+                margin: { left: margin, right: margin },
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2,
+                    overflow: 'linebreak',
+                    lineColor: [232, 221, 212],
+                    lineWidth: 0.1
+                },
+                headStyles: {
+                    fillColor: primaryColor,
+                    textColor: [255, 255, 255],
+                    fontSize: 9,
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                alternateRowStyles: {
+                    fillColor: lightBg
+                },
+                columnStyles: {
+                    0: { cellWidth: 30 },  // Danh mục
+                    1: { cellWidth: 60 },  // Tên SP
+                    2: { cellWidth: 25 },  // Mã SP
+                    3: { cellWidth: 20, halign: 'right' },  // Tồn kho
+                    4: { cellWidth: 20, halign: 'right' },  // Có thể bán
+                    5: { cellWidth: 20, halign: 'right' },  // Đang về
+                    6: { cellWidth: 20, halign: 'center' }  // Trạng thái
+                },
+                didParseCell: function(data) {
+                    // Color coding for status column
+                    if (data.column.index === 6 && data.section === 'body') {
+                        const status = data.cell.raw;
+                        if (status.includes('Hết')) {
+                            data.cell.styles.textColor = dangerColor;
+                            data.cell.styles.fontStyle = 'bold';
+                        } else if (status.includes('Thấp')) {
+                            data.cell.styles.textColor = [133, 100, 4];
+                        } else if (status.includes('OK')) {
+                            data.cell.styles.textColor = successColor;
+                        }
+                    }
+                    // Color coding for quantity cells
+                    if (data.column.index === 3 && data.section === 'body') {
+                        const qty = parseInt(data.cell.raw.replace(/[,\.]/g, '')) || 0;
+                        if (qty <= 0) {
+                            data.cell.styles.textColor = dangerColor;
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
+            });
+
+            yPosition = doc.lastAutoTable.finalY + 10;
+        });
+
+        // Summary section
+        if (includeSummary && !warehouseFilter) {
+            // Check if we need a new page for summary
+            if (yPosition > pageHeight - 50) {
+                doc.addPage();
+                yPosition = 15;
+            }
+
+            doc.setFontSize(12);
+            doc.setTextColor(...primaryColor);
+            doc.text('📊 TỔNG KẾT', margin, yPosition);
+            yPosition += 8;
+
+            const summaryData = [
+                ['Tổng số sản phẩm', formatNumber(totalProducts)],
+                ['Tổng tồn kho', formatNumber(totalQuantity)],
+                ['Tổng có thể bán', formatNumber(totalAvailable)],
+                ['Tổng đang về', formatNumber(totalIncoming)],
+                ['Sản phẩm hết hàng', formatNumber(outOfStockCount)],
+                ['Sản phẩm tồn thấp', formatNumber(lowStockCount)]
+            ];
+
+            doc.autoTable({
+                startY: yPosition,
+                body: summaryData,
+                margin: { left: margin },
+                styles: {
+                    fontSize: 10,
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 50 },
+                    1: { halign: 'right', cellWidth: 30 }
+                },
+                theme: 'plain'
+            });
+        }
+
+        // Footer on each page
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                `Trang ${i}/${pageCount} - Bonario Stock Management`,
+                pageWidth / 2,
+                pageHeight - 5,
+                { align: 'center' }
+            );
+        }
+
+        // Save the PDF
+        doc.save(`${filename}.pdf`);
+
+        return { success: true, filename: `${filename}.pdf` };
+    } catch (error) {
+        console.error('PDF export error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Format number with Vietnamese locale
+ */
+function formatNumber(num) {
+    if (num === null || num === undefined) return '0';
+    return Math.round(num).toLocaleString('vi-VN');
+}
+
+/**
+ * Export current warehouse only to PDF
+ * @param {Object} groupedData
+ * @param {string} warehouseName
+ */
+export async function exportWarehouseToPDF(groupedData, warehouseName) {
+    return exportToPDF(groupedData, {
+        filename: `stock_${warehouseName.replace(/\//g, '_')}_${new Date().toISOString().split('T')[0]}`,
+        warehouseFilter: warehouseName,
+        includeSummary: false,
+        title: `BÁO CÁO TỒN KHO - ${warehouseName.toUpperCase()}`
+    });
+}
+
+/**
+ * Quick PDF export - compact version
+ * @param {Object} groupedData
+ */
+export async function quickExportToPDF(groupedData) {
+    return exportToPDF(groupedData, {
+        includeStats: false,
+        includeSummary: false,
+        orientation: 'portrait'
+    });
+}
+
 export default {
     exportToExcel,
     exportWarehouseToExcel,
-    quickExportToExcel
+    quickExportToExcel,
+    exportToPDF,
+    exportWarehouseToPDF,
+    quickExportToPDF
 };
