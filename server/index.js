@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
+import morgan from "morgan";
 import { config } from "dotenv";
 
 // Load environment variables
@@ -8,7 +10,17 @@ config();
 const app = express();
 const PORT = process.env.PORT || 4001;
 
-// Middleware
+// ============================================
+// MIDDLEWARE
+// ============================================
+
+// Response compression (gzip) - reduces payload ~70%
+app.use(compression());
+
+// Request logging
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
+
+// CORS configuration
 app.use(
     cors({
         origin: [

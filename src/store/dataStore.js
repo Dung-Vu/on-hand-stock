@@ -1,3 +1,88 @@
+// ============================================
+// TOAST NOTIFICATION SYSTEM
+// ============================================
+
+// Create toast container if not exists
+function getToastContainer() {
+    let container = document.getElementById("toastContainer");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "toastContainer";
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+// Show toast notification
+function showToast(message, type = "info", duration = 3000) {
+    const container = getToastContainer();
+    
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        pointer-events: auto;
+        transform: translateX(100%);
+        opacity: 0;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 350px;
+    `;
+    
+    // Set color based on type
+    const colors = {
+        success: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+        error: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+        warning: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+        info: "linear-gradient(135deg, #6b5a45 0%, #8b7355 100%)"
+    };
+    toast.style.background = colors[type] || colors.info;
+    
+    // Set icon based on type
+    const icons = {
+        success: "✅",
+        error: "❌",
+        warning: "⚠️",
+        info: "ℹ️"
+    };
+    
+    toast.innerHTML = `<span>${icons[type] || icons.info}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        toast.style.transform = "translateX(0)";
+        toast.style.opacity = "1";
+    });
+    
+    // Auto remove
+    setTimeout(() => {
+        toast.style.transform = "translateX(100%)";
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// ============================================
+// WAREHOUSE MAPPING & CONFIGURATION
+// ============================================
+
 // Warehouse mapping
 const WAREHOUSE_MAP = {
     165: "BONAP/Stock",
@@ -759,11 +844,20 @@ export async function loadData() {
 
     isLoading = true;
     const stockDataContainer = document.getElementById("stockData");
-    const loadingIndicator = createLoadingIndicator();
+    const loadBtn = document.getElementById("loadDataBtn");
+    
+    // Show loading state on button
+    if (loadBtn) {
+        loadBtn.disabled = true;
+        loadBtn.innerHTML = '<span class="animate-spin">⏳</span><span class="hidden sm:inline">Đang tải...</span>';
+        loadBtn.style.opacity = "0.7";
+        loadBtn.style.cursor = "not-allowed";
+    }
 
+    // Show skeleton cards instead of simple loading indicator
     if (stockDataContainer) {
         stockDataContainer.innerHTML = "";
-        stockDataContainer.appendChild(loadingIndicator);
+        stockDataContainer.appendChild(createSkeletonCards(6));
     }
 
     try {
@@ -780,6 +874,8 @@ export async function loadData() {
                     createEmptyState("Không tìm thấy bản ghi tồn kho phù hợp")
                 );
             }
+            // Show toast notification
+            showToast("Không tìm thấy dữ liệu", "warning");
             return;
         }
 
@@ -801,13 +897,31 @@ export async function loadData() {
 
         updateFilterOptions(groupedData);
         applyFilters();
+        
+        // Show success toast
+        const totalProducts = Object.values(groupedData).reduce((acc, wh) => {
+            return acc + Object.values(wh.categories || {}).reduce((catAcc, cat) => {
+                return catAcc + Object.keys(cat.products || {}).length;
+            }, 0);
+        }, 0);
+        showToast(`Đã tải ${totalProducts.toLocaleString()} sản phẩm`, "success");
     } catch (error) {
         if (stockDataContainer) {
             stockDataContainer.innerHTML = "";
             stockDataContainer.appendChild(createErrorState(error.message));
         }
+        showToast("Lỗi khi tải dữ liệu: " + error.message, "error");
     } finally {
         isLoading = false;
+        
+        // Reset button state
+        const loadBtn = document.getElementById("loadDataBtn");
+        if (loadBtn) {
+            loadBtn.disabled = false;
+            loadBtn.innerHTML = '<span>🔄</span><span class="hidden sm:inline">Tải dữ liệu</span>';
+            loadBtn.style.opacity = "1";
+            loadBtn.style.cursor = "pointer";
+        }
     }
 }
 
@@ -938,6 +1052,47 @@ function createLoadingIndicator() {
         <p class="mt-4 text-base" style="color: #5d5044;">Đang tải dữ liệu...</p>
     `;
     return div;
+}
+
+// Create skeleton cards for loading state
+function createSkeletonCards(count = 6) {
+    const container = document.createElement("div");
+    container.className = "max-w-7xl mx-auto px-4 py-6";
+    
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+    
+    for (let i = 0; i < count; i++) {
+        const card = document.createElement("div");
+        card.className = "stock-card animate-pulse";
+        card.innerHTML = `
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex-1 pr-2">
+                    <div class="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                    <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+                <div class="h-6 bg-gray-200 rounded-full w-16"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mt-4 pt-4" style="border-top: 1px solid #e8ddd4;">
+                <div class="text-center p-2.5 rounded-lg" style="background-color: #faf8f5;">
+                    <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                    <div class="h-6 bg-gray-300 rounded w-2/3 mx-auto"></div>
+                </div>
+                <div class="text-center p-2.5 rounded-lg" style="background-color: #f5f9f5;">
+                    <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                    <div class="h-6 bg-gray-300 rounded w-2/3 mx-auto"></div>
+                </div>
+                <div class="text-center p-2.5 rounded-lg" style="background-color: #e8f4f8;">
+                    <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                    <div class="h-6 bg-gray-300 rounded w-2/3 mx-auto"></div>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    }
+    
+    container.appendChild(grid);
+    return container;
 }
 
 // Create empty state

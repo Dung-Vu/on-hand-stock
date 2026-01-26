@@ -5,6 +5,9 @@ import { loadData, applyFilters, clearFilters, exportData, refreshCategoryFilter
 
 let currentActiveWarehouse = null
 
+// Warehouse list for keyboard navigation
+const WAREHOUSE_SHORTCUTS = ['BONAP/Stock', 'ORDAP/Stock', 'ORDHL/Stock', 'ORDHY/Stock', 'ORDST/Stock', 'Kho Vải']
+
 export default function App() {
   const container = createElement('div', {
     class: 'min-h-screen'
@@ -30,8 +33,18 @@ export default function App() {
   // Function to handle tab change
   window.handleTabChange = (warehouseName) => {
     currentActiveWarehouse = warehouseName
+    // Save to localStorage
+    localStorage.setItem('lastActiveWarehouse', warehouseName)
     applyFilters()
     refreshCategoryFilter()
+  }
+
+  // Function to switch warehouse programmatically
+  window.switchToWarehouse = (warehouseName) => {
+    const tabButton = document.querySelector(`[data-warehouse="${warehouseName}"]`)
+    if (tabButton) {
+      tabButton.click()
+    }
   }
 
   // Function to update tabs
@@ -65,11 +78,21 @@ export default function App() {
 
     container.innerHTML = ''
 
+    // Restore last active warehouse from localStorage
+    const savedWarehouse = localStorage.getItem('lastActiveWarehouse')
+    const activeWarehouse = savedWarehouse && 
+      (warehouses.all?.includes(savedWarehouse) || 
+       warehouses.productGroup?.includes(savedWarehouse) || 
+       warehouses.fabricGroup?.includes(savedWarehouse))
+      ? savedWarehouse 
+      : (currentActiveWarehouse || firstWarehouse)
+
     const tabs = Tabs({
       warehouses: warehouseList,
-      activeWarehouse: currentActiveWarehouse || firstWarehouse,
+      activeWarehouse: activeWarehouse,
       onTabChange: (warehouse) => {
         currentActiveWarehouse = warehouse
+        localStorage.setItem('lastActiveWarehouse', warehouse)
         applyFilters()
         refreshCategoryFilter()
       }
@@ -77,11 +100,65 @@ export default function App() {
 
     container.appendChild(tabs)
 
-    // Set first warehouse as active if none selected
+    // Set active warehouse
     if (!currentActiveWarehouse) {
-      currentActiveWarehouse = firstWarehouse
+      currentActiveWarehouse = activeWarehouse
     }
   }
+
+  // ============================================
+  // KEYBOARD SHORTCUTS
+  // ============================================
+  document.addEventListener('keydown', (e) => {
+    // Ctrl+K or Cmd+K: Focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault()
+      const searchInput = document.getElementById('searchInput')
+      if (searchInput) {
+        searchInput.focus()
+        searchInput.select()
+      }
+    }
+    
+    // Ctrl+R or Cmd+R: Reload data (prevent browser refresh)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+      e.preventDefault()
+      loadData()
+    }
+    
+    // Ctrl+E or Cmd+E: Export data
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+      e.preventDefault()
+      exportData()
+    }
+    
+    // Number keys 1-6: Switch warehouses (only when not typing)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key >= '1' && e.key <= '6') {
+      const activeElement = document.activeElement
+      const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.isContentEditable
+      )
+      
+      if (!isTyping) {
+        const index = parseInt(e.key) - 1
+        if (WAREHOUSE_SHORTCUTS[index]) {
+          window.switchToWarehouse(WAREHOUSE_SHORTCUTS[index])
+        }
+      }
+    }
+    
+    // Escape: Clear search and filters
+    if (e.key === 'Escape') {
+      const searchInput = document.getElementById('searchInput')
+      const categoryFilter = document.getElementById('categoryFilter')
+      if (searchInput) searchInput.value = ''
+      if (categoryFilter) categoryFilter.value = ''
+      searchInput?.blur()
+      applyFilters()
+    }
+  })
 
   // Initialize and load data
   setTimeout(() => {

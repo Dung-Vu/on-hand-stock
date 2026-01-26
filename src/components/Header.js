@@ -156,22 +156,30 @@ export default function Header({ onLoad }) {
     header.appendChild(filtersSection);
     header.appendChild(warehouseTabsSection);
 
-    // Event listeners
-    searchInput.addEventListener("input", () => {
-        const event = new CustomEvent("filterChange");
-        document.dispatchEvent(event);
-    });
+    // Debounce helper function
+    let searchTimeout = null;
+    const debounce = (fn, delay) => {
+        return (...args) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => fn(...args), delay);
+        };
+    };
 
-    categoryFilter.addEventListener("change", () => {
+    // Event listeners with debounced search
+    const triggerFilterChange = () => {
         const event = new CustomEvent("filterChange");
         document.dispatchEvent(event);
-    });
+    };
+
+    // Debounce search input (300ms delay)
+    searchInput.addEventListener("input", debounce(triggerFilterChange, 300));
+
+    categoryFilter.addEventListener("change", triggerFilterChange);
 
     clearBtn.addEventListener("click", () => {
         searchInput.value = "";
         categoryFilter.value = "";
-        const event = new CustomEvent("filterChange");
-        document.dispatchEvent(event);
+        triggerFilterChange();
     });
 
     return header;

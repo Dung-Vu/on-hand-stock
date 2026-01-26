@@ -10,7 +10,7 @@
 
 | Phase | Thời gian | Độ ưu tiên | Trạng thái |
 |-------|-----------|------------|------------|
-| Phase 1: Quick Wins | 1-2 tuần | 🔴 Cao | ⏳ Đang tiến hành |
+| Phase 1: Quick Wins | 1-2 tuần | 🔴 Cao | ✅ Hoàn thành |
 | Phase 2: Architecture | 2-4 tuần | 🟠 Trung bình | ⬜ Chưa bắt đầu |
 | Phase 3: Advanced Features | 4-8 tuần | 🟡 Thấp | ⬜ Chưa bắt đầu |
 | Phase 4: Production Ready | Liên tục | 🟢 Bảo trì | ⬜ Chưa bắt đầu |
@@ -21,47 +21,49 @@
 
 ### 1.1 Performance Cơ bản
 
-- [ ] **Debounce Search Input**
+- [x] **Debounce Search Input** ✅
   - File: `src/components/Header.js`
   - Delay: 300ms sau khi user ngừng gõ
   - Giảm số lần re-render không cần thiết
 
-- [ ] **Skeleton Loaders**
+- [x] **Skeleton Loaders** ✅
   - File: `src/store/dataStore.js`
   - Hiển thị 6 skeleton cards khi đang load
   - Cải thiện perceived performance
 
-- [ ] **Loading State Indicator**
+- [x] **Loading State Indicator** ✅
   - File: `src/components/Header.js`
   - Disable nút "Tải dữ liệu" khi đang load
   - Hiển thị spinner trên nút
 
 ### 1.2 User Experience
 
-- [ ] **Keyboard Shortcuts**
+- [x] **Keyboard Shortcuts** ✅
   - `Ctrl+K`: Focus vào search
   - `Ctrl+R`: Reload data
+  - `Ctrl+E`: Export Excel
   - `1-6`: Chuyển warehouse nhanh
+  - `Escape`: Clear search
   - File: `src/App.js`
 
-- [ ] **Toast Notifications**
+- [x] **Toast Notifications** ✅
   - Thông báo load thành công/thất bại
   - Auto-dismiss sau 3 giây
-  - File: Tạo mới `src/components/Toast.js`
+  - File: `src/store/dataStore.js`
 
-- [ ] **Remember Last Tab**
+- [x] **Remember Last Tab** ✅
   - Lưu tab đang active vào localStorage
   - Restore khi reload trang
   - File: `src/App.js`
 
 ### 1.3 Backend Optimization
 
-- [ ] **Response Compression**
+- [x] **Response Compression** ✅
   - Package: `compression`
   - File: `server/index.js`
   - Giảm payload size ~70%
 
-- [ ] **Request Logging**
+- [x] **Request Logging** ✅
   - Package: `morgan`
   - Log format: combined
   - File: `server/index.js`
