@@ -130,10 +130,12 @@
 
 ### 3.4 Monitoring
 
-- [ ] **Error Tracking (Sentry)** (Future)
+- [x] **Error Tracking (Sentry)** ✅
   - Package: `@sentry/browser`
-  - Auto-capture errors
-  - File: `src/utils/sentry.js` (new)
+  - Auto-capture errors with context
+  - Breadcrumbs for API calls & navigation
+  - Global error handlers
+  - File: `src/utils/sentry.js`
 
 - [ ] **Performance Monitoring** (Future)
   - Track page load time
@@ -188,10 +190,12 @@
 
 ### 4.2 Monitoring
 
-- [ ] **Error Tracking (Sentry)** (Future)
+- [x] **Error Tracking (Sentry)** ✅
   - Package: `@sentry/browser`
-  - Auto-capture errors
-  - File: `src/utils/sentry.js` (new)
+  - Auto-capture errors with context
+  - Breadcrumbs for API calls & navigation
+  - Global error handlers
+  - File: `src/utils/sentry.js`
 
 - [ ] **Performance Monitoring** (Future)
   - Track page load time

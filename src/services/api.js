@@ -5,6 +5,7 @@
 
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
 import { signRequest, isHmacSupported } from '../utils/hmac.js';
+import { captureError, addApiCallBreadcrumb } from '../utils/sentry.js';
 
 // ============================================
 // CACHE CONFIGURATION
@@ -180,10 +181,15 @@ async function signedFetch(url, options = {}) {
         ...signatureHeaders
     };
     
-    return fetch(url, {
+    const response = await fetch(url, {
         ...options,
         headers
     });
+    
+    // Add breadcrumb for Sentry tracking
+    addApiCallBreadcrumb(method, url, response.status);
+    
+    return response;
 }
 
 // ============================================
@@ -255,6 +261,12 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
             console.warn('[API] Returning stale cache data due to error:', error.message);
             return staleEntry.data;
         }
+
+        // Track error in Sentry
+        captureError(error, {
+            tags: { api: 'stock', endpoint: url },
+            extra: { cacheKey, useCache, forceRefresh }
+        });
 
         // Provide helpful error message for network errors
         if (
