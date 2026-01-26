@@ -44,8 +44,8 @@
    const ODOO_CONFIG = {
        useSampleData: false,
        apiEndpoint: 'http://your-odoo-server.com/web/dataset/call_kw',
-       database: 'bonario-vietnam',
-       userId: 208,
+       database: '',
+       userId: ,
        apiKey: 'your-api-key-here',
        // ...
    };
