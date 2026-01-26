@@ -554,8 +554,15 @@ export async function exportToPDF(groupedData, options = {}) {
             // Prepare table data
             const tableData = [];
             
-            Object.entries(warehouseData).forEach(([category, products]) => {
-                products.forEach(product => {
+            // Handle nested structure: warehouseData.categories.categoryName.products
+            const categories = warehouseData.categories || warehouseData;
+            
+            Object.entries(categories).forEach(([category, categoryData]) => {
+                // Products can be in categoryData.products (object) or categoryData directly (array)
+                const products = categoryData.products || categoryData;
+                const productList = Array.isArray(products) ? products : Object.values(products);
+                
+                productList.forEach(product => {
                     const qty = product.quantity || 0;
                     const available = product.available_quantity || 0;
                     const incoming = product.incoming_qty || 0;
