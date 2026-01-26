@@ -468,7 +468,7 @@ export async function quickExportToExcel(groupedData) {
 // ============================================
 
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /**
  * Export stock data to PDF
@@ -588,7 +588,7 @@ export async function exportToPDF(groupedData, options = {}) {
             });
 
             // Create table
-            doc.autoTable({
+            autoTable(doc, {
                 startY: yPosition,
                 head: [[
                     'Danh mục',
@@ -651,7 +651,7 @@ export async function exportToPDF(groupedData, options = {}) {
                 }
             });
 
-            yPosition = doc.lastAutoTable.finalY + 10;
+            yPosition = (doc.lastAutoTable?.finalY || yPosition) + 10;
         });
 
         // Summary section
@@ -676,7 +676,7 @@ export async function exportToPDF(groupedData, options = {}) {
                 ['Sản phẩm tồn thấp', formatNumber(lowStockCount)]
             ];
 
-            doc.autoTable({
+            autoTable(doc, {
                 startY: yPosition,
                 body: summaryData,
                 margin: { left: margin },
