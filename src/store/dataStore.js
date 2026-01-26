@@ -754,45 +754,7 @@ export function applyFilters() {
         categoryValue
     );
 
-    // Initialize or update query builder with current categories
-    initQueryBuilder(filteredData);
-
     renderStockData(filteredData);
-}
-
-// Initialize Query Builder
-function initQueryBuilder(groupedData) {
-    const container = document.getElementById("queryBuilderContainer");
-    if (!container) return;
-    
-    // Get unique categories from data
-    const categories = new Set();
-    const warehouses = new Set();
-    
-    Object.entries(groupedData || {}).forEach(([warehouseName, warehouse]) => {
-        warehouses.add(warehouseName);
-        Object.keys(warehouse.categories || {}).forEach(cat => categories.add(cat));
-    });
-    
-    if (!queryBuilderInstance) {
-        queryBuilderInstance = new QueryBuilder({
-            container,
-            categories: [...categories].sort(),
-            warehouses: [...warehouses].sort(),
-            onFilterChange: (config) => {
-                currentQueryBuilderConfig = config;
-                applyFilters();
-            }
-        });
-        queryBuilderInstance.init();
-    } else {
-        queryBuilderInstance.updateOptions([...categories].sort(), [...warehouses].sort());
-    }
-}
-
-// Get query builder filter config
-export function getQueryBuilderConfig() {
-    return currentQueryBuilderConfig;
 }
 
 // Clear filters
