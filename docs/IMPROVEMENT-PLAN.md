@@ -108,17 +108,31 @@
 
 ### 2.3 Caching
 
-- [ ] **Backend Redis Cache** (Optional - High Traffic)
+- [x] **Backend Redis Cache** ✅
   - Package: `redis`
-  - TTL: 5 minutes
-  - File: `server/index.js`
+  - TTL: 5 minutes (configurable)
+  - Optional/graceful fallback mode
+  - Cache middleware for GET endpoints
+  - Auto-invalidation on mutations
+  - Cache statistics in health endpoint
+  - Files:
+    - `server/services/redis.js` (new)
+    - `server/middleware/cache.js` (new)
+    - `server/index.js` (integrated)
+    - `server/.env.example` (updated)
 
 ### 2.4 Performance
 
-- [ ] **Lazy Load Tabs** (Partially Done)
-  - Fetch data only when tab is clicked
-  - Cache fetched data
-  - File: `src/store/dataStore.js`
+- [x] **Lazy Load Tabs** ✅
+  - Fetch data only when warehouse tab is clicked
+  - Per-warehouse data caching (5 minute TTL)
+  - Loading state tracking per warehouse
+  - Preload capability for background loading
+  - Cache invalidation support
+  - Debug utilities in dev mode
+  - Files:
+    - `src/utils/lazyLoad.js` (new)
+    - `src/store/dataStore.js` (integrated)
 
 ---
 

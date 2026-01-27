@@ -8,9 +8,16 @@ import { config } from "dotenv";
 import { sanitizeRequest } from "./middleware/validate.js";
 import { optionalHmacVerification, verifyHmacSignature } from "./middleware/auth.js";
 import { startWebSocketServer, getClientCount } from "./websocket.js";
+import * as redis from "./services/redis.js";
+import { cacheMiddleware, invalidateCache, clearAllCache } from "./middleware/cache.js";
 
 // Load environment variables
 config();
+
+// Initialize Redis cache (optional)
+redis.initRedis().catch(err => {
+    console.warn('[Redis] Initialization failed, continuing without cache:', err.message);
+});
 
 const app = express();
 const PORT = process.env.PORT || 4001;
@@ -101,7 +108,7 @@ const WAREHOUSE_IDS = [165, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184
  * Query params:
  *   - locationIds: comma-separated location IDs (optional, defaults to all warehouses)
  */
-app.get("/api/stock", async (req, res) => {
+app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
     try {
         // Get location IDs from query or use default
         const locationIds = req.query.locationIds
@@ -190,7 +197,7 @@ app.get("/api/stock", async (req, res) => {
  * Query params:
  *   - locationIds: comma-separated location IDs (optional, defaults to all warehouses)
  */
-app.get("/api/incoming", async (req, res) => {
+app.get("/api/incoming", cacheMiddleware(300), async (req, res) => {
     try {
         // Build Odoo API request for stock.move based on user's exact query
         const requestBody = {
@@ -540,7 +547,11 @@ const serverStartTime = Date.now();
  * GET /api/health
  * Health check endpoint with system metrics
  */
-app.get("/api/health", (req, res) => {
+/**
+ * GET /api/health
+ * Health check endpoint
+ */
+app.get("/api/health", async (req, res) => {
     const memoryUsage = process.memoryUsage();
     const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
 
@@ -550,6 +561,9 @@ app.get("/api/health", (req, res) => {
     const minutes = Math.floor((uptimeSeconds % 3600) / 60);
     const seconds = uptimeSeconds % 60;
     const uptimeFormatted = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+    // Get Redis stats
+    const redisStats = await redis.getStats();
 
     res.json({
         status: "ok",
@@ -564,6 +578,7 @@ app.get("/api/health", (req, res) => {
             rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`,
             external: `${Math.round(memoryUsage.external / 1024 / 1024)} MB`
         },
+        cache: redisStats,
         nodeVersion: process.version,
         platform: process.platform,
         websocket: {
@@ -584,6 +599,9 @@ const server = app.listen(PORT, () => {
     console.log(`📦 Stock API: http://localhost:${PORT}/api/stock`);
     console.log(`📥 Incoming API: http://localhost:${PORT}/api/incoming`);
     console.log(`🧵 Fabric Products API: http://localhost:${PORT}/api/fabric-products`);
+    console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`🗄️  Redis Cache: ${redis.getStatus().enabled ? 'Enabled' : 'Disabled'}`);
+});
     console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
 });
 

@@ -68,7 +68,7 @@ export function setSidebarOpen(open) {
 export function addToast(toast) {
     const newToasts = [...toasts.value];
     const id = Date.now() + Math.random();
-    
+
     newToasts.push({
         id,
         message: toast.message,
@@ -76,14 +76,14 @@ export function addToast(toast) {
         duration: toast.duration || 3000,
         timestamp: Date.now()
     });
-    
+
     toasts.value = newToasts;
-    
+
     // Auto remove after duration
     setTimeout(() => {
         removeToast(id);
     }, toast.duration || 3000);
-    
+
     return id;
 }
 
@@ -145,9 +145,9 @@ export const hasToasts = computed(() => {
 export const cacheHitRate = computed(() => {
     const stats = cacheStats.value;
     const total = stats.hits + stats.misses;
-    
+
     if (total === 0) return 0;
-    
+
     return Math.round((stats.hits / total) * 100);
 });
 
@@ -159,9 +159,9 @@ export const isExporting = computed(() => {
 // Export status text
 export const exportStatusText = computed(() => {
     const { active, progress, type } = exportProgress.value;
-    
+
     if (!active) return null;
-    
+
     const typeLabel = type === 'excel' ? 'Excel' : 'PDF';
     return `Exporting ${typeLabel}... ${progress}%`;
 });

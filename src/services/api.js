@@ -274,7 +274,7 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
                     console.warn('[API] Circuit breaker open, returning stale cache data');
                     return staleEntry.data;
                 }
-                
+
                 // Return empty array as last resort
                 console.warn('[API] Circuit breaker open, no cache available');
                 return [];
@@ -373,7 +373,7 @@ export async function fetchIncoming({ useCache = true, forceRefresh = false } = 
                     console.warn('[API] Circuit breaker open, returning stale incoming cache data');
                     return staleEntry.data;
                 }
-                
+
                 // Return empty array for incoming (optional endpoint)
                 console.warn('[API] Circuit breaker open, no incoming cache available');
                 return [];
