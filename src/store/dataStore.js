@@ -11,6 +11,7 @@ import {
     isWarehouseLoaded,
     clearLoadedWarehouses
 } from '../services/api.js';
+import { initWebSocket } from '../services/websocket.js';
 import { SAMPLE_DATA } from './sampleData.js';
 import { exportToExcel, exportToPDF } from '../utils/export.js';
 
@@ -1266,6 +1267,178 @@ window.toggleCategory = toggleCategory;
 
 // Listen for filter change events
 document.addEventListener("filterChange", applyFilters);
+
+// ============================================
+// WEBSOCKET INTEGRATION
+// ============================================
+
+let wsClient = null;
+
+/**
+ * Initialize WebSocket for real-time updates
+ */
+export function initializeWebSocket() {
+    try {
+        wsClient = initWebSocket();
+
+        // Handle connection events
+        wsClient.on('open', () => {
+            console.log('[Store] WebSocket connected');
+            showToast('🔌 Kết nối real-time thành công', 'success', 2000);
+        });
+
+        wsClient.on('close', () => {
+            console.log('[Store] WebSocket disconnected');
+        });
+
+        wsClient.on('reconnect', (data) => {
+            console.log(`[Store] WebSocket reconnecting (attempt ${data.attempt})...`);
+            showToast('🔄 Đang kết nối lại...', 'info', 2000);
+        });
+
+        // Handle stock updates
+        wsClient.on('stock_update', (message) => {
+            handleStockUpdate(message.data);
+        });
+
+        wsClient.on('stock_updates', (message) => {
+            handleBatchStockUpdates(message.data);
+        });
+
+        console.log('[Store] WebSocket client initialized');
+    } catch (error) {
+        console.error('[Store] Failed to initialize WebSocket:', error);
+    }
+}
+
+/**
+ * Handle single stock update
+ * @param {Object} update - Stock update data
+ */
+function handleStockUpdate(update) {
+    console.log('[Store] Received stock update:', update);
+    
+    // Find and update the product card
+    const productId = update.product_id || update.productId;
+    if (!productId) return;
+
+    // Find all cards for this product (may exist in multiple warehouses)
+    const cards = document.querySelectorAll(`[data-product-id="${productId}"]`);
+    
+    cards.forEach((card) => {
+        // Update quantity
+        const quantityEl = card.querySelector('.product-quantity');
+        if (quantityEl && update.quantity !== undefined) {
+            const oldQuantity = parseFloat(quantityEl.textContent) || 0;
+            quantityEl.textContent = update.quantity.toFixed(1);
+            
+            // Add update indicator
+            addUpdateIndicator(card, oldQuantity, update.quantity);
+        }
+
+        // Update other fields if provided
+        if (update.location) {
+            const locationEl = card.querySelector('.product-location');
+            if (locationEl) locationEl.textContent = update.location;
+        }
+    });
+
+    // Show notification for significant changes
+    if (update.product_name) {
+        showToast(`📦 ${update.product_name}: ${update.quantity} cập nhật`, 'info', 3000);
+    }
+}
+
+/**
+ * Handle batch stock updates
+ * @param {Array} updates - Array of stock updates
+ */
+function handleBatchStockUpdates(updates) {
+    console.log(`[Store] Received ${updates.length} stock updates`);
+    
+    updates.forEach((update) => {
+        handleStockUpdate(update);
+    });
+
+    showToast(`📊 Đã cập nhật ${updates.length} sản phẩm`, 'success', 3000);
+}
+
+/**
+ * Add visual indicator for updated item
+ * @param {HTMLElement} card - Product card element
+ * @param {number} oldValue - Old quantity
+ * @param {number} newValue - New quantity
+ */
+function addUpdateIndicator(card, oldValue, newValue) {
+    // Add flash animation
+    card.style.transition = 'background-color 0.5s ease';
+    const originalBg = card.style.backgroundColor;
+    
+    // Determine color based on change direction
+    const isIncrease = newValue > oldValue;
+    card.style.backgroundColor = isIncrease ? '#d1fae5' : '#fee2e2'; // green or red tint
+    
+    // Add update badge
+    const badge = document.createElement('div');
+    badge.className = 'update-badge';
+    badge.style.cssText = `
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: ${isIncrease ? '#10b981' : '#ef4444'};
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        z-index: 10;
+        animation: fadeInOut 3s ease;
+    `;
+    badge.textContent = isIncrease ? '↑ CẬP NHẬT' : '↓ CẬP NHẬT';
+    
+    // Make card position relative if not already
+    if (window.getComputedStyle(card).position === 'static') {
+        card.style.position = 'relative';
+    }
+    
+    // Remove existing badges
+    const oldBadges = card.querySelectorAll('.update-badge');
+    oldBadges.forEach(b => b.remove());
+    
+    card.appendChild(badge);
+    
+    // Remove after animation
+    setTimeout(() => {
+        card.style.backgroundColor = originalBg;
+        badge.remove();
+    }, 3000);
+}
+
+// Add CSS for fade animation
+if (!document.getElementById('ws-update-styles')) {
+    const style = document.createElement('style');
+    style.id = 'ws-update-styles';
+    style.textContent = `
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: scale(0.8); }
+            10% { opacity: 1; transform: scale(1); }
+            90% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/**
+ * Subscribe to warehouse updates
+ * @param {string} warehouseName - Warehouse name
+ */
+export function subscribeToWarehouse(warehouseName) {
+    if (wsClient && wsClient.isConnected()) {
+        wsClient.subscribe([warehouseName]);
+        console.log(`[Store] Subscribed to ${warehouseName} updates`);
+    }
+}
 
 // Export cache management functions from API service
 export { clearCache, getCacheStats } from '../services/api.js';

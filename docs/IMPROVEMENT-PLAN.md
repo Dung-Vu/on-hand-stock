@@ -129,9 +129,17 @@
   - Subscription management
   - File: `src/services/websocket.js`
 
-- [ ] **Live Stock Updates** (Future)
-  - Broadcast changes to all clients
-  - Visual indicator for updated items
+- [x] **Live Stock Updates** ✅
+  - Real-time stock update handling
+  - Batch updates support
+  - Toast notifications for updates
+  - File: `src/store/dataStore.js`
+
+- [x] **Visual Indicator for Updated Items** ✅
+  - Flash animation on update
+  - Color-coded badges (green↑/red↓)
+  - Auto-fade after 3 seconds
+  - File: `src/store/dataStore.js`
 
 ### 3.4 Monitoring
 
