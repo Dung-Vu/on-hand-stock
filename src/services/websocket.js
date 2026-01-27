@@ -25,15 +25,21 @@ function getConfig() {
 
     // Auto-detect WebSocket URL from window.location
     if (!config.url && typeof window !== 'undefined') {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname;
-        const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-
+        const hostname = window.location.hostname;
+        
+        // For production tunnel domain, use secure WebSocket with API subdomain
+        if (hostname.includes('bonstu.site')) {
+            config.url = 'wss://api-stock.bonstu.site';
+        }
         // For local development, use the backend port
-        if (host === 'localhost' || host === '127.0.0.1') {
-            config.url = `${protocol}//${host}:4001`;
-        } else {
-            config.url = `${protocol}//${host}:${port}`;
+        else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            config.url = 'ws://localhost:4001';
+        }
+        // Fallback
+        else {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+            config.url = `${protocol}//${hostname}:${port}`;
         }
     }
 

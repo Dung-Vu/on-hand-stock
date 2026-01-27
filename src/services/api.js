@@ -119,6 +119,18 @@ function isUsingSampleData() {
  */
 function getBaseUrl() {
     const config = getConfig();
+    
+    // Auto-detect based on current hostname
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        const protocol = window.location.protocol;
+        
+        // If running on tunnel domain, use HTTPS
+        if (hostname.includes('bonstu.site')) {
+            return 'https://api-stock.bonstu.site';
+        }
+    }
+    
     if (!config || !config.apiEndpoint) {
         return 'http://localhost:4001';
     }

@@ -78,8 +78,14 @@ app.use(
             // Cloudflare Tunnel domains
             "https://stock.bonstu.site",
             "http://stock.bonstu.site",
+            "https://api-stock.bonstu.site",
+            "http://api-stock.bonstu.site",
+            "https://api_stock.bonstu.site",
+            "http://api_stock.bonstu.site",
         ],
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Signature', 'X-Timestamp', 'X-Request-Id'],
     })
 );
 app.use(express.json());

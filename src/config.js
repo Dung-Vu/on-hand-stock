@@ -8,6 +8,7 @@ const getApiEndpoint = () => {
         const hostname = window.location.hostname;
         // Check if running on tunnel domain
         if (hostname.includes("bonstu.site") || hostname.includes("stock.bonstu.site")) {
+            // Use HTTPS for production tunnel
             return "https://api-stock.bonstu.site/api/stock";
         }
     }
