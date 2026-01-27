@@ -8,7 +8,7 @@
 // ============================================
 
 const DEFAULT_CONFIG = {
-    url: 'ws://localhost:4001', // Will use same port as HTTP server
+    url: null, // Will auto-detect from window.location
     reconnectDelay: 3000, // 3 seconds
     maxReconnectDelay: 30000, // 30 seconds
     reconnectDecay: 1.5, // Exponential backoff multiplier
@@ -21,10 +21,28 @@ const DEFAULT_CONFIG = {
  * @returns {Object}
  */
 function getConfig() {
-    if (typeof window !== 'undefined' && window.WS_CONFIG) {
-        return { ...DEFAULT_CONFIG, ...window.WS_CONFIG };
+    const config = { ...DEFAULT_CONFIG };
+    
+    // Auto-detect WebSocket URL from window.location
+    if (!config.url && typeof window !== 'undefined') {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname;
+        const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+        
+        // For local development, use the backend port
+        if (host === 'localhost' || host === '127.0.0.1') {
+            config.url = `${protocol}//${host}:4001`;
+        } else {
+            config.url = `${protocol}//${host}:${port}`;
+        }
     }
-    return DEFAULT_CONFIG;
+    
+    // Allow override from window.WS_CONFIG
+    if (typeof window !== 'undefined' && window.WS_CONFIG) {
+        Object.assign(config, window.WS_CONFIG);
+    }
+    
+    return config;
 }
 
 // ============================================
