@@ -74,15 +74,19 @@
 
 ### 2.1 State Management
 
-- [ ] **Migrate to Signals** (Optional - Low Priority)
+- [x] **Migrate to Signals** ✅
   - Package: `@preact/signals-core`
-  - Reactive state management
+  - Reactive state management with computed values and effects
+  - Auto-persist active warehouse to localStorage
   - Files: 
     - `src/store/signals.js` (new)
     - `src/store/dataStore.js` (refactor)
 
-- [ ] **Modular Store Architecture** (Optional)
-  - Split store thành modules
+- [x] **Modular Store Architecture** ✅
+  - Split store into logical modules
+  - Warehouse configuration and mapping
+  - Filter state with utilities
+  - UI state and toast management
   - Files:
     - `src/store/modules/warehouse.js`
     - `src/store/modules/filter.js`
@@ -90,10 +94,17 @@
 
 ### 2.2 Error Handling
 
-- [ ] **Circuit Breaker Pattern** (Optional - Future)
-  - Threshold: 5 failures
-  - Timeout: 60 seconds
-  - File: `src/utils/circuitBreaker.js` (new)
+- [x] **Circuit Breaker Pattern** ✅
+  - Threshold: 5 failures before opening
+  - Timeout: 60 seconds reset window
+  - Volume threshold: 10 requests minimum
+  - Three states: CLOSED, OPEN, HALF_OPEN
+  - Integrated with API service layer
+  - Fallback to stale cache on circuit open
+  - Real-time statistics tracking
+  - Files: 
+    - `src/utils/circuitBreaker.js` (new)
+    - `src/services/api.js` (integrated)
 
 ### 2.3 Caching
 

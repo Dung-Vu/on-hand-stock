@@ -1317,21 +1317,21 @@ export function initializeWebSocket() {
  */
 function handleStockUpdate(update) {
     console.log('[Store] Received stock update:', update);
-    
+
     // Find and update the product card
     const productId = update.product_id || update.productId;
     if (!productId) return;
 
     // Find all cards for this product (may exist in multiple warehouses)
     const cards = document.querySelectorAll(`[data-product-id="${productId}"]`);
-    
+
     cards.forEach((card) => {
         // Update quantity
         const quantityEl = card.querySelector('.product-quantity');
         if (quantityEl && update.quantity !== undefined) {
             const oldQuantity = parseFloat(quantityEl.textContent) || 0;
             quantityEl.textContent = update.quantity.toFixed(1);
-            
+
             // Add update indicator
             addUpdateIndicator(card, oldQuantity, update.quantity);
         }
@@ -1355,7 +1355,7 @@ function handleStockUpdate(update) {
  */
 function handleBatchStockUpdates(updates) {
     console.log(`[Store] Received ${updates.length} stock updates`);
-    
+
     updates.forEach((update) => {
         handleStockUpdate(update);
     });
@@ -1373,11 +1373,11 @@ function addUpdateIndicator(card, oldValue, newValue) {
     // Add flash animation
     card.style.transition = 'background-color 0.5s ease';
     const originalBg = card.style.backgroundColor;
-    
+
     // Determine color based on change direction
     const isIncrease = newValue > oldValue;
     card.style.backgroundColor = isIncrease ? '#d1fae5' : '#fee2e2'; // green or red tint
-    
+
     // Add update badge
     const badge = document.createElement('div');
     badge.className = 'update-badge';
@@ -1395,18 +1395,18 @@ function addUpdateIndicator(card, oldValue, newValue) {
         animation: fadeInOut 3s ease;
     `;
     badge.textContent = isIncrease ? '↑ CẬP NHẬT' : '↓ CẬP NHẬT';
-    
+
     // Make card position relative if not already
     if (window.getComputedStyle(card).position === 'static') {
         card.style.position = 'relative';
     }
-    
+
     // Remove existing badges
     const oldBadges = card.querySelectorAll('.update-badge');
     oldBadges.forEach(b => b.remove());
-    
+
     card.appendChild(badge);
-    
+
     // Remove after animation
     setTimeout(() => {
         card.style.backgroundColor = originalBg;

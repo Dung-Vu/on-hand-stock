@@ -22,13 +22,13 @@ const DEFAULT_CONFIG = {
  */
 function getConfig() {
     const config = { ...DEFAULT_CONFIG };
-    
+
     // Auto-detect WebSocket URL from window.location
     if (!config.url && typeof window !== 'undefined') {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
         const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-        
+
         // For local development, use the backend port
         if (host === 'localhost' || host === '127.0.0.1') {
             config.url = `${protocol}//${host}:4001`;
@@ -36,12 +36,12 @@ function getConfig() {
             config.url = `${protocol}//${host}:${port}`;
         }
     }
-    
+
     // Allow override from window.WS_CONFIG
     if (typeof window !== 'undefined' && window.WS_CONFIG) {
         Object.assign(config, window.WS_CONFIG);
     }
-    
+
     return config;
 }
 
@@ -58,7 +58,7 @@ class WebSocketClient {
         this.heartbeatTimer = null;
         this.isIntentionallyClosed = false;
         this.subscriptions = [];
-        
+
         // Event handlers
         this.eventHandlers = {
             open: [],
@@ -334,7 +334,7 @@ class WebSocketClient {
      */
     getState() {
         if (!this.ws) return 'CLOSED';
-        
+
         switch (this.ws.readyState) {
             case WebSocket.CONNECTING: return 'CONNECTING';
             case WebSocket.OPEN: return 'OPEN';
@@ -378,11 +378,11 @@ export function getWebSocketClient(config = {}) {
  */
 export function initWebSocket(config = {}) {
     const client = getWebSocketClient(config);
-    
+
     if (!client.isConnected()) {
         client.connect();
     }
-    
+
     return client;
 }
 

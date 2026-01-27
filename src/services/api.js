@@ -7,6 +7,7 @@ import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
 import { signRequest, isHmacSupported } from '../utils/hmac.js';
 import { captureError, addApiCallBreadcrumb } from '../utils/sentry.js';
 import { trackApiResponse } from '../utils/analytics.js';
+import { withCircuitBreaker, defaultCircuitBreaker } from '../utils/circuitBreaker.js';
 
 // ============================================
 // CACHE CONFIGURATION
@@ -232,43 +233,58 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
     const config = getConfig();
     const url = config.apiEndpoint;
 
+    // Wrap API call with circuit breaker
+    const fetchWithCircuitBreaker = withCircuitBreaker(
+        async () => {
+            const data = await retryWithBackoff(async () => {
+                const response = await signedFetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || "API call failed");
+                }
+
+                return result.data || [];
+            }, RETRY_OPTIONS);
+
+            // Cache the data
+            if (useCache) {
+                setCache(cacheKey, data);
+            }
+
+            return data;
+        },
+        {
+            breaker: defaultCircuitBreaker,
+            fallback: async () => {
+                // Try to return stale cache data on circuit open
+                const staleEntry = cache.get(cacheKey);
+                if (staleEntry) {
+                    console.warn('[API] Circuit breaker open, returning stale cache data');
+                    return staleEntry.data;
+                }
+                
+                // Return empty array as last resort
+                console.warn('[API] Circuit breaker open, no cache available');
+                return [];
+            }
+        }
+    );
+
     try {
-        const data = await retryWithBackoff(async () => {
-            const response = await signedFetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || "API call failed");
-            }
-
-            return result.data || [];
-        }, RETRY_OPTIONS);
-
-        // Cache the data
-        if (useCache) {
-            setCache(cacheKey, data);
-        }
-
-        return data;
+        return await fetchWithCircuitBreaker();
     } catch (error) {
-        // Try to return stale cache data on error (graceful degradation)
-        const staleEntry = cache.get(cacheKey);
-        if (staleEntry) {
-            console.warn('[API] Returning stale cache data due to error:', error.message);
-            return staleEntry.data;
-        }
-
         // Track error in Sentry
         captureError(error, {
             tags: { api: 'stock', endpoint: url },
@@ -316,43 +332,58 @@ export async function fetchIncoming({ useCache = true, forceRefresh = false } = 
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}/api/incoming`;
 
+    // Wrap API call with circuit breaker
+    const fetchWithCircuitBreaker = withCircuitBreaker(
+        async () => {
+            const data = await retryWithBackoff(async () => {
+                const response = await signedFetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || "API call failed");
+                }
+
+                return result.data || [];
+            }, RETRY_OPTIONS);
+
+            // Cache the data
+            if (useCache) {
+                setCache(cacheKey, data);
+            }
+
+            return data;
+        },
+        {
+            breaker: defaultCircuitBreaker,
+            fallback: async () => {
+                // Try to return stale cache data on circuit open
+                const staleEntry = cache.get(cacheKey);
+                if (staleEntry) {
+                    console.warn('[API] Circuit breaker open, returning stale incoming cache data');
+                    return staleEntry.data;
+                }
+                
+                // Return empty array for incoming (optional endpoint)
+                console.warn('[API] Circuit breaker open, no incoming cache available');
+                return [];
+            }
+        }
+    );
+
     try {
-        const data = await retryWithBackoff(async () => {
-            const response = await signedFetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || "API call failed");
-            }
-
-            return result.data || [];
-        }, RETRY_OPTIONS);
-
-        // Cache the data
-        if (useCache) {
-            setCache(cacheKey, data);
-        }
-
-        return data;
+        return await fetchWithCircuitBreaker();
     } catch (error) {
-        // Try to return stale cache data on error (graceful degradation)
-        const staleEntry = cache.get(cacheKey);
-        if (staleEntry) {
-            console.warn('[API] Returning stale incoming cache data due to error:', error.message);
-            return staleEntry.data;
-        }
-
         // Return empty array for incoming (optional endpoint)
         console.warn('[API] Could not fetch incoming data:', error.message);
         return [];
