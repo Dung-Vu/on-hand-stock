@@ -115,14 +115,19 @@
 
 ### 3.1 Real-time Updates
 
-- [ ] **WebSocket Server** (Future - Real-time)
+- [x] **WebSocket Server** ✅
   - Package: `ws`
-  - Port: 4002
-  - File: `server/websocket.js` (new)
+  - Attached to HTTP server for simplicity
+  - Client management with heartbeat
+  - Subscription-based broadcasting
+  - File: `server/websocket.js`
 
-- [ ] **WebSocket Client** (Future)
-  - Auto-reconnect on disconnect
-  - File: `src/services/websocket.js` (new)
+- [x] **WebSocket Client** ✅
+  - Auto-reconnect with exponential backoff
+  - Event-driven architecture
+  - Heartbeat keepalive
+  - Subscription management
+  - File: `src/services/websocket.js`
 
 - [ ] **Live Stock Updates** (Future)
   - Broadcast changes to all clients

@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
 import { sanitizeRequest } from "./middleware/validate.js";
 import { optionalHmacVerification, verifyHmacSignature } from "./middleware/auth.js";
+import { startWebSocketServer, getClientCount } from "./websocket.js";
 
 // Load environment variables
 config();
@@ -565,6 +566,10 @@ app.get("/api/health", (req, res) => {
         },
         nodeVersion: process.version,
         platform: process.platform,
+        websocket: {
+            enabled: true,
+            clients: getClientCount()
+        },
         config: {
             database: ODOO_CONFIG.database,
             userId: ODOO_CONFIG.userId,
@@ -573,11 +578,15 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start HTTP server
+const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📦 Stock API: http://localhost:${PORT}/api/stock`);
     console.log(`📥 Incoming API: http://localhost:${PORT}/api/incoming`);
     console.log(`🧵 Fabric Products API: http://localhost:${PORT}/api/fabric-products`);
     console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
 });
+
+// Start WebSocket server (attached to HTTP server)
+startWebSocketServer(server);
+console.log(`🔌 WebSocket server attached to HTTP server`);
