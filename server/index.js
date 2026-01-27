@@ -608,8 +608,6 @@ const server = app.listen(PORT, () => {
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log(`🗄️  Redis Cache: ${redis.getStatus().enabled ? 'Enabled' : 'Disabled'}`);
 });
-    console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
-});
 
 // Start WebSocket server (attached to HTTP server)
 startWebSocketServer(server);
