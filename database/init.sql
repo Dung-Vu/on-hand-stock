@@ -130,12 +130,14 @@ CREATE TRIGGER update_stocktake_lines_updated_at
 -- ============================================
 -- DEFAULT ADMIN USER
 -- ============================================
--- Password: admin123 (hashed with bcrypt)
+-- Default admin credentials
+-- Username: dinhdung533
+-- Password: 130501 (hashed with bcrypt)
 -- IMPORTANT: Change this password after first login!
 INSERT INTO users (username, password_hash, role, is_active)
 VALUES (
-    'admin',
-    '$2b$10$rH9zqX8FQJzKvVxN7pGwZeO8KqVxN7pGwZeO8KqVxN7pGwZeO8KqV', -- admin123
+    'dinhdung533',
+    '$2b$10$s5jJ.3sM0whX4q7yroM9gOMwWErpZiLkLXIWfurPfu4R9FIKzxW.G', -- 130501
     'admin',
     true
 ) ON CONFLICT (username) DO NOTHING;

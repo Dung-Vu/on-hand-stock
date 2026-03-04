@@ -219,63 +219,6 @@ export default function Login({ onLoginSuccess, onToast }) {
     form.appendChild(successDiv);
     form.appendChild(submitBtn);
 
-    // Demo credentials card
-    const hintCard = createElement('div', {
-        class: 'mt-6 p-4 rounded-xl',
-    });
-    hintCard.style.cssText = `
-        background: linear-gradient(135deg, #f8f9ff 0%, #f0f1ff 100%);
-        border: 1px solid #e0e7ff;
-    `;
-    hintCard.innerHTML = `
-        <div style="text-align: center; margin-bottom: 8px;">
-            <span style="font-size: 16px;">💡</span>
-            <span style="
-                font-size: 13px; 
-                font-weight: 600; 
-                color: #4f46e5;
-                display: inline-block;
-                margin-left: 4px;
-            ">Tài khoản mặc định</span>
-        </div>
-        <div style="
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 8px;
-        ">
-            <div style="
-                background: white;
-                padding: 6px 12px;
-                border-radius: 8px;
-                font-size: 12px;
-                font-family: monospace;
-                color: #374151;
-                border: 1px solid #e5e7eb;
-            ">
-                <span style="color: #6b7280;">User:</span> admin
-            </div>
-            <div style="
-                background: white;
-                padding: 6px 12px;
-                border-radius: 8px;
-                font-size: 12px;
-                font-family: monospace;
-                color: #374151;
-                border: 1px solid #e5e7eb;
-            ">
-                <span style="color: #6b7280;">Pass:</span> admin123
-            </div>
-        </div>
-        <p style="
-            text-align: center; 
-            font-size: 11px; 
-            color: #dc2626; 
-            font-weight: 600;
-            margin-top: 8px;
-        ">⚠️ Đổi mật khẩu ngay sau khi đăng nhập!</p>
-    `;
-
     // Footer
     const footer = createElement('div', {
         class: 'mt-6 text-center',
@@ -290,7 +233,6 @@ export default function Login({ onLoginSuccess, onToast }) {
     loginCard.appendChild(title);
     loginCard.appendChild(divider);
     loginCard.appendChild(form);
-    loginCard.appendChild(hintCard);
     loginCard.appendChild(footer);
     container.appendChild(loginCard);
 
