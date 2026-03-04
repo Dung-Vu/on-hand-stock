@@ -14,6 +14,7 @@ import {
 import { initWebSocket } from '../services/websocket.js';
 import { SAMPLE_DATA } from './sampleData.js';
 import { exportToExcel, exportToPDF } from '../utils/export.js';
+import { WAREHOUSE_MAP, PRODUCT_WAREHOUSES, FABRIC_WAREHOUSES, sortWarehouses as sortWarehousesFromModule } from './modules/warehouse.js';
 
 // ============================================
 // TOAST NOTIFICATION SYSTEM
@@ -35,6 +36,13 @@ function getToastContainer() {
             gap: 10px;
             pointer-events: none;
         `;
+        // Mobile: show at bottom for better visibility
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            container.style.top = 'auto';
+            container.style.bottom = '20px';
+            container.style.right = '10px';
+            container.style.left = '10px';
+        }
         document.body.appendChild(container);
     }
     return container;
@@ -101,66 +109,15 @@ export function showToast(message, type = "info", duration = 3000) {
 // ============================================
 
 // Warehouse mapping
-const WAREHOUSE_MAP = {
-    165: "BONAP/Stock",
-    157: "ORDAP/Stock",
-    261: "ORDAP/Stock", // Gộp ORDAP location 261 và 157
-    20: "ORDHL/Stock",
-    269: "ORDHL/Stock", // Gộp ORDHL location 269 và 20
-    219: "ORDHY/Stock",
-    277: "ORDHY/Stock", // Gộp ORDHY location 277 và 219
-    195: "ORDST/Stock",
-    285: "ORDST/Stock", // Gộp ORDST location 285 và 195
-    217: "Kho Vải", // Kho JAK (217, 324)
-    324: "Kho Vải", // Kho JAK
-    184: "Kho Vải", // Vải stock BONAP (184, 325)
-    325: "Kho Vải", // Vải stock BONAP
-    8: "Kho Vải", // Incoming (8, 244)
-    244: "Kho Vải", // Incoming
-    "Incomming": "Kho Vải", // Gộp MID/Stock/Vải Incoming (legacy key)
-};
+// WAREHOUSE_MAP, PRODUCT_WAREHOUSES, FABRIC_WAREHOUSES đã được import từ './modules/warehouse.js'
+// Đã xóa duplicate code để tránh inconsistency
 
-// Warehouse groups for sorting
-const PRODUCT_WAREHOUSES = [
-    "BONAP/Stock",
-    "ORDAP/Stock",
-    "ORDHL/Stock",
-    "ORDHY/Stock",
-    "ORDST/Stock",
-];
-
-const FABRIC_WAREHOUSES = [
-    "Kho Vải",
-];
-
-// Sort warehouses by groups: products first, then fabrics
+// sortWarehouses đã được import từ './modules/warehouse.js' (alias: sortWarehousesFromModule)
+// Sử dụng wrapper để tương thích với code hiện tại
 function sortWarehouses(warehouses) {
-    const productGroup = [];
-    const fabricGroup = [];
-    const otherGroup = [];
-
-    warehouses.forEach((warehouse) => {
-        if (PRODUCT_WAREHOUSES.includes(warehouse)) {
-            productGroup.push(warehouse);
-        } else if (FABRIC_WAREHOUSES.includes(warehouse)) {
-            fabricGroup.push(warehouse);
-        } else {
-            otherGroup.push(warehouse);
-        }
-    });
-
-    // Sort within each group
-    productGroup.sort();
-    fabricGroup.sort();
-    otherGroup.sort();
-
-    // Return grouped array with separator markers
-    return {
-        productGroup,
-        fabricGroup,
-        otherGroup,
-        all: [...productGroup, ...fabricGroup, ...otherGroup],
-    };
+    const result = sortWarehousesFromModule(warehouses);
+    // Trả về array đơn giản để tương thích với code cũ
+    return result.all || result;
 }
 
 // NOTE: SAMPLE_DATA moved to src/store/sampleData.js
@@ -169,6 +126,35 @@ function sortWarehouses(warehouses) {
 let currentGroupedData = null;
 let allProcessedData = null;
 let isLoading = false;
+
+// Expose grouped data for other features (e.g. monthly stocktake)
+export function getCurrentGroupedData() {
+    return currentGroupedData;
+}
+
+export function getWarehouseNames() {
+    return currentGroupedData ? Object.keys(currentGroupedData) : [];
+}
+
+export function getProductsForWarehouse(warehouseName) {
+    if (!currentGroupedData || !warehouseName || !currentGroupedData[warehouseName]) return [];
+    const wh = currentGroupedData[warehouseName];
+    const products = [];
+    Object.entries(wh.categories || {}).forEach(([categoryName, category]) => {
+        Object.values(category.products || {}).forEach((p) => {
+            products.push({
+                productId: p.product_id?.[0],
+                name: p.product_name || p.product_id?.[1] || String(p.product_id?.[0] ?? ""),
+                systemQty: Number(p.quantity || 0),
+                availableQty: Number(p.available_quantity || 0),
+                categoryName,
+            });
+        });
+    });
+    // Stable sort by name
+    products.sort((a, b) => String(a.name).localeCompare(String(b.name), "vi"));
+    return products.filter((p) => p.productId != null);
+}
 
 // Process Odoo data format
 function processOdooData(data) {
@@ -312,11 +298,11 @@ function processIncomingData(incomingData, onhandProcessed) {
 
         if (existsInJak || existsInBonapVai) return;
 
-        // Only include products whose name contains F-SF (backend already filters, but keep safe)
+        // Only include products whose name contains F-SF or F-ORD (backend already filters, but keep safe)
         const productName = Array.isArray(incoming.product_id)
             ? incoming.product_id[1]
             : "";
-        if (!productName || !productName.includes("F-SF")) return;
+        if (!productName || (!productName.includes("F-SF") && !productName.includes("F-ORD"))) return;
 
         merged.push({
             id: `vai_incoming_${productId}`,
@@ -351,8 +337,8 @@ function groupDataByWarehouseAndCategory(data) {
         const categoryId = item.product_categ_id[0];
         const categoryName = item.product_categ_id[1] || "Chưa phân loại";
 
-        // Filter Kho Vải: chỉ hiển thị sản phẩm có chứa F-SF trong tên
-        if (warehouseName === "Kho Vải" && !productName.includes("F-SF")) {
+        // Filter Kho Vải: chỉ hiển thị sản phẩm có chứa F-SF hoặc F-ORD trong tên
+        if (warehouseName === "Kho Vải" && !productName.includes("F-SF") && !productName.includes("F-ORD")) {
             return;
         }
 
@@ -437,7 +423,7 @@ function groupDataByWarehouseAndCategory(data) {
                 // Nếu itemDate > existingDate thì bỏ qua, để giữ lại đợt sớm nhất
             }
         }
-
+        
 
         // Collect lot IDs if exists
         if (item.lot_id && item.lot_id[1]) {
@@ -690,7 +676,7 @@ export async function loadData(options = {}) {
         allProcessedData = combinedData;
 
         const groupedData = groupDataByWarehouseAndCategory(combinedData);
-
+        
         currentGroupedData = groupedData;
 
         // Mark all warehouses as loaded

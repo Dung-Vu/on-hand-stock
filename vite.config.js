@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   server: {
-    port: 5177,
+    port: 5178, // Local dev port (Docker uses 8080)
     strictPort: false,
     open: true,
     host: true, // Allow access from network

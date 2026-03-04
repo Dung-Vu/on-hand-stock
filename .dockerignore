@@ -9,6 +9,7 @@ dist/
 .env
 .env.local
 .env.*.local
+server/.env*
 
 # Logs
 *.log
@@ -30,3 +31,18 @@ coverage/
 # Temp files
 *.tmp
 *.temp
+
+# Test files (not needed in production)
+server/scripts/test-*.js
+server/test-*.js
+
+# Old/unused files
+app.js
+config.js
+cloudflared/
+
+# Python files (if not used)
+.venv/
+__pycache__/
+*.py[cod]
+ai_service.py

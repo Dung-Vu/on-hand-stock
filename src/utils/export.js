@@ -463,6 +463,166 @@ export async function quickExportToExcel(groupedData) {
 }
 
 // ============================================
+// STOCKTAKE (MONTHLY CYCLE COUNT) EXPORT
+// ============================================
+
+/**
+ * Export stocktake document to a beautiful Excel file
+ * @param {Object} stocktake - { month, warehouse, status, createdAt, updatedAt }
+ * @param {Array} rows - [{ productId, name, systemQty, counted, variance, note }]
+ * @param {Object} options
+ * @returns {Promise<void>}
+ */
+export async function exportStocktakeToExcel(stocktake, rows, options = {}) {
+    const {
+        filename = `kiem_kho_${(stocktake?.warehouse || "kho").replace(/[\/\\?*\[\]]/g, "_")}_${stocktake?.month || new Date().toISOString().slice(0, 7)}`,
+        createdBy = "Bonario Stock System"
+    } = options;
+
+    if (!stocktake) throw new Error("Thiếu dữ liệu phiếu kiểm kho");
+    if (!Array.isArray(rows)) throw new Error("Dữ liệu dòng kiểm kho không hợp lệ");
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = createdBy;
+    workbook.created = new Date();
+    workbook.modified = new Date();
+
+    const sheet = workbook.addWorksheet("Phiếu kiểm kho", {
+        properties: { tabColor: { argb: "FF4F46E5" } },
+        pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1 }
+    });
+
+    // Columns
+    sheet.columns = [
+        { width: 6 },   // #
+        { width: 12 },  // Product ID
+        { width: 50 },  // Product name
+        { width: 14 },  // System
+        { width: 14 },  // Counted
+        { width: 14 },  // Variance
+        { width: 30 }   // Note
+    ];
+
+    // Title block
+    sheet.mergeCells("A1:G1");
+    const t1 = sheet.getCell("A1");
+    t1.value = "🧾 PHIẾU KIỂM KHO HÀNG THÁNG";
+    applyStyle(t1, STYLES.title);
+    sheet.getRow(1).height = 30;
+
+    sheet.mergeCells("A2:G2");
+    const t2 = sheet.getCell("A2");
+    t2.value = `Kho: ${stocktake.warehouse}   •   Tháng: ${stocktake.month}   •   Trạng thái: ${stocktake.status === "locked" ? "ĐÃ CHỐT" : "NHÁP"}`;
+    applyStyle(t2, STYLES.subtitle);
+    sheet.getRow(2).height = 20;
+
+    sheet.mergeCells("A3:G3");
+    const t3 = sheet.getCell("A3");
+    t3.value = `Cập nhật: ${formatDate(new Date(stocktake.updatedAt || Date.now()))}`;
+    applyStyle(t3, STYLES.subtitle);
+    sheet.getRow(3).height = 18;
+
+    sheet.getRow(4).height = 8;
+
+    // Header row
+    const headerRowIndex = 5;
+    const headers = ["#", "Mã SP", "Sản phẩm", "Tồn hệ thống", "Thực tế", "Chênh lệch", "Ghi chú"];
+    const headerRow = sheet.getRow(headerRowIndex);
+    headers.forEach((h, i) => {
+        const cell = headerRow.getCell(i + 1);
+        cell.value = h;
+        applyStyle(cell, STYLES.header);
+    });
+    headerRow.height = 26;
+
+    // Freeze panes
+    sheet.views = [{ state: "frozen", ySplit: headerRowIndex }];
+
+    const safeNum = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
+
+    // Data rows
+    let rIdx = headerRowIndex + 1;
+    let totalSystem = 0;
+    let totalCounted = 0;
+    let totalVariance = 0;
+
+    rows.forEach((r, i) => {
+        const row = sheet.getRow(rIdx);
+        const systemQty = safeNum(r.systemQty) || 0;
+        const countedQty = safeNum(r.counted);
+        const variance = countedQty === null ? null : countedQty - systemQty;
+
+        row.values = [
+            i + 1,
+            r.productId ?? "",
+            r.name ?? "",
+            systemQty,
+            countedQty ?? "",
+            variance ?? "",
+            r.note ?? ""
+        ];
+
+        // Base style
+        for (let c = 1; c <= 7; c++) {
+            applyStyle(row.getCell(c), STYLES.dataCell);
+        }
+        // Number formatting
+        applyStyle(row.getCell(4), STYLES.numberCell);
+        applyStyle(row.getCell(5), STYLES.numberCell);
+        applyStyle(row.getCell(6), STYLES.numberCell);
+
+        // Alignment for name/note
+        row.getCell(3).alignment = { vertical: "middle", wrapText: true };
+        row.getCell(7).alignment = { vertical: "middle", wrapText: true };
+
+        // Variance coloring
+        const varCell = row.getCell(6);
+        if (variance === null) {
+            varCell.font = { color: { argb: "FF7D6D5A" } };
+        } else if (variance === 0) {
+            applyStyle(varCell, STYLES.goodStock);
+        } else if (variance > 0) {
+            applyStyle(varCell, STYLES.goodStock);
+        } else {
+            applyStyle(varCell, STYLES.outOfStock);
+        }
+
+        // Totals
+        totalSystem += systemQty;
+        if (countedQty !== null) totalCounted += countedQty;
+        if (variance !== null) totalVariance += variance;
+
+        rIdx++;
+    });
+
+    // Total row
+    rIdx += 1;
+    const totalRow = sheet.getRow(rIdx);
+    totalRow.values = ["", "", "TỔNG", totalSystem, totalCounted, totalVariance, ""];
+    totalRow.height = 22;
+    totalRow.font = { bold: true };
+    for (let c = 1; c <= 7; c++) {
+        applyStyle(totalRow.getCell(c), STYLES.header);
+    }
+    applyStyle(totalRow.getCell(4), STYLES.numberCell);
+    applyStyle(totalRow.getCell(5), STYLES.numberCell);
+    applyStyle(totalRow.getCell(6), STYLES.numberCell);
+
+    // Auto filter on header
+    sheet.autoFilter = {
+        from: { row: headerRowIndex, column: 1 },
+        to: { row: headerRowIndex, column: 7 }
+    };
+
+    // Generate and download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    saveAs(blob, `${filename}.xlsx`);
+}
+
+// ============================================
 // PDF EXPORT UTILITIES
 // Using html2canvas + jsPDF for Vietnamese support
 // ============================================
@@ -741,6 +901,7 @@ export default {
     exportToExcel,
     exportWarehouseToExcel,
     quickExportToExcel,
+    exportStocktakeToExcel,
     exportToPDF,
     exportWarehouseToPDF,
     quickExportToPDF

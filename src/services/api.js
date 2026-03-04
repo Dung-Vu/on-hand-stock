@@ -110,7 +110,9 @@ function getConfig() {
  */
 function isUsingSampleData() {
     const config = getConfig();
-    return !config || config.useSampleData === true || config.useSampleData === undefined;
+    // Default to strict REAL API usage if config is missing (Production/Docker)
+    if (!config) return false;
+    return config.useSampleData === true;
 }
 
 /**
@@ -119,27 +121,32 @@ function isUsingSampleData() {
  */
 function getBaseUrl() {
     const config = getConfig();
-    
+
     // Auto-detect based on current hostname
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const protocol = window.location.protocol;
-        
-        // If running on tunnel domain, use HTTPS
+
+        // If running on tunnel domain (stock.bonstu.site), use relative path
+        // This allows Nginx to proxy API requests, avoiding CORS issues
+        // Nginx is configured to proxy /api/ to backend:4001
         if (hostname.includes('bonstu.site')) {
-            return 'https://api-stock.bonstu.site';
+            // Use relative path to avoid CORS - Nginx will proxy to backend
+            return '';
         }
     }
-    
+
     if (!config || !config.apiEndpoint) {
-        return 'http://localhost:4001';
+        // Default to relative path for Nginx/Proxy (Docker/Main setup)
+        return '';
     }
 
     // Extract base URL from apiEndpoint
     if (config.apiEndpoint.includes('/api/')) {
         return config.apiEndpoint.split('/api/')[0];
     }
-    return config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4001';
+    // Local dev uses 4002, Docker uses 4001
+    return config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4002';
 }
 
 // ============================================
@@ -242,8 +249,8 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
         return SAMPLE_DATA || [];
     }
 
-    const config = getConfig();
-    const url = config.apiEndpoint;
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/api/stock`;
 
     // Wrap API call with circuit breaker
     const fetchWithCircuitBreaker = withCircuitBreaker(

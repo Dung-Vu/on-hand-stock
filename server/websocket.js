@@ -118,8 +118,10 @@ function handleMessage(ws, data) {
  * @param {Object} req - HTTP request
  */
 function handleConnection(ws, req) {
+    // Check if request is for WebSocket path (optional, for logging)
+    const url = req.url || '/';
     const clientId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
-    console.log(`[WebSocket] Client connected: ${clientId}`);
+    console.log(`[WebSocket] Client connected: ${clientId} (path: ${url})`);
 
     // Add to clients set
     clients.add(ws);

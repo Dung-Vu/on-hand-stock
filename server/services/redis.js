@@ -110,12 +110,12 @@ async function get(key) {
     try {
         const fullKey = CACHE_PREFIX + key;
         const value = await redisClient.get(fullKey);
-        
+
         if (value) {
             console.log(`[Redis] Cache HIT: ${key}`);
             return JSON.parse(value);
         }
-        
+
         console.log(`[Redis] Cache MISS: ${key}`);
         return null;
     } catch (error) {
@@ -139,7 +139,7 @@ async function set(key, value, ttl = CACHE_TTL) {
     try {
         const fullKey = CACHE_PREFIX + key;
         const serialized = JSON.stringify(value);
-        
+
         await redisClient.setEx(fullKey, ttl, serialized);
         console.log(`[Redis] Cache SET: ${key} (TTL: ${ttl}s)`);
         return true;
@@ -183,11 +183,11 @@ async function delPattern(pattern) {
     try {
         const fullPattern = CACHE_PREFIX + pattern;
         const keys = await redisClient.keys(fullPattern);
-        
+
         if (keys.length === 0) {
             return 0;
         }
-        
+
         const result = await redisClient.del(keys);
         console.log(`[Redis] Cache DEL pattern "${pattern}": ${result} keys deleted`);
         return result;
@@ -248,12 +248,12 @@ async function flushAll() {
     try {
         const pattern = CACHE_PREFIX + '*';
         const keys = await redisClient.keys(pattern);
-        
+
         if (keys.length === 0) {
             console.log('[Redis] No keys to flush');
             return 0;
         }
-        
+
         const result = await redisClient.del(keys);
         console.log(`[Redis] Flushed ${result} keys`);
         return result;
@@ -281,11 +281,11 @@ async function getStats() {
         const pattern = CACHE_PREFIX + '*';
         const keys = await redisClient.keys(pattern);
         const info = await redisClient.info('memory');
-        
+
         // Parse memory usage
         const memoryMatch = info.match(/used_memory_human:(.+)/);
         const memory = memoryMatch ? memoryMatch[1].trim() : 'N/A';
-        
+
         return {
             enabled: isEnabled,
             connected: isConnected,

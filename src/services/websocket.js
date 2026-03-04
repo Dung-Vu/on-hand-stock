@@ -26,20 +26,25 @@ function getConfig() {
     // Auto-detect WebSocket URL from window.location
     if (!config.url && typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        
-        // For production tunnel domain, use secure WebSocket with API subdomain
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+        // For production tunnel domain, use relative WebSocket path
+        // This allows Nginx to proxy WebSocket requests, avoiding CORS issues
+        // Nginx is configured to proxy /ws to backend:4001
         if (hostname.includes('bonstu.site')) {
-            config.url = 'wss://api-stock.bonstu.site';
+            // Use relative path - Nginx will proxy /ws to backend WebSocket server
+            // Convert https://stock.bonstu.site to wss://stock.bonstu.site/ws
+            config.url = `${protocol}//${hostname}/ws`;
         }
-        // For local development, use the backend port
+        // For local development, use the backend port directly
+        // Local dev uses 4002, Docker uses 4001
         else if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            config.url = 'ws://localhost:4001';
+            config.url = 'ws://localhost:4002'; // Local dev port
         }
         // Fallback
         else {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-            config.url = `${protocol}//${hostname}:${port}`;
+            config.url = `${protocol}//${hostname}:${port}/ws`;
         }
     }
 

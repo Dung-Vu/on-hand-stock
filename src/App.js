@@ -1,7 +1,11 @@
 import { createElement } from './utils/dom.js'
 import Header from './components/Header.js'
 import Tabs from './components/Tabs.js'
-import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refreshCategoryFilter, forceRefreshData, clearCache } from './store/dataStore.js'
+import Stocktake from './components/Stocktake.js'
+import Login from './components/Login.js'
+import AdminDashboard from './components/AdminDashboard.js'
+import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refreshCategoryFilter, forceRefreshData, clearCache, getWarehouseNames, getProductsForWarehouse, showToast } from './store/dataStore.js'
+import { auth, stocktake } from './services/apiClient.js'
 
 let currentActiveWarehouse = null
 
@@ -14,23 +18,149 @@ export default function App() {
   })
   container.style.backgroundColor = '#faf8f5'
 
-  // Header with controls
-  const header = Header({
-    onLoad: loadData,
-    onExport: exportData,
-    onExportPDF: exportDataPDF
-  })
-  container.appendChild(header)
+  // State
+  let isLoggedIn = false
+  let currentUser = null
+  let showAdminDashboard = false
+  let showLoginModal = false
 
-  // Main content area
-  const mainContent = createElement('div', {
-    class: 'container mx-auto px-6 py-6'
-  })
+  // Check if already logged in
+  function checkAuth() {
+    isLoggedIn = auth.isAuthenticated()
+    currentUser = auth.getCurrentUser()
+    return isLoggedIn
+  }
 
-  const stockDataContainer = createElement('div', { id: 'stockData' })
-  mainContent.appendChild(stockDataContainer)
+  // Render login modal (only when needed for Stocktake/Admin)
+  function renderLoginModal(onLoginComplete) {
+    const loginOverlay = createElement('div', {
+      class: 'fixed inset-0 z-50 flex items-center justify-center'
+    })
+    loginOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
+    
+    const loginView = Login({
+      onLoginSuccess: (user) => {
+        isLoggedIn = true
+        currentUser = user
+        loginOverlay.remove()
+        onLoginComplete?.(user)
+      },
+      onToast: showToast
+    })
+    
+    loginOverlay.appendChild(loginView)
+    container.appendChild(loginOverlay)
+  }
 
-  container.appendChild(mainContent)
+  // Render main application (public access, no login required)
+  function renderMainApp() {
+    container.innerHTML = ''
+
+    // Header with controls
+    const header = Header({
+      onLoad: loadData,
+      onExport: exportData,
+      onExportPDF: exportDataPDF,
+      onToggleStocktake: () => {
+        // Check login before opening Stocktake
+        if (!auth.isAuthenticated()) {
+          renderLoginModal((user) => {
+            // After login, open stocktake
+            openStocktakeView()
+          })
+          return
+        }
+        openStocktakeView()
+      },
+      currentUser,
+      onLogout: handleLogout,
+      onOpenAdmin: () => {
+        // Admin also requires login
+        if (!auth.isAuthenticated()) {
+          renderLoginModal((user) => {
+            currentUser = user
+            showAdminDashboard = true
+            renderAdminDashboard()
+          })
+          return
+        }
+        showAdminDashboard = true
+        renderAdminDashboard()
+      }
+    })
+    container.appendChild(header)
+
+    // Helper function to open stocktake view
+    function openStocktakeView() {
+      const stockDataEl = document.getElementById('stockData')
+      const stocktakeEl = document.getElementById('stocktakeView')
+      const headerSearch = document.getElementById('headerSearchSection')
+      const headerFilters = document.getElementById('headerFiltersSection')
+      const headerWarehouseTabs = document.getElementById('warehouseTabsPlaceholder')
+      if (!stocktakeEl || !stockDataEl) return
+
+      const isHidden = stocktakeEl.classList.contains('hidden')
+      if (isHidden) {
+        // show stocktake
+        stockDataEl.classList.add('hidden')
+        stocktakeEl.classList.remove('hidden')
+        stocktakeEl.refresh?.()
+        headerSearch?.classList.add('hidden')
+        headerFilters?.classList.add('hidden')
+        headerWarehouseTabs?.classList.add('hidden')
+        showToast('Đang mở Kiểm kho', 'info', 1500)
+      } else {
+        // show stock cards
+        stocktakeEl.classList.add('hidden')
+        stockDataEl.classList.remove('hidden')
+        headerSearch?.classList.remove('hidden')
+        headerFilters?.classList.remove('hidden')
+        headerWarehouseTabs?.classList.remove('hidden')
+        showToast('Đã quay lại Tra cứu tồn', 'info', 1500)
+      }
+    }
+
+    // Main content area
+    const mainContent = createElement('div', {
+      class: 'container mx-auto px-6 py-6'
+    })
+
+    const stockDataContainer = createElement('div', { id: 'stockData' })
+    mainContent.appendChild(stockDataContainer)
+
+    // Stocktake view (hidden by default)
+    const stocktakeView = Stocktake({
+      getWarehouses: () => getWarehouseNames(),
+      getProductsForWarehouse: (warehouseName) => getProductsForWarehouse(warehouseName),
+      onToast: showToast,
+      currentUser
+    })
+    mainContent.appendChild(stocktakeView)
+
+    container.appendChild(mainContent)
+  }
+
+  // Render admin dashboard modal
+  function renderAdminDashboard() {
+    const adminView = AdminDashboard({
+      currentUser,
+      onToast: showToast,
+      onClose: () => {
+        showAdminDashboard = false
+        renderMainApp()
+      }
+    })
+    container.appendChild(adminView)
+  }
+
+  // Handle logout - return to main app (public mode)
+  function handleLogout() {
+    auth.logout()
+    isLoggedIn = false
+    currentUser = null
+    showToast('Đã đăng xuất', 'info', 2000)
+    renderMainApp() // Re-render to update UI
+  }
 
   // Function to handle tab change
   window.handleTabChange = (warehouseName) => {
@@ -112,6 +242,9 @@ export default function App() {
   // KEYBOARD SHORTCUTS
   // ============================================
   document.addEventListener('keydown', (e) => {
+    // Only handle shortcuts when logged in and not in admin dashboard
+    if (!isLoggedIn || showAdminDashboard) return
+
     // Ctrl+K or Cmd+K: Focus search
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault()
@@ -162,7 +295,9 @@ export default function App() {
     }
   })
 
-  // Initialize and load data
+  // Initialize - always show main app (public access)
+  checkAuth() // Check if already logged in (for showing user badge)
+  renderMainApp()
   setTimeout(() => {
     loadData()
   }, 100)

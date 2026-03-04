@@ -17,16 +17,24 @@ const ODOO_CONFIG = {
     apiKey: process.env.ODOO_API_KEY,
 };
 
-const WAREHOUSE_IDS = [165, 157, 20, 219, 195, 217, 184];
+// Đồng bộ với server/index.js
+const WAREHOUSE_IDS = [165, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
 
+// Đồng bộ với src/store/modules/warehouse.js
 const WAREHOUSE_MAP = {
     165: "BONAP/Stock",
     157: "ORDAP/Stock",
+    261: "ORDAP/Stock",
     20: "ORDHL/Stock",
+    269: "ORDHL/Stock",
     219: "ORDHY/Stock",
+    277: "ORDHY/Stock",
     195: "ORDST/Stock",
-    217: "Kho Vải (MID/Stock/Kho JAK)",
-    184: "Kho Vải (MID/Stock/Vải stock BONAP)",
+    285: "ORDST/Stock",
+    217: "Kho Vải",
+    324: "Kho Vải",
+    184: "Kho Vải",
+    325: "Kho Vải",
 };
 
 async function checkArchivedProductsWithStock() {

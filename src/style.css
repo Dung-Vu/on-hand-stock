@@ -174,6 +174,32 @@
         @apply text-xs font-medium uppercase tracking-wider;
         color: #7d6d5a;
     }
+
+    .stocktake-input {
+        width: 100%;
+        max-width: 120px;
+        text-align: right;
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1.5px solid #d4c4b0;
+        background-color: #ffffff;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        outline: none;
+        -webkit-appearance: none;
+    }
+    @media (max-width: 768px) {
+        .stocktake-input {
+            max-width: none;
+            font-size: 16px; /* tránh iOS zoom khi focus input */
+            padding: 10px 12px;
+            border-radius: 12px;
+        }
+    }
+    .stocktake-input:focus {
+        border-color: #6b5a45;
+        box-shadow: 0 4px 12px rgba(107, 90, 69, 0.12);
+    }
 }
 
 /* Custom scrollbar */
@@ -265,6 +291,41 @@
     .category-filter-chip {
         @apply px-2 py-1 text-xs;
     }
+    
+    /* Fix header button overflow */
+    #headerSearchSection {
+        @apply px-2 py-2;
+    }
+    
+    /* Stack buttons vertically on small screens */
+    header button {
+        @apply w-full md:w-auto;
+    }
+    
+    /* Improve touch targets */
+    .tab-pill-active,
+    .tab-pill-inactive {
+        @apply min-h-[44px] min-w-[44px];
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .stock-card {
+        @apply p-2;
+    }
+    
+    .quantity-display {
+        @apply text-lg;
+    }
+    
+    header h1 {
+        @apply text-sm;
+    }
+    
+    header p {
+        @apply text-xs;
+    }
 }
 
 /* Tablet optimizations */
@@ -281,6 +342,25 @@
 .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* Firefox scrollbar support */
+@-moz-document url-prefix() {
+    .scrollbar-hide {
+        scrollbar-width: none;
+    }
+}
+
+/* Tabs horizontal scroll on mobile */
+@media (max-width: 768px) {
+    #warehouseTabsPlaceholder {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    #warehouseTabsPlaceholder > div {
+        min-width: max-content;
+    }
 }
 
 /* Pill-style tabs */

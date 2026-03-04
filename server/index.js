@@ -10,6 +10,11 @@ import { optionalHmacVerification, verifyHmacSignature } from "./middleware/auth
 import { startWebSocketServer, getClientCount } from "./websocket.js";
 import * as redis from "./services/redis.js";
 import { cacheMiddleware, invalidateCache, clearAllCache } from "./middleware/cache.js";
+import { startMonitoring, getMonitoringStatus } from "./services/monitoring.js";
+import { alertApiError, getAlertConfig } from "./services/alerting.js";
+import { healthCheck as dbHealthCheck, getStats as getDbStats } from "./db/index.js";
+import authRoutes from "./routes/auth.js";
+import stocktakeRoutes from "./routes/stocktake.js";
 
 // Load environment variables
 config();
@@ -20,7 +25,8 @@ redis.initRedis().catch(err => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 4001;
+// Local dev port: 4002 (Docker uses 4001)
+const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 4001 : 4002);
 
 // Trust proxy - required for rate limiting behind reverse proxy (nginx, cloudflare, etc.)
 // This allows express-rate-limit to correctly identify users by X-Forwarded-For header
@@ -59,22 +65,30 @@ app.use(compression());
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 
 // CORS configuration
-app.use(
-    cors({
-        origin: [
-            // Local development ports
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, Postman, Cloudflare Tunnel, etc.)
+        // Cloudflare Tunnel may strip Origin header, so we allow requests without origin
+        if (!origin) {
+            console.log('[CORS] Allowing request with no origin (likely from Cloudflare Tunnel)');
+            return callback(null, true);
+        }
+        
+        const allowedOrigins = [
+            // Local development ports (Vite dev server)
             "http://localhost:5173",
             "http://localhost:5174",
             "http://localhost:5175",
             "http://localhost:5176",
             "http://localhost:5177",
-            "http://localhost:5178",
+            "http://localhost:5178", // Primary local dev port
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
             "http://127.0.0.1:5175",
             "http://127.0.0.1:5176",
             "http://127.0.0.1:5177",
             "http://127.0.0.1:5178",
+            "http://localhost:8080", // Docker frontend port
             // Cloudflare Tunnel domains
             "https://stock.bonstu.site",
             "http://stock.bonstu.site",
@@ -82,12 +96,32 @@ app.use(
             "http://api-stock.bonstu.site",
             "https://api_stock.bonstu.site",
             "http://api_stock.bonstu.site",
-        ],
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Signature', 'X-Timestamp', 'X-Request-Id'],
-    })
-);
+        ];
+        
+        // Check if origin is in allowed list or contains bonstu.site
+        const isAllowed = allowedOrigins.indexOf(origin) !== -1 || origin.includes('bonstu.site');
+        
+        if (isAllowed) {
+            console.log(`[CORS] Allowing origin: ${origin}`);
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Signature', 'X-Timestamp', 'X-Request-Id', 'Accept', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'Content-Type', 'X-Total-Count'],
+    maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Input sanitization - remove XSS vectors
@@ -190,6 +224,12 @@ app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
         });
     } catch (error) {
         console.error("Error fetching stock data:", error.message);
+        
+        // Send alert for API errors
+        alertApiError("/api/stock", error.message).catch(err => {
+            console.error("Failed to send alert:", err.message);
+        });
+        
         res.status(500).json({
             success: false,
             error: error.message,
@@ -264,12 +304,12 @@ app.get("/api/incoming", cacheMiddleware(300), async (req, res) => {
 
         const rawMoves = result.result || [];
 
-        // Filter for products with names containing "F-SF"
+        // Filter for products with names containing "F-SF" or "F-ORD"
         const filteredMoves = rawMoves.filter(
             (move) =>
                 move.product_id &&
                 move.product_id[1] &&
-                move.product_id[1].includes("F-SF")
+                (move.product_id[1].includes("F-SF") || move.product_id[1].includes("F-ORD"))
         );
 
         // Trả về tất cả các moves riêng lẻ để frontend xử lý logic
@@ -316,7 +356,7 @@ app.get("/api/fabric-products", async (req, res) => {
                     "search_read",
                     [
                         [
-                            ["additional_product_tag_ids", "=", "Stock fabrics"]
+                            ["additional_product_tag_ids.name", "=", "Stock fabrics"]
                         ]
                     ],
                     {
@@ -546,16 +586,18 @@ app.get("/api/archived-products-with-stock", async (req, res) => {
     }
 });
 
+// ============================================
+// AUTH & STOCKTAKE ROUTES
+// ============================================
+app.use('/api/auth', authRoutes);
+app.use('/api/stocktake', stocktakeRoutes);
+
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
 
 /**
  * GET /api/health
  * Health check endpoint with system metrics
- */
-/**
- * GET /api/health
- * Health check endpoint
  */
 app.get("/api/health", async (req, res) => {
     const memoryUsage = process.memoryUsage();
@@ -570,6 +612,10 @@ app.get("/api/health", async (req, res) => {
 
     // Get Redis stats
     const redisStats = await redis.getStats();
+    
+    // Get Database stats and health
+    const dbHealthy = await dbHealthCheck();
+    const dbStats = getDbStats();
 
     res.json({
         status: "ok",
@@ -585,6 +631,10 @@ app.get("/api/health", async (req, res) => {
             external: `${Math.round(memoryUsage.external / 1024 / 1024)} MB`
         },
         cache: redisStats,
+        database: {
+            healthy: dbHealthy,
+            ...dbStats,
+        },
         nodeVersion: process.version,
         platform: process.platform,
         websocket: {
@@ -596,6 +646,8 @@ app.get("/api/health", async (req, res) => {
             userId: ODOO_CONFIG.userId,
             hasApiKey: !!ODOO_CONFIG.apiKey,
         },
+        monitoring: getMonitoringStatus(),
+        alerting: getAlertConfig(),
     });
 });
 
@@ -605,10 +657,17 @@ const server = app.listen(PORT, () => {
     console.log(`📦 Stock API: http://localhost:${PORT}/api/stock`);
     console.log(`📥 Incoming API: http://localhost:${PORT}/api/incoming`);
     console.log(`🧵 Fabric Products API: http://localhost:${PORT}/api/fabric-products`);
+    console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth/login`);
+    console.log(`🧾 Stocktake API: http://localhost:${PORT}/api/stocktake/sessions`);
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log(`🗄️  Redis Cache: ${redis.getStatus().enabled ? 'Enabled' : 'Disabled'}`);
+    console.log(`🐘 Database: PostgreSQL`);
 });
 
 // Start WebSocket server (attached to HTTP server)
 startWebSocketServer(server);
 console.log(`🔌 WebSocket server attached to HTTP server`);
+
+// Start monitoring service (if enabled)
+startMonitoring();
+console.log(`📊 Monitoring service started`);

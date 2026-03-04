@@ -29,10 +29,11 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
 
     // Main container for all tab groups
     const allTabsContainer = createElement("div", {
-        // On mobile: stack rows vertically, center items
+        // On mobile: stack rows vertically with horizontal scroll
         // On desktop: become a single row, centered
-        class: "flex flex-col items-center md:flex-row md:justify-center gap-y-2 md:gap-x-1.5",
+        class: "flex flex-col items-center md:flex-row md:justify-center gap-y-2 md:gap-x-1.5 w-full overflow-x-auto md:overflow-visible",
     });
+    allTabsContainer.style.maxWidth = "100%";
 
     // Helper function to create a tab
     const createTab = (warehouseName) => {
@@ -40,10 +41,11 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
         const shortName = warehouseName.replace("/Stock", "");
 
         const tab = createElement("button", {
-            class: `px-2.5 py-1.5 text-xs font-medium whitespace-nowrap rounded-lg transition-all duration-200 ${
+            class: `px-2.5 py-1.5 text-xs font-medium whitespace-nowrap rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
                 isActive ? "tab-pill-active tab-active" : "tab-pill-inactive"
             }`,
             "data-warehouse": warehouseName,
+            tabindex: "0",
         });
 
         if (isActive) {
@@ -55,6 +57,18 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
             tab.style.color = "#5d5044";
             tab.style.border = "1.5px solid #d4c4b0";
         }
+        // Focus ring for keyboard navigation
+        tab.style.outline = "none";
+        tab.addEventListener('focus', () => {
+            tab.style.boxShadow = "0 0 0 3px rgba(107, 90, 69, 0.4)";
+        });
+        tab.addEventListener('blur', () => {
+            if (!isActive) {
+                tab.style.boxShadow = "none";
+            } else {
+                tab.style.boxShadow = "0 2px 8px rgba(107, 90, 69, 0.3)";
+            }
+        });
 
         const tabContent = createElement("div", { class: "flex items-center gap-1" });
 
@@ -114,9 +128,21 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
     const productTabsRow = createElement("div", {
         class: "flex flex-wrap items-center justify-center gap-1",
     });
+    // Enable horizontal scroll on mobile
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        productTabsRow.classList.remove("flex-wrap");
+        productTabsRow.classList.add("flex-nowrap", "overflow-x-auto", "pb-2");
+        productTabsRow.style.webkitOverflowScrolling = "touch";
+    }
+    
     const fabricTabsRow = createElement("div", {
         class: "flex flex-wrap items-center justify-center gap-1",
     });
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        fabricTabsRow.classList.remove("flex-wrap");
+        fabricTabsRow.classList.add("flex-nowrap", "overflow-x-auto", "pb-2");
+        fabricTabsRow.style.webkitOverflowScrolling = "touch";
+    }
 
     // Render product group
     if (warehouseGroups.productGroup) {

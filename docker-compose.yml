@@ -1,11 +1,33 @@
 # ============================================
 # DOCKER COMPOSE
-# Bonario Stock Management - Full Stack
+# Bonario Stock Management - Full Stack + PostgreSQL
+# NOTE: Cloudflare Tunnel được quản lý bởi tunnel-master
 # ============================================
 
-version: '3.8'
-
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: bonario-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_DB=bonario_stock
+      - POSTGRES_USER=bonario
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bonario_secret_2026}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bonario-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bonario -d bonario_stock']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # Frontend (Nginx + Vite build)
   frontend:
     build:
@@ -13,15 +35,17 @@ services:
       dockerfile: Dockerfile
     container_name: bonario-frontend
     ports:
-      - "80:80"
+      - '8080:80'
     depends_on:
+      postgres:
+        condition: service_healthy
       backend:
         condition: service_healthy
     networks:
       - bonario-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      test: ['CMD', 'curl', '-sf', 'http://localhost:80/']
       interval: 30s
       timeout: 3s
       retries: 3
@@ -34,27 +58,55 @@ services:
       dockerfile: server/Dockerfile
     container_name: bonario-backend
     ports:
-      - "4001:4001"
+      - '4001:4001'
+    env_file:
+      - ./server/.env.production
     environment:
       - NODE_ENV=production
       - PORT=4001
-      # Odoo connection - use docker secrets or env file in production
-      - ODOO_URL=${ODOO_URL:-https://bonario.odoo.com}
-      - ODOO_DB=${ODOO_DB:-bonario}
+      # Database connection
+      - DATABASE_URL=postgresql://bonario:${POSTGRES_PASSWORD:-bonario_secret_2026}@postgres:5432/bonario_stock
+      # Odoo connection
+      - ODOO_URL=${ODOO_URL:-https://bonario-vietnam.odoo.com}
+      - ODOO_DB=${ODOO_DB:-bonario-vietnam}
+      # JWT secret
+      - JWT_SECRET=${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - bonario-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4001/api/health"]
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:4001/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
 
+  # NOTE: Cloudflare Tunnel được quản lý bởi tunnel-master
+  # KHÔNG chạy cloudflared ở đây để tránh conflict!
+  # Tất cả tunnels được quản lý tập trung tại: ../tunnel-master
+
 networks:
   bonario-network:
     driver: bridge
 
-# To use environment variables, create a .env file:
-# ODOO_URL=https://your-odoo-instance.odoo.com
-# ODOO_DB=your_database_name
+volumes:
+  postgres_data:
+
+# ============================================
+# SETUP INSTRUCTIONS:
+# ============================================
+# 1. Create .env file in server/ directory with:
+#    POSTGRES_PASSWORD=your_secure_password
+#    JWT_SECRET=your_secure_jwt_secret
+#    ODOO_URL=https://bonario-vietnam.odoo.com
+#    ODOO_DB=bonario-vietnam
+#
+# 2. Cloudflare Tunnel được quản lý bởi tunnel-master
+#    Xem: ../tunnel-master/README.md
+#
+# 3. Database will auto-initialize on first run with init.sql
+# ============================================

@@ -3,7 +3,7 @@
 // ============================================
 
 const CACHE_NAME = 'bonario-stock-v1';
-const CACHE_VERSION = '1.0.0';
+const CACHE_VERSION = '2.0.0-public-access'; // Updated for public access (no login required)
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 // Assets to cache on install
