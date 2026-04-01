@@ -114,6 +114,54 @@ function formatDate(date) {
     });
 }
 
+const HIDDEN_CATEGORIES = new Set(['BON', 'REM', 'PHUKIEN']);
+
+function shouldHideCategory(categoryName = '') {
+    return categoryName
+        .split('/')
+        .map((segment) => segment.trim().toUpperCase())
+        .some((segment) => HIDDEN_CATEGORIES.has(segment));
+}
+
+function sanitizeGroupedData(groupedData) {
+    if (!groupedData || Object.keys(groupedData).length === 0) {
+        return {};
+    }
+
+    return Object.fromEntries(
+        Object.entries(groupedData).flatMap(([warehouseName, warehouseData]) => {
+            if (!warehouseData) {
+                return [];
+            }
+
+            const categories = warehouseData.categories || warehouseData;
+            const filteredCategories = Object.fromEntries(
+                Object.entries(categories || {}).filter(
+                    ([categoryName]) => !shouldHideCategory(categoryName)
+                )
+            );
+
+            if (Object.keys(filteredCategories).length === 0) {
+                return [];
+            }
+
+            if (warehouseData.categories) {
+                return [[warehouseName, { ...warehouseData, categories: filteredCategories }]];
+            }
+
+            return [[warehouseName, filteredCategories]];
+        })
+    );
+}
+
+function sanitizeStocktakeRows(rows) {
+    if (!Array.isArray(rows)) {
+        return [];
+    }
+
+    return rows.filter((row) => !shouldHideCategory(row.categoryName || row.category || ''));
+}
+
 // ============================================
 // EXPORT FUNCTIONS
 // ============================================
@@ -132,7 +180,9 @@ export async function exportToExcel(groupedData, options = {}) {
         warehouseFilter = null // null = all, or specific warehouse name
     } = options;
 
-    if (!groupedData || Object.keys(groupedData).length === 0) {
+    const sanitizedData = sanitizeGroupedData(groupedData);
+
+    if (Object.keys(sanitizedData).length === 0) {
         throw new Error('Không có dữ liệu để xuất');
     }
 
@@ -143,12 +193,12 @@ export async function exportToExcel(groupedData, options = {}) {
 
     // Filter warehouses if needed
     const warehouses = warehouseFilter
-        ? { [warehouseFilter]: groupedData[warehouseFilter] }
-        : groupedData;
+        ? { [warehouseFilter]: sanitizedData[warehouseFilter] }
+        : sanitizedData;
 
     // Create summary sheet first (if enabled)
     if (includeSummary) {
-        createSummarySheet(workbook, groupedData);
+        createSummarySheet(workbook, sanitizedData);
     }
 
     // Create a sheet for each warehouse
@@ -482,6 +532,8 @@ export async function exportStocktakeToExcel(stocktake, rows, options = {}) {
     if (!stocktake) throw new Error("Thiếu dữ liệu phiếu kiểm kho");
     if (!Array.isArray(rows)) throw new Error("Dữ liệu dòng kiểm kho không hợp lệ");
 
+    const sanitizedRows = sanitizeStocktakeRows(rows);
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = createdBy;
     workbook.created = new Date();
@@ -546,7 +598,7 @@ export async function exportStocktakeToExcel(stocktake, rows, options = {}) {
     let totalCounted = 0;
     let totalVariance = 0;
 
-    rows.forEach((r, i) => {
+    sanitizedRows.forEach((r, i) => {
         const row = sheet.getRow(rIdx);
         const systemQty = safeNum(r.systemQty) || 0;
         const countedQty = safeNum(r.counted);
@@ -643,10 +695,12 @@ export async function exportToPDF(groupedData, options = {}) {
     } = options;
 
     try {
+        const sanitizedData = sanitizeGroupedData(groupedData);
+
         // Collect warehouses and data
         const warehouses = warehouseFilter
             ? [warehouseFilter]
-            : Object.keys(groupedData).filter(w => w !== 'Tất cả kho');
+            : Object.keys(sanitizedData).filter(w => w !== 'Tất cả kho');
 
         // Calculate totals
         let totalProducts = 0;
@@ -681,7 +735,7 @@ export async function exportToPDF(groupedData, options = {}) {
 
         // Process each warehouse
         warehouses.forEach(warehouseName => {
-            const warehouseData = groupedData[warehouseName];
+            const warehouseData = sanitizedData[warehouseName];
             if (!warehouseData) return;
 
             htmlContent += `

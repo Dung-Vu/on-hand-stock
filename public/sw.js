@@ -3,7 +3,7 @@
 // ============================================
 
 const CACHE_NAME = 'bonario-stock-v1';
-const CACHE_VERSION = '2.0.0-public-access'; // Updated for public access (no login required)
+const CACHE_VERSION = '3.2.0-mobile-buttons-redesign'; // Fix: Mobile icon-only buttons, compact layout
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 // Assets to cache on install

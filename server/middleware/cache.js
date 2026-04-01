@@ -21,6 +21,11 @@ export function cacheMiddleware(ttl) {
             return next();
         }
 
+        // Allow bypassing cache with ?noCache=true query param
+        if (req.query.noCache === 'true') {
+            return next();
+        }
+
         // Generate cache key from URL
         const cacheKey = `api:${req.originalUrl || req.url}`;
 

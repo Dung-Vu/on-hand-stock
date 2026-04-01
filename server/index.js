@@ -10,11 +10,11 @@ import { optionalHmacVerification, verifyHmacSignature } from "./middleware/auth
 import { startWebSocketServer, getClientCount } from "./websocket.js";
 import * as redis from "./services/redis.js";
 import { cacheMiddleware, invalidateCache, clearAllCache } from "./middleware/cache.js";
-import { startMonitoring, getMonitoringStatus } from "./services/monitoring.js";
-import { alertApiError, getAlertConfig } from "./services/alerting.js";
+
 import { healthCheck as dbHealthCheck, getStats as getDbStats } from "./db/index.js";
 import authRoutes from "./routes/auth.js";
 import stocktakeRoutes from "./routes/stocktake.js";
+import usersRoutes from "./routes/users.js";
 
 // Load environment variables
 config();
@@ -409,6 +409,74 @@ app.get("/api/fabric-products", async (req, res) => {
 });
 
 /**
+ * GET /api/discontinued-products
+ * Fetch product IDs that have the "Discontinued" tag
+ * Returns only IDs for lightweight cross-referencing with stock data
+ */
+app.get("/api/discontinued-products", cacheMiddleware(300), async (req, res) => {
+    try {
+        const requestBody = {
+            jsonrpc: "2.0",
+            method: "call",
+            params: {
+                service: "object",
+                method: "execute_kw",
+                args: [
+                    ODOO_CONFIG.database,
+                    ODOO_CONFIG.userId,
+                    ODOO_CONFIG.apiKey,
+                    "product.product",
+                    "search_read",
+                    [
+                        [
+                            ["product_tag_ids.name", "=", "Discontinued"]
+                        ]
+                    ],
+                    {
+                        fields: ["id"],
+                        limit: 100000,
+                    },
+                ],
+            },
+            id: 1,
+        };
+
+        const response = await fetch(ODOO_CONFIG.apiEndpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Odoo API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(result.error.message || "Odoo API call failed");
+        }
+
+        const productIds = (result.result || []).map((p) => p.id);
+
+        res.json({
+            success: true,
+            data: productIds,
+            count: productIds.length,
+        });
+    } catch (error) {
+        console.error("Error fetching discontinued products:", error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+        });
+    }
+});
+
+/**
  * GET /api/archived-products-with-stock
  * Fetch products that are archived but still have stock quantity
  */
@@ -591,6 +659,7 @@ app.get("/api/archived-products-with-stock", async (req, res) => {
 // ============================================
 app.use('/api/auth', authRoutes);
 app.use('/api/stocktake', stocktakeRoutes);
+app.use('/api/users', usersRoutes);
 
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
@@ -646,8 +715,7 @@ app.get("/api/health", async (req, res) => {
             userId: ODOO_CONFIG.userId,
             hasApiKey: !!ODOO_CONFIG.apiKey,
         },
-        monitoring: getMonitoringStatus(),
-        alerting: getAlertConfig(),
+
     });
 });
 
@@ -668,6 +736,3 @@ const server = app.listen(PORT, () => {
 startWebSocketServer(server);
 console.log(`🔌 WebSocket server attached to HTTP server`);
 
-// Start monitoring service (if enabled)
-startMonitoring();
-console.log(`📊 Monitoring service started`);

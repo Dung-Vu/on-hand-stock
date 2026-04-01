@@ -250,7 +250,7 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
     }
 
     const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/stock`;
+    const url = `${baseUrl}/api/stock${forceRefresh ? '?noCache=true' : ''}`;
 
     // Wrap API call with circuit breaker
     const fetchWithCircuitBreaker = withCircuitBreaker(
@@ -349,7 +349,7 @@ export async function fetchIncoming({ useCache = true, forceRefresh = false } = 
     }
 
     const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/incoming`;
+    const url = `${baseUrl}/api/incoming${forceRefresh ? '?noCache=true' : ''}`;
 
     // Wrap API call with circuit breaker
     const fetchWithCircuitBreaker = withCircuitBreaker(
@@ -480,6 +480,69 @@ export async function fetchFabricProducts({ useCache = true, forceRefresh = fals
 }
 
 /**
+ * Fetch discontinued product IDs from API
+ * @param {Object} options - Options
+ * @param {boolean} options.useCache - Whether to use cache (default: true)
+ * @param {boolean} options.forceRefresh - Force refresh cache (default: false)
+ * @returns {Promise<Set<number>>} - Set of discontinued product IDs
+ */
+export async function fetchDiscontinuedProducts({ useCache = true, forceRefresh = false } = {}) {
+    const cacheKey = 'discontinued_products';
+
+    // Check cache first
+    if (useCache && !forceRefresh) {
+        const cached = getFromCache(cacheKey);
+        if (cached) {
+            console.log('[API] Using cached discontinued products');
+            return cached;
+        }
+    }
+
+    // If using sample data, return empty set
+    if (isUsingSampleData()) {
+        return new Set();
+    }
+
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/api/discontinued-products${forceRefresh ? '?noCache=true' : ''}`;
+
+    try {
+        const data = await retryWithBackoff(async () => {
+            const response = await signedFetch(url, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || "API call failed");
+            }
+
+            return new Set(result.data || []);
+        }, RETRY_OPTIONS);
+
+        // Cache the data
+        if (useCache) {
+            setCache(cacheKey, data);
+        }
+
+        return data;
+    } catch (error) {
+        // Return empty set for discontinued products (optional endpoint)
+        console.warn('[API] Could not fetch discontinued products:', error.message);
+        return new Set();
+    }
+}
+
+/**
  * Fetch all data in parallel (stock, incoming, fabric products)
  * @param {Object} options - Options
  * @param {boolean} options.useCache - Whether to use cache (default: true)
@@ -543,6 +606,7 @@ export default {
     fetchStock,
     fetchIncoming,
     fetchFabricProducts,
+    fetchDiscontinuedProducts,
     fetchAllData,
     clearCache,
     getCacheStats,

@@ -5,7 +5,7 @@
 
 const API_BASE = typeof window !== 'undefined' 
     ? (window.location.hostname.includes('bonstu.site') 
-        ? 'https://api-stock.bonstu.site' 
+        ? ''  // Empty - nginx handles /api routing
         : 'http://localhost:4001')
     : 'http://localhost:4001';
 
@@ -66,8 +66,17 @@ async function request(endpoint, options = {}) {
         },
     };
     
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
+    // Handle relative vs absolute URLs
+    const url = API_BASE.startsWith('/') 
+        ? `${API_BASE}${endpoint}`  // Relative path for production
+        : `${API_BASE}${endpoint}`;  // Absolute for local
+    
+    console.log('[API Request]', endpoint, url);
+    
+    const response = await fetch(url, config);
     const data = await response.json();
+    
+    console.log('[API Response]', endpoint, response.status, data);
     
     if (!response.ok) {
         const error = new Error(data.error || 'API request failed');

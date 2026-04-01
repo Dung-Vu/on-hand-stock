@@ -4,7 +4,7 @@ import Tabs from './components/Tabs.js'
 import Stocktake from './components/Stocktake.js'
 import Login from './components/Login.js'
 import AdminDashboard from './components/AdminDashboard.js'
-import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refreshCategoryFilter, forceRefreshData, clearCache, getWarehouseNames, getProductsForWarehouse, showToast } from './store/dataStore.js'
+import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refreshCategoryFilter, forceRefreshData, clearCache, getWarehouseNames, getProductsForWarehouse, showToast, getCurrentGroupedData, updateFilterOptions } from './store/dataStore.js'
 import { auth, stocktake } from './services/apiClient.js'
 
 let currentActiveWarehouse = null
@@ -34,20 +34,39 @@ export default function App() {
   // Render login modal (only when needed for Stocktake/Admin)
   function renderLoginModal(onLoginComplete) {
     const loginOverlay = createElement('div', {
-      class: 'fixed inset-0 z-50 flex items-center justify-center'
+      class: 'fixed inset-0 z-50 overflow-y-auto'
     })
-    loginOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
-    
+    loginOverlay.style.backgroundColor = 'rgba(42, 35, 31, 0.5)'
+
     const loginView = Login({
       onLoginSuccess: (user) => {
         isLoggedIn = true
         currentUser = user
         loginOverlay.remove()
-        onLoginComplete?.(user)
+        // Re-render main app để cập nhật header (badge user, nút logout...)
+        renderMainApp()
+        // Sau khi renderMainApp() render xong DOM mới, restore lại data đã có
+        setTimeout(() => {
+          const gd = getCurrentGroupedData()
+          if (gd && Object.keys(gd).length > 0) {
+            // Data đã load trước đó → chỉ cần re-render tabs + filters + cards
+            updateFilterOptions(gd)
+            applyFilters()
+            refreshCategoryFilter()
+          } else {
+            // Chưa có data → fetch mới
+            loadData()
+          }
+          onLoginComplete?.(user)
+        }, 30)
       },
-      onToast: showToast
+      onToast: showToast,
+      onClose: () => {
+        loginOverlay.remove()
+      }
     })
-    
+
+    loginView.style.minHeight = '100vh'
     loginOverlay.appendChild(loginView)
     container.appendChild(loginOverlay)
   }
@@ -64,8 +83,8 @@ export default function App() {
       onToggleStocktake: () => {
         // Check login before opening Stocktake
         if (!auth.isAuthenticated()) {
-          renderLoginModal((user) => {
-            // After login, open stocktake
+          renderLoginModal(() => {
+            // After login, open stocktake - DOM đã sẵn sàng nhờ setTimeout trong renderLoginModal
             openStocktakeView()
           })
           return
@@ -90,39 +109,9 @@ export default function App() {
     })
     container.appendChild(header)
 
-    // Helper function to open stocktake view
-    function openStocktakeView() {
-      const stockDataEl = document.getElementById('stockData')
-      const stocktakeEl = document.getElementById('stocktakeView')
-      const headerSearch = document.getElementById('headerSearchSection')
-      const headerFilters = document.getElementById('headerFiltersSection')
-      const headerWarehouseTabs = document.getElementById('warehouseTabsPlaceholder')
-      if (!stocktakeEl || !stockDataEl) return
-
-      const isHidden = stocktakeEl.classList.contains('hidden')
-      if (isHidden) {
-        // show stocktake
-        stockDataEl.classList.add('hidden')
-        stocktakeEl.classList.remove('hidden')
-        stocktakeEl.refresh?.()
-        headerSearch?.classList.add('hidden')
-        headerFilters?.classList.add('hidden')
-        headerWarehouseTabs?.classList.add('hidden')
-        showToast('Đang mở Kiểm kho', 'info', 1500)
-      } else {
-        // show stock cards
-        stocktakeEl.classList.add('hidden')
-        stockDataEl.classList.remove('hidden')
-        headerSearch?.classList.remove('hidden')
-        headerFilters?.classList.remove('hidden')
-        headerWarehouseTabs?.classList.remove('hidden')
-        showToast('Đã quay lại Tra cứu tồn', 'info', 1500)
-      }
-    }
-
     // Main content area
     const mainContent = createElement('div', {
-      class: 'container mx-auto px-6 py-6'
+      class: 'container mx-auto px-3 sm:px-6 py-4 sm:py-6'
     })
 
     const stockDataContainer = createElement('div', { id: 'stockData' })
@@ -140,6 +129,43 @@ export default function App() {
     container.appendChild(mainContent)
   }
 
+  // Helper function to open/close stocktake view - luôn query DOM tươi
+  function openStocktakeView() {
+    const stockDataEl = document.getElementById('stockData')
+    const stocktakeEl = document.getElementById('stocktakeView')
+    const headerSearch = document.getElementById('headerSearchSection')
+    const headerFilters = document.getElementById('headerFiltersSection')
+    const headerWarehouseTabs = document.getElementById('warehouseTabsPlaceholder')
+
+    if (!stocktakeEl || !stockDataEl) {
+      console.warn('[openStocktakeView] DOM elements not found')
+      return
+    }
+
+    const isHidden = stocktakeEl.classList.contains('hidden')
+    if (isHidden) {
+      // Mở kiểm kho
+      stockDataEl.classList.add('hidden')
+      stocktakeEl.classList.remove('hidden')
+      stocktakeEl.refresh?.()
+      headerSearch?.classList.add('hidden')
+      headerFilters?.classList.add('hidden')
+      headerWarehouseTabs?.classList.add('hidden')
+      showToast('Đang mở Kiểm kho', 'info', 1500)
+    } else {
+      // Quay về tra cứu tồn
+      stocktakeEl.classList.add('hidden')
+      stockDataEl.classList.remove('hidden')
+      headerSearch?.classList.remove('hidden')
+      headerFilters?.classList.remove('hidden')
+      headerWarehouseTabs?.classList.remove('hidden')
+      // Luôn re-render data khi quay về trang kho
+      applyFilters()
+      refreshCategoryFilter()
+      showToast('Đã quay lại Tra cứu tồn', 'info', 1500)
+    }
+  }
+
   // Render admin dashboard modal
   function renderAdminDashboard() {
     const adminView = AdminDashboard({
@@ -147,7 +173,11 @@ export default function App() {
       onToast: showToast,
       onClose: () => {
         showAdminDashboard = false
-        renderMainApp()
+        // Remove only the overlay, keep main app intact
+        adminView.remove()
+        // Re-render the data that was already loaded (tabs + filters)
+        applyFilters()
+        refreshCategoryFilter()
       }
     })
     container.appendChild(adminView)
@@ -159,7 +189,18 @@ export default function App() {
     isLoggedIn = false
     currentUser = null
     showToast('Đã đăng xuất', 'info', 2000)
-    renderMainApp() // Re-render to update UI
+    renderMainApp()
+    // Restore data sau khi re-render
+    setTimeout(() => {
+      const gd = getCurrentGroupedData()
+      if (gd && Object.keys(gd).length > 0) {
+        updateFilterOptions(gd)
+        applyFilters()
+        refreshCategoryFilter()
+      } else {
+        loadData()
+      }
+    }, 30)
   }
 
   // Function to handle tab change

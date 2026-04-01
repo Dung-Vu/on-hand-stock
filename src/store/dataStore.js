@@ -5,6 +5,7 @@
 import {
     fetchStock,
     fetchIncoming,
+    fetchDiscontinuedProducts,
     clearCache,
     getCacheStats,
     markWarehouseLoaded,
@@ -104,6 +105,15 @@ export function showToast(message, type = "info", duration = 3000) {
     }, duration);
 }
 
+const HIDDEN_CATEGORIES = new Set(["BON", "REM", "PHUKIEN"]);
+
+function shouldHideCategory(categoryName = "") {
+    return categoryName
+        .split("/")
+        .map((segment) => segment.trim().toUpperCase())
+        .some((segment) => HIDDEN_CATEGORIES.has(segment));
+}
+
 // ============================================
 // WAREHOUSE MAPPING & CONFIGURATION
 // ============================================
@@ -141,6 +151,9 @@ export function getProductsForWarehouse(warehouseName) {
     const wh = currentGroupedData[warehouseName];
     const products = [];
     Object.entries(wh.categories || {}).forEach(([categoryName, category]) => {
+        if (shouldHideCategory(categoryName)) {
+            return;
+        }
         Object.values(category.products || {}).forEach((p) => {
             products.push({
                 productId: p.product_id?.[0],
@@ -326,7 +339,7 @@ function processIncomingData(incomingData, onhandProcessed) {
 }
 
 // Group data by warehouse, then by category, and merge products by product_id
-function groupDataByWarehouseAndCategory(data) {
+function groupDataByWarehouseAndCategory(data, discontinuedIds = new Set()) {
     const grouped = {};
 
     data.forEach((item) => {
@@ -339,6 +352,10 @@ function groupDataByWarehouseAndCategory(data) {
 
         // Filter Kho Vải: chỉ hiển thị sản phẩm có chứa F-SF hoặc F-ORD trong tên
         if (warehouseName === "Kho Vải" && !productName.includes("F-SF") && !productName.includes("F-ORD")) {
+            return;
+        }
+
+        if (shouldHideCategory(categoryName)) {
             return;
         }
 
@@ -386,6 +403,7 @@ function groupDataByWarehouseAndCategory(data) {
                 incoming_date: null,
                 lot_ids: [], // Collect all lot IDs
                 uom_id: item.uom_id || false, // Unit of measure
+                isDiscontinued: discontinuedIds.has(productId), // Sản phẩm ngưng sản xuất
             };
         }
 
@@ -423,7 +441,7 @@ function groupDataByWarehouseAndCategory(data) {
                 // Nếu itemDate > existingDate thì bỏ qua, để giữ lại đợt sớm nhất
             }
         }
-        
+
 
         // Collect lot IDs if exists
         if (item.lot_id && item.lot_id[1]) {
@@ -640,11 +658,16 @@ export async function loadData(options = {}) {
     }
 
     try {
+        // Check cache stats BEFORE fetching to determine if data will come from cache
+        const cacheStatsBefore = getCacheStats();
+        const willUseCache = !forceRefresh && cacheStatsBefore.validEntries > 0;
+
         // Fetch onhand and incoming data in parallel using API service
         // API service handles caching, retry, and graceful degradation
-        const [onhandData, incomingData] = await Promise.all([
+        const [onhandData, incomingData, discontinuedIds] = await Promise.all([
             fetchStock({ useCache: !forceRefresh, forceRefresh }),
-            fetchIncoming({ useCache: !forceRefresh, forceRefresh })
+            fetchIncoming({ useCache: !forceRefresh, forceRefresh }),
+            fetchDiscontinuedProducts({ useCache: !forceRefresh, forceRefresh })
         ]);
 
         if (!onhandData || onhandData.length === 0) {
@@ -659,9 +682,8 @@ export async function loadData(options = {}) {
             return;
         }
 
-        // Check if data came from cache
-        const cacheStats = getCacheStats();
-        const fromCache = cacheStats.validEntries > 0 && !forceRefresh;
+        // Use pre-fetch cache check result
+        const fromCache = willUseCache;
 
         // Process onhand and incoming data separately
         const processedOnhand = processOdooData(onhandData);
@@ -675,8 +697,8 @@ export async function loadData(options = {}) {
 
         allProcessedData = combinedData;
 
-        const groupedData = groupDataByWarehouseAndCategory(combinedData);
-        
+        const groupedData = groupDataByWarehouseAndCategory(combinedData, discontinuedIds);
+
         currentGroupedData = groupedData;
 
         // Mark all warehouses as loaded
@@ -794,6 +816,9 @@ function fallbackExportCSV() {
             Object.keys(warehouse.categories || {})
                 .sort()
                 .forEach((categoryName) => {
+                    if (shouldHideCategory(categoryName)) {
+                        return;
+                    }
                     const category = warehouse.categories[categoryName];
                     const productsList = Object.values(category.products || {});
 
@@ -1098,6 +1123,7 @@ function renderStockData(groupedData) {
                 index * 0.02,
                 0.5
             )}s; height: 100%;">
+                ${product.isDiscontinued ? `<div class="discontinued-badge">⚠️ Sản phẩm ngưng sản xuất</div>` : ''}
                 <div class="flex items-start justify-between mb-4" style="min-height: 70px;">
                     <div class="flex-1 pr-2">
                         <h3 class="text-sm font-semibold mb-1 line-clamp-2" style="color: #2a231f; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">

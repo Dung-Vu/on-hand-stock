@@ -545,6 +545,7 @@ export default function Stocktake({
                 rows.map((r) => ({
                     productId: r.productId,
                     name: r.name,
+                    categoryName: r.categoryName,
                     systemQty: r.systemQty,
                     counted: r.counted,
                     note: r.note,
