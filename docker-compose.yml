@@ -14,7 +14,7 @@ services:
     environment:
       - POSTGRES_DB=bonario_stock
       - POSTGRES_USER=bonario
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bonario_secret_2026}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD env var is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -65,12 +65,12 @@ services:
       - NODE_ENV=production
       - PORT=4001
       # Database connection
-      - DATABASE_URL=postgresql://bonario:${POSTGRES_PASSWORD:-bonario_secret_2026}@postgres:5432/bonario_stock
+      - DATABASE_URL=postgresql://bonario:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD env var is required}@postgres:5432/bonario_stock
       # Odoo connection
       - ODOO_URL=${ODOO_URL:-https://bonario-vietnam.odoo.com}
       - ODOO_DB=${ODOO_DB:-bonario-vietnam}
       # JWT secret
-      - JWT_SECRET=${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET env var is required}
     depends_on:
       postgres:
         condition: service_healthy

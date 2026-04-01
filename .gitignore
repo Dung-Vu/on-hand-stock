@@ -29,9 +29,21 @@ dist-ssr/
 # Environment variables - CRITICAL: Never commit credentials
 .env
 .env.local
+.env.production
+.env.staging
 .env.production.local
 .env.development.local
+.env.staging.local
 server/.env
+server/.env.production
+server/.env.staging
+server/.env.local
+server/.env.*.local
+
+# Cloudflare Tunnel credentials - NEVER commit
+credentials.json
+*.json.credentials
+tunnel-credentials.json
 
 # Logs
 logs
