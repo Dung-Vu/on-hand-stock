@@ -160,6 +160,35 @@
     border: 1px solid #ffc107;
   }
 
+  .discontinued-filter-toggle {
+    @apply flex items-center gap-2.5 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 select-none;
+    background-color: #ffffff;
+    border: 1.5px solid #d4c4b0;
+    color: #5d5044;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .discontinued-filter-toggle:hover {
+    background-color: #faf8f5;
+    border-color: #c9b99e;
+  }
+  .discontinued-filter-toggle:has(.discontinued-checkbox:checked) {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-color: #f0c040;
+    color: #856404;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+  }
+
+  .discontinued-checkbox {
+    @apply w-4 h-4 rounded cursor-pointer;
+    accent-color: #d4a017;
+    flex-shrink: 0;
+  }
+
+  .discontinued-filter-label {
+    @apply text-sm font-medium whitespace-nowrap;
+  }
+
   .category-filter-chip {
     @apply px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer;
     background-color: #ffffff;

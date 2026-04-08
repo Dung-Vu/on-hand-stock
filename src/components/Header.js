@@ -467,6 +467,68 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     });
 
     filtersContent.appendChild(categoryFilter);
+
+    // Discontinued filter toggle
+    const discontinuedToggle = createElement("label", {});
+    discontinuedToggle.className = 'discontinued-filter-toggle';
+    discontinuedToggle.title = 'Lọc sản phẩm ngưng sản xuất';
+    discontinuedToggle.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1.5px solid #d4c4b0;
+        background: #ffffff;
+        font-size: 13px;
+        color: #5d5044;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+        user-select: none;
+        flex-shrink: 0;
+    `;
+
+    const discontinuedCheckbox = createElement("input", {
+        id: "discontinuedFilter",
+        type: "checkbox",
+    });
+    discontinuedCheckbox.style.cssText = `
+        width: 15px;
+        height: 15px;
+        accent-color: #d4a017;
+        cursor: pointer;
+        flex-shrink: 0;
+        margin: 0;
+    `;
+
+    const discontinuedLabel = createElement("span", {});
+    discontinuedLabel.textContent = '⚠️ Ngưng SX';
+    discontinuedLabel.style.cssText = 'font-size: 12px; font-weight: 600; line-height: 1;';
+
+    discontinuedToggle.appendChild(discontinuedCheckbox);
+    discontinuedToggle.appendChild(discontinuedLabel);
+
+    // Style change when checked
+    discontinuedCheckbox.addEventListener("change", () => {
+        if (discontinuedCheckbox.checked) {
+            discontinuedToggle.style.background = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
+            discontinuedToggle.style.borderColor = '#f0c040';
+            discontinuedToggle.style.color = '#856404';
+            discontinuedToggle.style.boxShadow = '0 2px 8px rgba(255,193,7,0.2)';
+        } else {
+            discontinuedToggle.style.background = '#ffffff';
+            discontinuedToggle.style.borderColor = '#d4c4b0';
+            discontinuedToggle.style.color = '#5d5044';
+            discontinuedToggle.style.boxShadow = 'none';
+        }
+        triggerFilterChange();
+    });
+
+    filtersContent.appendChild(discontinuedToggle);
     filtersContent.appendChild(clearBtn);
     filtersSection.appendChild(filtersContent);
 
@@ -502,6 +564,11 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     clearBtn.addEventListener("click", () => {
         searchInput.value = "";
         categoryFilter.value = "";
+        discontinuedCheckbox.checked = false;
+        discontinuedToggle.style.background = '#ffffff';
+        discontinuedToggle.style.borderColor = '#d4c4b0';
+        discontinuedToggle.style.color = '#5d5044';
+        discontinuedToggle.style.boxShadow = 'none';
         triggerFilterChange();
     });
 

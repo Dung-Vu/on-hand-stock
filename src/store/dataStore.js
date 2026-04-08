@@ -350,6 +350,11 @@ function groupDataByWarehouseAndCategory(data, discontinuedIds = new Set()) {
         const categoryId = item.product_categ_id[0];
         const categoryName = item.product_categ_id[1] || "Chưa phân loại";
 
+        // Filter out "F-Khăn tay (Mẫu)" as requested by user
+        if (productName.includes("F-Khăn tay (Mẫu)")) {
+            return;
+        }
+
         // Filter Kho Vải: chỉ hiển thị sản phẩm có chứa F-SF hoặc F-ORD trong tên
         if (warehouseName === "Kho Vải" && !productName.includes("F-SF") && !productName.includes("F-ORD")) {
             return;
@@ -466,7 +471,8 @@ function filterAndSearchData(
     groupedData,
     searchTerm,
     warehouseFilter,
-    categoryFilter
+    categoryFilter,
+    { discontinuedOnly = false } = {}
 ) {
     if (!groupedData || Object.keys(groupedData).length === 0) {
         return {};
@@ -526,6 +532,11 @@ function filterAndSearchData(
                     ) {
                         return;
                     }
+                }
+
+                // Filter by discontinued status
+                if (discontinuedOnly && !product.isDiscontinued) {
+                    return;
                 }
 
                 filteredProducts[productKey] = product;
@@ -756,11 +767,15 @@ export function applyFilters() {
     const warehouseValue = warehouseFilter?.value || "";
     const categoryValue = categoryFilter?.value || "";
 
+    const discontinuedFilter = document.getElementById("discontinuedFilter");
+    const discontinuedOnly = discontinuedFilter?.checked || false;
+
     const filteredData = filterAndSearchData(
         currentGroupedData,
         searchTerm,
         warehouseValue,
-        categoryValue
+        categoryValue,
+        { discontinuedOnly }
     );
 
     renderStockData(filteredData);
@@ -771,10 +786,12 @@ export function clearFilters() {
     const searchInput = document.getElementById("searchInput");
     const warehouseFilter = document.getElementById("warehouseFilter");
     const categoryFilter = document.getElementById("categoryFilter");
+    const discontinuedFilter = document.getElementById("discontinuedFilter");
 
     if (searchInput) searchInput.value = "";
     if (warehouseFilter) warehouseFilter.value = "";
     if (categoryFilter) categoryFilter.value = "";
+    if (discontinuedFilter) discontinuedFilter.checked = false;
 
     applyFilters();
 }

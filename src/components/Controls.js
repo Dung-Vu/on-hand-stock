@@ -39,7 +39,7 @@ export default function Controls({ onLoad, onExport, onExportPDF, onClear }) {
 
   // Search and filter group
   const searchFilterGroup = createElement('div', {
-    class: 'grid grid-cols-1 md:grid-cols-4 gap-3'
+    class: 'grid grid-cols-1 md:grid-cols-5 gap-3'
   })
 
   const searchInput = createElement('input', {
@@ -63,6 +63,23 @@ export default function Controls({ onLoad, onExport, onExportPDF, onClear }) {
   const categoryOption = createElement('option', { value: '' }, 'Tất cả nhóm')
   categoryFilter.appendChild(categoryOption)
 
+  // Discontinued filter toggle
+  const discontinuedFilterWrapper = createElement('label', {
+    class: 'discontinued-filter-toggle',
+    title: 'Lọc sản phẩm ngưng sản xuất'
+  })
+  const discontinuedCheckbox = createElement('input', {
+    id: 'discontinuedFilter',
+    type: 'checkbox',
+    class: 'discontinued-checkbox'
+  })
+  const discontinuedLabel = createElement('span', {
+    class: 'discontinued-filter-label'
+  })
+  discontinuedLabel.innerHTML = '⚠️ Ngưng SX'
+  discontinuedFilterWrapper.appendChild(discontinuedCheckbox)
+  discontinuedFilterWrapper.appendChild(discontinuedLabel)
+
   const clearBtn = createElement('button', {
     id: 'clearFiltersBtn',
     class: 'px-4 py-3 bg-red-600/80 hover:bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105',
@@ -72,6 +89,7 @@ export default function Controls({ onLoad, onExport, onExportPDF, onClear }) {
   searchFilterGroup.appendChild(searchInput)
   searchFilterGroup.appendChild(warehouseFilter)
   searchFilterGroup.appendChild(categoryFilter)
+  searchFilterGroup.appendChild(discontinuedFilterWrapper)
   searchFilterGroup.appendChild(clearBtn)
 
   // Statistics summary
@@ -100,10 +118,16 @@ export default function Controls({ onLoad, onExport, onExportPDF, onClear }) {
     document.dispatchEvent(event)
   })
 
+  discontinuedCheckbox.addEventListener('change', () => {
+    const event = new CustomEvent('filterChange')
+    document.dispatchEvent(event)
+  })
+
   clearBtn.addEventListener('click', () => {
     searchInput.value = ''
     warehouseFilter.value = ''
     categoryFilter.value = ''
+    discontinuedCheckbox.checked = false
     onClear()
   })
 
