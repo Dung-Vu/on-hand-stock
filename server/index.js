@@ -73,7 +73,7 @@ const corsOptions = {
             console.log('[CORS] Allowing request with no origin (likely from Cloudflare Tunnel)');
             return callback(null, true);
         }
-        
+
         const allowedOrigins = [
             // Local development ports (Vite dev server)
             "http://localhost:5173",
@@ -97,10 +97,10 @@ const corsOptions = {
             "https://api_stock.bonstu.site",
             "http://api_stock.bonstu.site",
         ];
-        
+
         // Check if origin is in allowed list or contains bonstu.site
         const isAllowed = allowedOrigins.indexOf(origin) !== -1 || origin.includes('bonstu.site');
-        
+
         if (isAllowed) {
             console.log(`[CORS] Allowing origin: ${origin}`);
             callback(null, true);
@@ -224,12 +224,12 @@ app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
         });
     } catch (error) {
         console.error("Error fetching stock data:", error.message);
-        
+
         // Send alert for API errors
         alertApiError("/api/stock", error.message).catch(err => {
             console.error("Failed to send alert:", err.message);
         });
-        
+
         res.status(500).json({
             success: false,
             error: error.message,
@@ -409,12 +409,34 @@ app.get("/api/fabric-products", async (req, res) => {
 });
 
 /**
+ * Parse MONITOR_VARIANT_IDS env var into a Set<number>.
+ * Accepts comma-separated or semicolon-separated integers.
+ * e.g. "162056,162057,162061" → Set { 162056, 162057, 162061 }
+ */
+function parseMonitorVariantIds(raw = "") {
+    const ids = new Set();
+    for (const part of raw.replace(/;/g, ",").split(",")) {
+        const n = parseInt(part.trim(), 10);
+        if (!isNaN(n)) ids.add(n);
+    }
+    return ids;
+}
+
+/**
  * GET /api/discontinued-products
- * Fetch product IDs that have the "Discontinued" tag
- * Returns only IDs for lightweight cross-referencing with stock data
+ * Returns product.product IDs that should be treated as "Sản phẩm ngưng sản xuất".
+ *
+ * Two sources are merged (union, no duplicates):
+ *   1. Odoo tag "Discontinued" — products where the entire template is discontinued.
+ *   2. MONITOR_VARIANT_IDS env var — specific variants that are individually discontinued
+ *      but cannot be tagged because other variants of the same template are still active.
+ *
+ * The frontend (dataStore.js) checks `discontinuedIds.has(productId)` per rendered card,
+ * so an ID appearing in both sources simply maps to `true` once — no duplicate badge.
  */
 app.get("/api/discontinued-products", cacheMiddleware(300), async (req, res) => {
     try {
+        // Source 1: Odoo tag-based discontinued variants
         const requestBody = {
             jsonrpc: "2.0",
             method: "call",
@@ -460,7 +482,14 @@ app.get("/api/discontinued-products", cacheMiddleware(300), async (req, res) => 
             throw new Error(result.error.message || "Odoo API call failed");
         }
 
-        const productIds = (result.result || []).map((p) => p.id);
+        // Source 2: individually monitored variants (variant-level discontinued)
+        const monitorIds = parseMonitorVariantIds(process.env.MONITOR_VARIANT_IDS || "");
+
+        // Merge both sources — Set deduplicates automatically
+        const mergedIds = new Set((result.result || []).map((p) => p.id));
+        monitorIds.forEach((id) => mergedIds.add(id));
+
+        const productIds = Array.from(mergedIds);
 
         res.json({
             success: true,
@@ -681,7 +710,7 @@ app.get("/api/health", async (req, res) => {
 
     // Get Redis stats
     const redisStats = await redis.getStats();
-    
+
     // Get Database stats and health
     const dbHealthy = await dbHealthCheck();
     const dbStats = getDbStats();
