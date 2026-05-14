@@ -99,7 +99,14 @@ async function ensureSessionExists(month, warehouse) {
 /**
  * Set line (counted quantity and note)
  */
-export async function setLineDb({ doc, productId, counted, note }) {
+export async function setLineDb({
+    doc,
+    productId,
+    productName,
+    systemQty,
+    counted,
+    note,
+}) {
     try {
         const pid = String(productId);
         
@@ -112,8 +119,8 @@ export async function setLineDb({ doc, productId, counted, note }) {
         // Update single line
         const lineData = {
             productId: parseInt(productId),
-            productName: '', // Will be filled by backend from Odoo
-            systemQty: 0,    // Will be filled by backend
+            productName,
+            systemQty: Number(systemQty || 0),
             countedQty: counted === '' || counted === null || counted === undefined ? null : Number(counted),
             note: note,
         };
@@ -162,7 +169,8 @@ export async function bulkUpdateLinesDb(sessionId, lines, userId) {
 export async function lockStocktakeDb(doc) {
     try {
         if (!doc.id) {
-            throw new Error('No session to lock');
+            await ensureSessionExists(doc.month, doc.warehouse);
+            doc.id = currentSession.id;
         }
 
         const result = await stocktake.lockSession(doc.id);
@@ -212,7 +220,8 @@ export async function unlockStocktakeDb(doc) {
 export async function completeStocktakeDb(doc) {
     try {
         if (!doc.id) {
-            throw new Error('No session to complete');
+            await ensureSessionExists(doc.month, doc.warehouse);
+            doc.id = currentSession.id;
         }
 
         const result = await stocktake.completeSession(doc.id);

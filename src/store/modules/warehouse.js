@@ -11,6 +11,7 @@ import { signal, computed } from '@preact/signals-core';
 // Warehouse mapping
 export const WAREHOUSE_MAP = {
     165: "BONAP/Stock",
+    328: "O-BAP/Stock",
     157: "ORDAP/Stock",
     261: "ORDAP/Stock", // Gộp ORDAP location 261 và 157
     20: "ORDHL/Stock",
@@ -31,6 +32,7 @@ export const WAREHOUSE_MAP = {
 // Warehouse groups for sorting
 export const PRODUCT_WAREHOUSES = [
     "BONAP/Stock",
+    "O-BAP/Stock",
     "ORDAP/Stock",
     "ORDHL/Stock",
     "ORDHY/Stock",

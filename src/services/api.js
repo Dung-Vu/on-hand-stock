@@ -145,8 +145,8 @@ function getBaseUrl() {
     if (config.apiEndpoint.includes('/api/')) {
         return config.apiEndpoint.split('/api/')[0];
     }
-    // Local dev uses 4002, Docker uses 4001
-    return config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4002';
+    // Local dev and Docker use 4001 by default
+    return config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4001';
 }
 
 // ============================================

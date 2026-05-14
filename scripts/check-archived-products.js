@@ -18,11 +18,12 @@ const ODOO_CONFIG = {
 };
 
 // Đồng bộ với server/index.js
-const WAREHOUSE_IDS = [165, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
+const WAREHOUSE_IDS = [165, 328, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
 
 // Đồng bộ với src/store/modules/warehouse.js
 const WAREHOUSE_MAP = {
     165: "BONAP/Stock",
+    328: "O-BAP/Stock",
     157: "ORDAP/Stock",
     261: "ORDAP/Stock",
     20: "ORDHL/Stock",

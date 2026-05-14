@@ -1,111 +1,65 @@
-# Port Configuration Guide
+# Port Guide
 
-## Current Port Status
+## Port chuẩn hiện tại
 
-Based on the port check, the following ports are currently in use:
-- **Port 3000**: ❌ IN USE (Process ID: 16380)
-- **Port 5173**: ❌ IN USE (Process ID: 22688)
-- **Port 5000**: ❌ IN USE (Process ID: 26608)
+- Frontend local dev: `5178`
+- Backend API local/dev: `4001`
+- WebSocket local/dev: `4001` trên path `/ws`
+- Docker frontend: `8080`
+- PostgreSQL: `5432`
 
-## Solution
+## Mapping theo môi trường
 
-The Vite configuration has been updated to use **port 3001** instead of 3000 to avoid conflicts.
+### Local development
 
-### Current Configuration
+- Web app: `http://localhost:5178`
+- API: `http://localhost:4001`
+- WebSocket: `ws://localhost:4001/ws`
 
-The `vite.config.js` file is configured with:
-- **Port**: 3001
-- **strictPort**: false (automatically tries next available port if 3001 is busy)
-- **host**: true (allows network access)
+### Docker
 
-## Check Port Availability
+- Frontend qua nginx: `http://localhost:8080`
+- Backend container: `http://localhost:4001`
+- PostgreSQL: `localhost:5432`
 
-### Option 1: Using PowerShell Script (Recommended for Windows)
+## File cấu hình liên quan
+
+- [vite.config.js](../vite.config.js)
+- [server/index.js](../server/index.js)
+- [src/config.js](../src/config.js)
+- [src/services/apiClient.js](../src/services/apiClient.js)
+- [src/services/websocket.js](../src/services/websocket.js)
+- [docker-compose.yml](../docker-compose.yml)
+
+## Kiểm tra port
 
 ```powershell
-npm run check-ports:ps1
+netstat -ano | findstr ":5178"
+netstat -ano | findstr ":4001"
+netstat -ano | findstr ":8080"
+netstat -ano | findstr ":5432"
 ```
 
-Or directly:
-```powershell
-powershell -ExecutionPolicy Bypass -File check-ports.ps1
-```
-
-### Option 2: Using Node.js Script
+Hoặc dùng script:
 
 ```bash
 npm run check-ports
 ```
 
-### Option 3: Manual Check
-
-Check a specific port:
 ```powershell
-netstat -ano | findstr :3001
+npm run check-ports:ps1
 ```
 
-Check all common development ports:
-```powershell
-netstat -ano | findstr "3000 3001 3002 5173 5174 8080"
-```
+## Khi cần đổi port
 
-## Change Port Manually
+- Frontend local: sửa [vite.config.js](../vite.config.js)
+- Backend: sửa biến môi trường `PORT`
+- Docker public web port: sửa [docker-compose.yml](../docker-compose.yml)
 
-If you need to use a different port, edit `vite.config.js`:
+Nếu đổi backend port, cần cập nhật đồng bộ:
 
-```javascript
-export default defineConfig({
-  server: {
-    port: 3002, // Change to your preferred port
-    strictPort: false, // Auto-find next available port if busy
-    open: true,
-    host: true
-  }
-})
-```
-
-## Port Recommendations
-
-- **3001-3009**: Good for development servers
-- **5173-5179**: Vite default range
-- **8080-8090**: Alternative development ports
-- **4000-4010**: Node.js common ports
-- **5000-5010**: Flask/other frameworks
-
-## Troubleshooting
-
-### Port Still in Use?
-
-1. **Find the process using the port:**
-   ```powershell
-   netstat -ano | findstr :3000
-   ```
-   Note the PID (Process ID) from the last column
-
-2. **Kill the process (if needed):**
-   ```powershell
-   taskkill /PID <PID> /F
-   ```
-   Replace `<PID>` with the actual Process ID
-
-3. **Or use a different port** by updating `vite.config.js`
-
-### Vite Auto-Port Selection
-
-With `strictPort: false`, Vite will automatically try the next available port if the configured port is busy. For example:
-- If 3001 is busy, it will try 3002
-- If 3002 is busy, it will try 3003
-- And so on...
-
-The actual port will be shown in the terminal when you run `npm run dev`.
-
-## Network Access
-
-With `host: true` in the config, the dev server is accessible from:
-- **Local**: `http://localhost:3001`
-- **Network**: `http://<your-ip>:3001`
-
-To find your IP address:
-```powershell
-ipconfig | findstr IPv4
-```
+- `src/config.js`
+- `src/services/api.js`
+- `src/services/apiClient.js`
+- `src/services/websocket.js`
+- tài liệu vận hành liên quan

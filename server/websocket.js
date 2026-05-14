@@ -9,7 +9,7 @@ import { config } from 'dotenv';
 // Load environment variables
 config();
 
-const WS_PORT = process.env.WS_PORT || 4002;
+const WS_PORT = process.env.WS_PORT || 4001;
 
 // ============================================
 // CLIENT MANAGEMENT
@@ -204,9 +204,10 @@ export function startWebSocketServer(httpServer = null) {
         });
     }, 30000); // Every 30 seconds
 
+    const endpoint = httpServer ? 'ws://localhost:4001/ws' : `ws://localhost:${WS_PORT}`;
     const port = httpServer ? 'attached to HTTP server' : WS_PORT;
     console.log(`[WebSocket] Server started on port ${port}`);
-    console.log(`[WebSocket] Clients can connect to: ws://localhost:${WS_PORT}`);
+    console.log(`[WebSocket] Clients can connect to: ${endpoint}`);
 
     return wss;
 }

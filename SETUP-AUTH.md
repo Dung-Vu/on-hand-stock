@@ -1,134 +1,106 @@
-# 🔐 Setup Authentication & Database
+# Setup Authentication & Stocktake Database
 
-Hướng dẫn thiết lập hệ thống đăng nhập và database cho tính năng kiểm kho.
+Hướng dẫn thiết lập đăng nhập, phân quyền và kiểm kho dùng PostgreSQL.
 
-## 📋 Tổng Quan
+## Tổng quan
 
-Hệ thống mới bao gồm:
-- **PostgreSQL Database** - Lưu trữ users, stocktake sessions, stocktake lines
-- **JWT Authentication** - Đăng nhập, phân quyền (admin vs counter)
-- **Admin Dashboard** - Quản lý users (tạo, xóa, edit, activate/deactivate)
-- **Sync Database** - Kiểm kho lưu database thay vì localStorage
+Hệ thống hiện tại gồm:
 
-## 🚀 Quick Start
+- JWT authentication
+- User roles: `admin`, `counter`
+- User management qua `/api/auth/users`
+- Stocktake sessions lưu trong PostgreSQL
+- Lock/unlock phiếu kiểm kho nhiều người dùng
 
-### 1. Cài Đặt Dependencies
+## Ports dùng trong dự án
+
+- Frontend local: `http://localhost:5178`
+- Backend API: `http://localhost:4001`
+- WebSocket: `ws://localhost:4001/ws`
+- Docker frontend: `http://localhost:8080`
+- PostgreSQL: `localhost:5432`
+
+## Setup nhanh
+
+### 1. Cài dependencies
 
 ```bash
+npm install
 cd server
 npm install
+cd ..
 ```
 
-### 2. Cấu Hình Environment Variables
+### 2. Cấu hình environment
 
-Tạo file `server/.env.production`:
+Tạo `server/.env.production`:
 
 ```bash
-# Database
 POSTGRES_PASSWORD=your_secure_password_here
 DATABASE_URL=postgresql://bonario:your_secure_password_here@postgres:5432/bonario_stock
 
-# JWT Secret (change this!)
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+JWT_SECRET=<JWT_SECRET>
 
-# Odoo Configuration
 ODOO_URL=https://bonario-vietnam.odoo.com
 ODOO_DB=bonario-vietnam
 ODOO_API_ENDPOINT=https://bonario-vietnam.odoo.com/jsonrpc
 ODOO_API_KEY=your_odoo_api_key_here
+PORT=4001
 ```
 
-### 3. Start Docker Services
+### 3. Chạy Docker
 
 ```bash
-# From project root
-docker-compose down -v  # Remove old volumes (optional, for fresh start)
 docker-compose up -d --build
 ```
 
-### 4. Check Logs
+Hoặc chạy local:
 
 ```bash
-# Check all services
-docker-compose logs -f
+psql -U postgres -d bonario_stock -f database/init.sql
 
-# Check backend specifically
-docker-compose logs -f backend
+cd server
+npm run dev
 
-# Check postgres
-docker-compose logs -f postgres
+cd ..
+npm run dev
 ```
 
-### 5. Access Application
+## Tài khoản mặc định
 
-- **Frontend:** http://localhost:8080
-- **Backend API:** http://localhost:4001
-- **PostgreSQL:** localhost:5432
+Schema SQL hiện seed sẵn:
 
-## 👤 Default Admin Account
+- Username: `dinhdung533`
+- Password: `<ADMIN_PASSWORD>`
+- Role: `admin`
 
-- **Username:** `admin`
-- **Password:** `admin123`
+Nếu dùng `npm run seed` trong `server/`, script cũng tạo đúng tài khoản mặc định này nếu chưa tồn tại.
 
-⚠️ **IMPORTANT:** Đổi mật khẩu ngay sau khi đăng nhập lần đầu!
-
-## 📊 Database Schema
-
-### Tables
-
-1. **users** - User accounts
-   - `id`, `username`, `password_hash`, `role` (admin/counter), `is_active`
-   
-2. **stocktake_sessions** - Monthly stocktake sessions
-   - `id`, `month` (YYYY-MM), `warehouse`, `status`, `created_by`, `locked_at`, `completed_at`
-   
-3. **stocktake_lines** - Individual product counts
-   - `id`, `session_id`, `product_id`, `system_qty`, `counted_qty`, `variance`, `note`
-   
-4. **audit_log** - User action tracking
-   - `user_id`, `action`, `entity_type`, `entity_id`, `details`, `ip_address`
-
-### Access Database
-
-```bash
-# Connect to PostgreSQL
-docker exec -it bonario-postgres psql -U bonario -d bonario_stock
-
-# List tables
-\dt
-
-# View users
-SELECT * FROM users;
-
-# View recent sessions
-SELECT * FROM stocktake_sessions ORDER BY created_at DESC LIMIT 10;
-```
-
-## 🔑 API Endpoints
+## API chính
 
 ### Authentication
 
 ```bash
-# Login
 POST http://localhost:4001/api/auth/login
 {
-  "username": "admin",
-  "password": "admin123"
+  "username": "dinhdung533",
+  "password": "<ADMIN_PASSWORD>"
 }
+```
 
-# Logout
-POST http://localhost:4001/api/auth/logout
-Authorization: Bearer <token>
-
-# Get current user
+```bash
 GET http://localhost:4001/api/auth/me
 Authorization: Bearer <token>
+```
 
-# List users (admin only)
+### User management
+
+```bash
 GET http://localhost:4001/api/auth/users
 Authorization: Bearer <token>
+```
 
-# Create user (admin only)
+```bash
 POST http://localhost:4001/api/auth/users
 Authorization: Bearer <token>
 {
@@ -138,23 +110,35 @@ Authorization: Bearer <token>
 }
 ```
 
+```bash
+PUT http://localhost:4001/api/auth/users/:id
+Authorization: Bearer <token>
+```
+
+```bash
+DELETE http://localhost:4001/api/auth/users/:id
+Authorization: Bearer <token>
+```
+
 ### Stocktake
 
 ```bash
-# List sessions
 GET http://localhost:4001/api/stocktake/sessions
+```
 
-# Get session by month/warehouse
+```bash
 GET http://localhost:4001/api/stocktake/sessions/by-month-warehouse?month=2026-03&warehouse=BONAP/Stock
+```
 
-# Create session
+```bash
 POST http://localhost:4001/api/stocktake/sessions
 {
   "month": "2026-03",
   "warehouse": "BONAP/Stock"
 }
+```
 
-# Update lines
+```bash
 PUT http://localhost:4001/api/stocktake/sessions/1/lines
 {
   "lines": [
@@ -167,120 +151,51 @@ PUT http://localhost:4001/api/stocktake/sessions/1/lines
     }
   ]
 }
+```
 
-# Lock session
+```bash
 POST http://localhost:4001/api/stocktake/sessions/1/lock
-
-# Unlock session
 POST http://localhost:4001/api/stocktake/sessions/1/unlock
 ```
 
-## 🎯 User Roles
+## Hành vi hiện tại của stocktake
 
-### Admin (👑)
-- Tạo, xem, edit, xóa users
-- Tạo stocktake sessions
-- Lock/unlock/complete sessions
-- Xem tất cả sessions
-- Export reports
+- Dữ liệu phiếu kiểm kho lưu ở PostgreSQL
+- Nhiều người dùng thấy cùng một phiên kiểm kho
+- UI web không còn dùng `localStorage` để lưu line items của phiếu
+- `localStorage` chỉ còn có thể được dùng cho vài preference UI cục bộ, không phải nguồn dữ liệu kiểm kho
 
-### Counter (🔍)
-- Xem danh sách sessions
-- Count products (nhập số lượng thực tế)
-- Thêm ghi chú
-- Xem sessions đã tạo
+## Troubleshooting
 
-## 🔄 Migration từ LocalStorage
+### Không login được
 
-Hệ thống cũ lưu dữ liệu kiểm kho trong localStorage → mỗi người dùng thấy dữ liệu khác nhau.
+- Kiểm tra backend đang chạy ở `4001`
+- Kiểm tra `JWT_SECRET`
+- Kiểm tra user còn `is_active = true`
 
-**Hệ thống mới:**
-- Dữ liệu lưu PostgreSQL → đồng bộ cho tất cả người dùng
-- Real-time sync (qua WebSocket - sẽ implement)
-- Audit trail - biết ai count sản phẩm nào, lúc nào
-- Session locking - tránh 2 người cùng edit 1 session
+### Không lưu được phiếu kiểm kho
 
-### Copy dữ liệu cũ (optional)
+- Kiểm tra PostgreSQL đang chạy
+- Kiểm tra `DATABASE_URL`
+- Kiểm tra schema đã được import từ [database/init.sql](./database/init.sql)
 
-Nếu muốn migrate dữ liệu từ localStorage sang database:
-
-```javascript
-// Run in browser console
-const keys = [];
-for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith('stocktake:v1:')) {
-        keys.push(key);
-    }
-}
-
-const data = keys.map(key => ({
-    key,
-    value: JSON.parse(localStorage.getItem(key))
-}));
-
-console.log(JSON.stringify(data, null, 2));
-// Send this to backend API to import
-```
-
-## 🛠️ Troubleshooting
-
-### Lỗi: "Connection refused" khi connect database
+### Kiểm tra backend
 
 ```bash
-# Check if postgres is running
-docker-compose ps
-
-# Restart postgres
-docker-compose restart postgres
-
-# Check logs
-docker-compose logs postgres
+docker-compose logs -f backend
 ```
-
-### Lỗi: "Authentication failed"
-
-- Kiểm tra JWT_SECRET trong .env
-- Token hết hạn (24h) → logout và login lại
-- User bị deactivate → admin cần activate lại
-
-### Lỗi: "Database does not exist"
 
 ```bash
-# Recreate database volume
-docker-compose down -v
-docker-compose up -d postgres
+curl http://localhost:4001/api/health
 ```
 
-### Reset admin password
+## Reset tài khoản mặc định
+
+Nếu muốn tạo lại tài khoản mặc định bằng script:
 
 ```bash
-# Connect to database
-docker exec -it bonario-postgres psql -U bonario -d bonario_stock
-
-# Update password (password: admin123)
-UPDATE users 
-SET password_hash = '$2b$10$rH9zqX8FQJzKvVxN7pGwZeO8KqVxN7pGwZeO8KqVxN7pGwZeO8KqV'
-WHERE username = 'admin';
+cd server
+npm run seed
 ```
 
-## 📝 Next Steps
-
-1. ✅ Setup database & authentication (DONE)
-2. ⏳ Real-time sync via WebSocket
-3. ⏳ Export reports từ database
-4. ⏳ Backup database tự động
-5. ⏳ Email notifications khi session được tạo/locked/completed
-
-## 🔒 Security Best Practices
-
-- ✅ Đổi JWT_SECRET thành random string dài
-- ✅ Đổi admin password ngay sau khi setup
-- ✅ Dùng HTTPS trong production
-- ✅ Regular database backups
-- ✅ Monitor audit logs
-- ✅ Rate limiting đã enable (100 req/15min)
-
----
-
-**Questions?** Check backend logs: `docker-compose logs -f backend`
+Script sẽ chỉ tạo user nếu username chưa tồn tại.

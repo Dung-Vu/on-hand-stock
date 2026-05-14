@@ -106,11 +106,33 @@ export function showToast(message, type = "info", duration = 3000) {
 }
 
 const HIDDEN_CATEGORIES = new Set(["BON", "REM", "PHUKIEN"]);
+const BONAP_VISIBLE_CATEGORY_ALLOWLIST = new Set([
+    "BON / GDT / JP",
+    "BON / GDT / LM",
+    "BON / GDT / ROLL",
+    "BON / GDT / MURALS - CLOTH",
+    "BON / REM / TPREM",
+]);
 
-function shouldHideCategory(categoryName = "") {
+function normalizeCategoryName(categoryName = "") {
     return categoryName
         .split("/")
         .map((segment) => segment.trim().toUpperCase())
+        .join(" / ");
+}
+
+function shouldHideCategory(categoryName = "", warehouseName = "") {
+    const normalizedCategoryName = normalizeCategoryName(categoryName);
+
+    if (
+        warehouseName === "BONAP/Stock" &&
+        BONAP_VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)
+    ) {
+        return false;
+    }
+
+    return normalizedCategoryName
+        .split(" / ")
         .some((segment) => HIDDEN_CATEGORIES.has(segment));
 }
 
@@ -151,7 +173,7 @@ export function getProductsForWarehouse(warehouseName) {
     const wh = currentGroupedData[warehouseName];
     const products = [];
     Object.entries(wh.categories || {}).forEach(([categoryName, category]) => {
-        if (shouldHideCategory(categoryName)) {
+        if (shouldHideCategory(categoryName, warehouseName)) {
             return;
         }
         Object.values(category.products || {}).forEach((p) => {
@@ -360,7 +382,7 @@ function groupDataByWarehouseAndCategory(data, discontinuedIds = new Set()) {
             return;
         }
 
-        if (shouldHideCategory(categoryName)) {
+        if (shouldHideCategory(categoryName, warehouseName)) {
             return;
         }
 
@@ -833,7 +855,7 @@ function fallbackExportCSV() {
             Object.keys(warehouse.categories || {})
                 .sort()
                 .forEach((categoryName) => {
-                    if (shouldHideCategory(categoryName)) {
+                    if (shouldHideCategory(categoryName, warehouseName)) {
                         return;
                     }
                     const category = warehouse.categories[categoryName];
@@ -1054,6 +1076,7 @@ function renderStockData(groupedData) {
     const warehouse = groupedData[activeWarehouse];
     const hideIncomingWarehouses = new Set([
         "BONAP/Stock",
+        "O-BAP/Stock",
         "ORDAP/Stock",
         "ORDHL/Stock",
         "ORDHY/Stock",

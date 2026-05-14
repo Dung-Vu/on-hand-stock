@@ -16,38 +16,43 @@ const pool = new Pool({
 
 async function seedAdmin() {
     const client = await pool.connect();
-    
+
     try {
         console.log('🌱 Seeding admin user...');
-        
-        // Check if admin already exists
+
+        // Check if default admin already exists
         const existingAdmin = await client.query(
             'SELECT id FROM users WHERE username = $1',
-            ['admin']
+            ['dinhdung533']
         );
-        
+
         if (existingAdmin.rows.length > 0) {
-            console.log('✅ Admin user already exists');
+            console.log('✅ Default admin user already exists');
             return;
         }
-        
+
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        if (!adminPassword) {
+            throw new Error('ADMIN_PASSWORD environment variable is required to seed the admin user');
+        }
+
         // Create admin user
-        const passwordHash = await bcrypt.hash('admin123', 10);
-        
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+
         const result = await client.query(
             `INSERT INTO users (username, password_hash, role, is_active)
              VALUES ($1, $2, $3, $4)
              RETURNING id, username, role, created_at`,
-            ['admin', passwordHash, 'admin', true]
+            ['dinhdung533', passwordHash, 'admin', true]
         );
-        
+
         console.log('✅ Admin user created successfully:');
-        console.log('   Username: admin');
-        console.log('   Password: admin123');
+        console.log('   Username: dinhdung533');
+        console.log('   Password: set via ADMIN_PASSWORD');
         console.log('   Role: admin');
         console.log('');
         console.log('⚠️  PLEASE CHANGE THE DEFAULT PASSWORD AFTER FIRST LOGIN!');
-        
+
     } catch (error) {
         console.error('❌ Error seeding admin user:', error.message);
         throw error;

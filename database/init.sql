@@ -130,17 +130,8 @@ CREATE TRIGGER update_stocktake_lines_updated_at
 -- ============================================
 -- DEFAULT ADMIN USER
 -- ============================================
--- Default admin credentials
--- Username: dinhdung533
--- Password: 130501 (hashed with bcrypt)
--- IMPORTANT: Change this password after first login!
-INSERT INTO users (username, password_hash, role, is_active)
-VALUES (
-    'dinhdung533',
-    '$2b$10$s5jJ.3sM0whX4q7yroM9gOMwWErpZiLkLXIWfurPfu4R9FIKzxW.G', -- 130501
-    'admin',
-    true
-) ON CONFLICT (username) DO NOTHING;
+-- No default admin password is stored in source control.
+-- Set ADMIN_PASSWORD and run the seed script to create the first admin.
 
 -- ============================================
 -- COMMENTS

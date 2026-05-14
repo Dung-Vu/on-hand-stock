@@ -10,7 +10,7 @@ import { auth, stocktake } from './services/apiClient.js'
 let currentActiveWarehouse = null
 
 // Warehouse list for keyboard navigation
-const WAREHOUSE_SHORTCUTS = ['BONAP/Stock', 'ORDAP/Stock', 'ORDHL/Stock', 'ORDHY/Stock', 'ORDST/Stock', 'Kho Vải']
+const WAREHOUSE_SHORTCUTS = ['BONAP/Stock', 'O-BAP/Stock', 'ORDAP/Stock', 'ORDHL/Stock', 'ORDHY/Stock', 'ORDST/Stock', 'Kho Vải']
 
 export default function App() {
   const container = createElement('div', {
@@ -308,8 +308,8 @@ export default function App() {
       exportData()
     }
 
-    // Number keys 1-6: Switch warehouses (only when not typing)
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key >= '1' && e.key <= '6') {
+    // Number keys 1-7: Switch warehouses (only when not typing)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key >= '1' && e.key <= '7') {
       const activeElement = document.activeElement
       const isTyping = activeElement && (
         activeElement.tagName === 'INPUT' ||

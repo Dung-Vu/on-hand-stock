@@ -1,13 +1,13 @@
 import { createElement } from "../utils/dom.js";
 import { exportStocktakeToExcel } from "../utils/export.js";
+import { defaultMonth } from "../store/stocktakeStore.js";
 import {
-    defaultMonth,
-    loadStocktake,
-    setLine,
-    lockStocktake,
-    unlockStocktake,
-    listStocktakes,
-} from "../store/stocktakeStore.js";
+    loadStocktakeDb as loadStocktake,
+    setLineDb as setLine,
+    lockStocktakeDb as lockStocktake,
+    unlockStocktakeDb as unlockStocktake,
+    listStocktakesDb as listStocktakes,
+} from "../store/stocktakeDbStore.js";
 
 function formatNumber(n) {
     const num = Number(n);
@@ -167,6 +167,7 @@ export default function Stocktake({
     // State
     let doc = null;
     let products = [];
+    let historyItemsById = new Map();
 
     function isMobile() {
         if (typeof window === "undefined") return false;
@@ -188,8 +189,50 @@ export default function Stocktake({
         warehouseSelect.value = initial || "";
     }
 
-    function refreshHistory() {
-        const items = listStocktakes();
+    function createEmptyDoc(month, warehouse) {
+        return {
+            id: null,
+            month,
+            warehouse,
+            status: "draft",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lines: {},
+            stats: null,
+        };
+    }
+
+    function updateLockButton() {
+        lockBtn.textContent = doc?.status === "locked" ? "🔓 Mở khóa" : "🔒 Chốt phiếu";
+    }
+
+    function showTableMessage(message) {
+        tableBody.innerHTML = "";
+        const empty = createElement("div", { class: "p-6 text-sm" });
+        empty.style.color = "#7d6d5a";
+        empty.textContent = message;
+        tableBody.appendChild(empty);
+    }
+
+    function updateVarianceDisplay(target, variance) {
+        if (variance === null || variance === undefined) {
+            target.style.color = "#7d6d5a";
+            target.textContent = "-";
+        } else if (variance === 0) {
+            target.style.color = "#1b5e20";
+            target.textContent = "0";
+        } else if (variance > 0) {
+            target.style.color = "#155724";
+            target.textContent = `+${formatNumber(variance)}`;
+        } else {
+            target.style.color = "#721c24";
+            target.textContent = formatNumber(variance);
+        }
+    }
+
+    async function refreshHistory() {
+        const items = await listStocktakes();
+        historyItemsById = new Map(items.map((it) => [String(it.id), it]));
         historySelect.innerHTML = "";
         const opt0 = document.createElement("option");
         opt0.value = "";
@@ -198,17 +241,24 @@ export default function Stocktake({
 
         items.slice(0, 50).forEach((it) => {
             const opt = document.createElement("option");
-            opt.value = it.key;
+            opt.value = String(it.id);
             opt.textContent = `${it.month} • ${it.warehouse} • ${it.status}`;
             historySelect.appendChild(opt);
         });
     }
 
-    function loadDoc() {
+    async function loadDoc() {
         const month = monthInput.value || defaultMonth();
         const wh = warehouseSelect.value;
-        doc = loadStocktake({ month, warehouse: wh });
-        lockBtn.textContent = doc.status === "locked" ? "🔓 Mở khóa" : "🔒 Chốt phiếu";
+
+        if (!wh) {
+            doc = createEmptyDoc(month, wh);
+            updateLockButton();
+            return;
+        }
+
+        doc = await loadStocktake({ month, warehouse: wh });
+        updateLockButton();
     }
 
     function computeRows() {
@@ -297,57 +347,59 @@ export default function Stocktake({
                 const varBox = createElement("div", { class: "p-2 rounded-lg text-center" });
                 varBox.style.backgroundColor = "#e8f4f8";
                 const varValue = createElement("div", { class: "font-bold" });
-                const v = r.variance;
-                if (v === null) {
-                    varValue.style.color = "#7d6d5a";
-                    varValue.textContent = "-";
-                } else if (v === 0) {
-                    varValue.style.color = "#1b5e20";
-                    varValue.textContent = "0";
-                } else if (v > 0) {
-                    varValue.style.color = "#155724";
-                    varValue.textContent = `+${formatNumber(v)}`;
-                } else {
-                    varValue.style.color = "#721c24";
-                    varValue.textContent = formatNumber(v);
-                }
+                updateVarianceDisplay(varValue, r.variance);
                 varBox.innerHTML = `<div class="text-[10px] uppercase tracking-wider" style="color:#7d6d5a">Lệch</div>`;
                 varBox.appendChild(varValue);
 
                 countedInput.addEventListener("input", (e) => {
-                    doc = setLine({
-                        doc,
-                        productId: r.productId,
-                        counted: e.target.value,
-                        note: r.note,
-                    });
                     const c = e.target.value === "" ? null : Number(e.target.value);
                     const vv = c === null ? null : c - Number(r.systemQty || 0);
-                    if (vv === null) {
-                        varValue.style.color = "#7d6d5a";
-                        varValue.textContent = "-";
-                    } else if (vv === 0) {
-                        varValue.style.color = "#1b5e20";
-                        varValue.textContent = "0";
-                    } else if (vv > 0) {
-                        varValue.style.color = "#155724";
-                        varValue.textContent = `+${formatNumber(vv)}`;
-                    } else {
-                        varValue.style.color = "#721c24";
-                        varValue.textContent = formatNumber(vv);
+                    updateVarianceDisplay(varValue, vv);
+                });
+
+                countedInput.addEventListener("change", async (e) => {
+                    const hadSessionId = !!doc?.id;
+                    try {
+                        doc = await setLine({
+                            doc,
+                            productId: r.productId,
+                            productName: r.name,
+                            systemQty: r.systemQty,
+                            counted: e.target.value,
+                            note: doc?.lines?.[String(r.productId)]?.note ?? r.note,
+                        });
+                        if (!hadSessionId && doc?.id) {
+                            await refreshHistory();
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        onToast?.(`Lỗi lưu số lượng: ${error?.message || error}`, "error", 3000);
+                        countedInput.value = doc?.lines?.[String(r.productId)]?.counted ?? "";
+                        updateVarianceDisplay(varValue, r.variance);
                     }
                 });
 
-                noteBtn.addEventListener("click", () => {
+                noteBtn.addEventListener("click", async () => {
                     const next = prompt("Ghi chú:", r.note || "");
                     if (next === null) return;
-                    doc = setLine({
-                        doc,
-                        productId: r.productId,
-                        counted: r.counted,
-                        note: next,
-                    });
-                    onToast?.("Đã lưu ghi chú", "success", 1500);
+                    const hadSessionId = !!doc?.id;
+                    try {
+                        doc = await setLine({
+                            doc,
+                            productId: r.productId,
+                            productName: r.name,
+                            systemQty: r.systemQty,
+                            counted: doc?.lines?.[String(r.productId)]?.counted ?? r.counted,
+                            note: next,
+                        });
+                        if (!hadSessionId && doc?.id) {
+                            await refreshHistory();
+                        }
+                        onToast?.("Đã lưu ghi chú", "success", 1500);
+                    } catch (error) {
+                        console.error(error);
+                        onToast?.(`Lỗi lưu ghi chú: ${error?.message || error}`, "error", 3000);
+                    }
                 });
 
                 grid.appendChild(sysBox);
@@ -386,20 +438,7 @@ export default function Stocktake({
             countedWrap.appendChild(countedInput);
 
             const varEl = createElement("div", { class: "col-span-2 text-right font-semibold" });
-            const v = r.variance;
-            if (v === null) {
-                varEl.style.color = "#7d6d5a";
-                varEl.textContent = "-";
-            } else if (v === 0) {
-                varEl.style.color = "#1b5e20";
-                varEl.textContent = "0";
-            } else if (v > 0) {
-                varEl.style.color = "#155724";
-                varEl.textContent = `+${formatNumber(v)}`;
-            } else {
-                varEl.style.color = "#721c24";
-                varEl.textContent = formatNumber(v);
-            }
+            updateVarianceDisplay(varEl, r.variance);
 
             const noteWrap = createElement("div", { class: "col-span-1" });
             const noteBtn = createElement("button", {
@@ -411,39 +450,54 @@ export default function Stocktake({
             noteWrap.appendChild(noteBtn);
 
             countedInput.addEventListener("input", (e) => {
-                doc = setLine({
-                    doc,
-                    productId: r.productId,
-                    counted: e.target.value,
-                    note: r.note,
-                });
                 const c = e.target.value === "" ? null : Number(e.target.value);
                 const vv = c === null ? null : c - Number(r.systemQty || 0);
-                if (vv === null) {
-                    varEl.style.color = "#7d6d5a";
-                    varEl.textContent = "-";
-                } else if (vv === 0) {
-                    varEl.style.color = "#1b5e20";
-                    varEl.textContent = "0";
-                } else if (vv > 0) {
-                    varEl.style.color = "#155724";
-                    varEl.textContent = `+${formatNumber(vv)}`;
-                } else {
-                    varEl.style.color = "#721c24";
-                    varEl.textContent = formatNumber(vv);
+                updateVarianceDisplay(varEl, vv);
+            });
+
+            countedInput.addEventListener("change", async (e) => {
+                const hadSessionId = !!doc?.id;
+                try {
+                    doc = await setLine({
+                        doc,
+                        productId: r.productId,
+                        productName: r.name,
+                        systemQty: r.systemQty,
+                        counted: e.target.value,
+                        note: doc?.lines?.[String(r.productId)]?.note ?? r.note,
+                    });
+                    if (!hadSessionId && doc?.id) {
+                        await refreshHistory();
+                    }
+                } catch (error) {
+                    console.error(error);
+                    onToast?.(`Lỗi lưu số lượng: ${error?.message || error}`, "error", 3000);
+                    countedInput.value = doc?.lines?.[String(r.productId)]?.counted ?? "";
+                    updateVarianceDisplay(varEl, r.variance);
                 }
             });
 
-            noteBtn.addEventListener("click", () => {
+            noteBtn.addEventListener("click", async () => {
                 const next = prompt("Ghi chú:", r.note || "");
                 if (next === null) return;
-                doc = setLine({
-                    doc,
-                    productId: r.productId,
-                    counted: r.counted,
-                    note: next,
-                });
-                onToast?.("Đã lưu ghi chú", "success", 1500);
+                const hadSessionId = !!doc?.id;
+                try {
+                    doc = await setLine({
+                        doc,
+                        productId: r.productId,
+                        productName: r.name,
+                        systemQty: r.systemQty,
+                        counted: doc?.lines?.[String(r.productId)]?.counted ?? r.counted,
+                        note: next,
+                    });
+                    if (!hadSessionId && doc?.id) {
+                        await refreshHistory();
+                    }
+                    onToast?.("Đã lưu ghi chú", "success", 1500);
+                } catch (error) {
+                    console.error(error);
+                    onToast?.(`Lỗi lưu ghi chú: ${error?.message || error}`, "error", 3000);
+                }
             });
 
             row.appendChild(name);
@@ -455,15 +509,26 @@ export default function Stocktake({
         });
     }
 
-    function reloadAll() {
-        refreshHistory();
-        loadDoc();
-        render();
+    async function reloadAll() {
+        showTableMessage("Đang tải phiếu kiểm kho...");
+        try {
+            await refreshHistory();
+            await loadDoc();
+            render();
+        } catch (error) {
+            console.error(error);
+            showTableMessage("Không thể tải phiếu kiểm kho.");
+            onToast?.(`Lỗi tải phiếu: ${error?.message || error}`, "error", 3000);
+        }
     }
 
     // Events
-    monthInput.addEventListener("change", reloadAll);
-    warehouseSelect.addEventListener("change", reloadAll);
+    monthInput.addEventListener("change", () => {
+        reloadAll();
+    });
+    warehouseSelect.addEventListener("change", () => {
+        reloadAll();
+    });
     searchInput.addEventListener("input", render);
 
     // Re-render on viewport change (mobile/desktop)
@@ -474,43 +539,37 @@ export default function Stocktake({
         else mq.addListener(handler);
     }
 
-    historySelect.addEventListener("change", () => {
+    historySelect.addEventListener("change", async () => {
         const key = historySelect.value;
         if (!key) return;
         try {
-            const raw = localStorage.getItem(key);
-            const parsed = raw ? JSON.parse(raw) : null;
+            const parsed = historyItemsById.get(key);
             if (!parsed) return;
             monthInput.value = parsed.month || monthInput.value;
             warehouseSelect.value = parsed.warehouse || warehouseSelect.value;
-            doc = loadStocktake({ month: monthInput.value, warehouse: warehouseSelect.value });
-            // overwrite lines/status from selected doc
-            doc = {
-                ...doc,
-                status: parsed.status || doc.status,
-                createdAt: parsed.createdAt || doc.createdAt,
-                updatedAt: parsed.updatedAt || doc.updatedAt,
-                lines: parsed.lines || doc.lines,
-            };
-            lockBtn.textContent = doc.status === "locked" ? "🔓 Mở khóa" : "🔒 Chốt phiếu";
-            render();
+            await reloadAll();
         } finally {
             historySelect.value = "";
         }
     });
 
-    lockBtn.addEventListener("click", () => {
+    lockBtn.addEventListener("click", async () => {
         if (!doc) return;
-        if (doc.status === "locked") {
-            doc = unlockStocktake(doc);
-            onToast?.("Đã mở khóa phiếu", "info", 2000);
-        } else {
-            doc = lockStocktake(doc);
-            onToast?.("Đã chốt phiếu", "success", 2000);
+        try {
+            if (doc.status === "locked") {
+                doc = await unlockStocktake(doc);
+                onToast?.("Đã mở khóa phiếu", "info", 2000);
+            } else {
+                doc = await lockStocktake(doc);
+                onToast?.("Đã chốt phiếu", "success", 2000);
+            }
+            updateLockButton();
+            render();
+            await refreshHistory();
+        } catch (error) {
+            console.error(error);
+            onToast?.(`Lỗi cập nhật trạng thái phiếu: ${error?.message || error}`, "error", 3000);
         }
-        lockBtn.textContent = doc.status === "locked" ? "🔓 Mở khóa" : "🔒 Chốt phiếu";
-        render();
-        refreshHistory();
     });
 
     exportBtn.addEventListener("click", () => {
@@ -562,9 +621,9 @@ export default function Stocktake({
     });
 
     // Public API
-    container.refresh = () => {
+    container.refresh = async () => {
         refreshWarehouses();
-        reloadAll();
+        await reloadAll();
     };
 
     // initial

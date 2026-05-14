@@ -30,7 +30,7 @@ export const ODOO_CONFIG = {
 
     // Filter conditions - modify here to query different warehouses
     domain: [
-        ["location_id", "in", [165, 157, 20, 219, 195, 217, 184]], // All warehouses
+        ["location_id", "in", [165, 328, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325]], // All warehouses
         ["quantity", ">", 0],
     ],
 

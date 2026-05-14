@@ -240,7 +240,7 @@ export async function lockSession(sessionId, lockedBy) {
     const result = await query(
         `UPDATE stocktake_sessions 
          SET status = 'locked', locked_at = NOW(), locked_by = $1, updated_at = NOW()
-         WHERE id = $1 AND status != 'locked'
+         WHERE id = $2 AND status != 'locked'
          RETURNING *`,
         [lockedBy, sessionId]
     );
@@ -275,7 +275,7 @@ export async function completeSession(sessionId, completedBy) {
     const result = await query(
         `UPDATE stocktake_sessions 
          SET status = 'completed', completed_at = NOW(), completed_by = $1, updated_at = NOW()
-         WHERE id = $1
+         WHERE id = $2
          RETURNING *`,
         [completedBy, sessionId]
     );

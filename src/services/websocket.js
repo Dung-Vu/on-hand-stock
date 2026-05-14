@@ -37,9 +37,9 @@ function getConfig() {
             config.url = `${protocol}//${hostname}/ws`;
         }
         // For local development, use the backend port directly
-        // Local dev uses 4002, Docker uses 4001
+        // Local dev and Docker use 4001 by default
         else if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            config.url = 'ws://localhost:4002'; // Local dev port
+            config.url = 'ws://localhost:4001/ws';
         }
         // Fallback
         else {

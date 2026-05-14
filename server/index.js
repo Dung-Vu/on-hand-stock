@@ -14,7 +14,6 @@ import { cacheMiddleware, invalidateCache, clearAllCache } from "./middleware/ca
 import { healthCheck as dbHealthCheck, getStats as getDbStats } from "./db/index.js";
 import authRoutes from "./routes/auth.js";
 import stocktakeRoutes from "./routes/stocktake.js";
-import usersRoutes from "./routes/users.js";
 
 // Load environment variables
 config();
@@ -25,8 +24,8 @@ redis.initRedis().catch(err => {
 });
 
 const app = express();
-// Local dev port: 4002 (Docker uses 4001)
-const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 4001 : 4002);
+// Default backend port for local dev and Docker
+const PORT = process.env.PORT || 4001;
 
 // Trust proxy - required for rate limiting behind reverse proxy (nginx, cloudflare, etc.)
 // This allows express-rate-limit to correctly identify users by X-Forwarded-For header
@@ -140,7 +139,7 @@ const ODOO_CONFIG = {
 };
 
 // Warehouse mapping
-const WAREHOUSE_IDS = [165, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
+const WAREHOUSE_IDS = [165, 328, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
 
 /**
  * GET /api/stock
@@ -688,7 +687,6 @@ app.get("/api/archived-products-with-stock", async (req, res) => {
 // ============================================
 app.use('/api/auth', authRoutes);
 app.use('/api/stocktake', stocktakeRoutes);
-app.use('/api/users', usersRoutes);
 
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
@@ -764,4 +762,3 @@ const server = app.listen(PORT, () => {
 // Start WebSocket server (attached to HTTP server)
 startWebSocketServer(server);
 console.log(`🔌 WebSocket server attached to HTTP server`);
-
