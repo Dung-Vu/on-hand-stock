@@ -1,24 +1,16 @@
-# Thiết Lập Auth Và Stocktake
+# Setup
 
-Tài liệu này mô tả phần đăng nhập, phân quyền và lưu phiếu kiểm kho bằng PostgreSQL.
+Tài liệu setup backend, auth và stocktake.
 
-## Tổng quan
-
-- JWT authentication.
-- Role: `admin`, `counter`.
-- User management: `/api/auth/users`.
-- Stocktake sessions lưu theo `month + warehouse`.
-- Mỗi phiếu có trạng thái `draft`, `in_progress`, `locked`, `completed`.
-
-## Biến môi trường backend
+## Environment
 
 Tạo `server/.env` khi chạy local hoặc `server/.env.production` khi chạy Docker:
 
 ```env
 PORT=4001
-DATABASE_URL=postgresql://bonario:your_password@localhost:5432/bonario_stock
-JWT_SECRET=replace_with_a_long_random_secret
-ADMIN_PASSWORD=replace_with_initial_admin_password
+DATABASE_URL=postgresql://bonario:<POSTGRES_PASSWORD>@localhost:5432/bonario_stock
+JWT_SECRET=<JWT_SECRET>
+ADMIN_PASSWORD=<ADMIN_PASSWORD>
 
 ODOO_URL=https://bonario-vietnam.odoo.com
 ODOO_DB=bonario-vietnam
@@ -28,28 +20,28 @@ ODOO_API_KEY=<ODOO_API_KEY>
 REDIS_URL=redis://localhost:6379
 ```
 
-Không commit file `.env` hoặc secret thật.
+Không đưa secret thật vào Git.
 
-## Khởi tạo database
+## Database
 
 ```bash
 psql -U postgres -d bonario_stock -f database/init.sql
 ```
 
-Nếu cần tạo admin bằng script:
+Seed admin nếu cần:
 
 ```bash
 cd server
-ADMIN_PASSWORD=your_password npm run seed
+ADMIN_PASSWORD=<ADMIN_PASSWORD> npm run seed
 ```
 
-Tài khoản seed mặc định:
+Tài khoản seed:
 
 - Username: `dinhdung533`
 - Password: giá trị `ADMIN_PASSWORD`
 - Role: `admin`
 
-## API auth chính
+## Auth API
 
 ```http
 POST /api/auth/login
@@ -83,7 +75,7 @@ Content-Type: application/json
 }
 ```
 
-## API stocktake chính
+## Stocktake API
 
 ```http
 GET /api/stocktake/sessions?month=2026-05&warehouse=Kho%20A
@@ -122,23 +114,4 @@ Content-Type: application/json
     }
   ]
 }
-```
-
-## Kiểm tra nhanh
-
-```bash
-cd server
-npm run dev
-```
-
-```bash
-curl http://localhost:4001/api/health
-```
-
-Các thay đổi liên quan auth/stocktake nên được kiểm bằng:
-
-```bash
-npm run build
-cd server
-npm audit --audit-level=high
 ```

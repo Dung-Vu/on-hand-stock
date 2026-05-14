@@ -1,19 +1,14 @@
 # Scripts
 
-Các script hỗ trợ kiểm tra và vận hành repo. Chạy từ project root.
+Chạy từ project root.
 
-## Lệnh npm
+| Lệnh | Mục đích |
+| --- | --- |
+| `npm run check-ports` | Kiểm tra port dev thường dùng |
+| `npm run check-ports:ps1` | Kiểm tra port bằng PowerShell |
+| `npm run check-archived` | Tìm sản phẩm archived vẫn còn tồn |
 
-```bash
-npm run check-ports
-npm run check-archived
-```
-
-```powershell
-npm run check-ports:ps1
-```
-
-## Script trực tiếp
+Chạy trực tiếp:
 
 ```bash
 node scripts/check-ports.js
@@ -24,8 +19,4 @@ node scripts/check-archived-products.js
 .\scripts\check-ports.ps1
 ```
 
-## Ghi chú
-
-- `check-ports` kiểm tra các port phát triển thường dùng.
-- `check-archived` cần cấu hình Odoo/API trong environment.
-- Báo cáo sinh ra từ script không nên commit nếu chỉ là output tạm.
+Output báo cáo tạm không nên commit.

@@ -1,83 +1,82 @@
 # Bonario Stock
 
-Ứng dụng quản lý tồn kho và kiểm kho cho Bonario.
+Web app quản lý tồn kho và kiểm kho cho Bonario.
 
-## Thành phần
+## Stack
 
-- Web frontend: Vite + JavaScript.
-- Backend API: Express, PostgreSQL, JWT auth, WebSocket.
-- Cache tùy chọn: Redis.
-- Mobile app: thư mục `mobile/`.
+| Phần | Công nghệ |
+| --- | --- |
+| Web | Vite, JavaScript |
+| API | Express, PostgreSQL, JWT |
+| Realtime | WebSocket |
+| Cache | Redis tùy chọn |
+| Mobile | React Native trong `mobile/` |
 
-## Chức năng chính
+## Chức năng
 
 - Tra cứu tồn kho theo kho, category và từ khóa.
 - Xem hàng incoming và fabric products.
 - Kiểm kho theo `tháng + kho`.
-- Lưu phiếu kiểm kho vào PostgreSQL.
-- Lock, unlock và complete phiếu kiểm kho.
+- Lưu, lock, unlock và complete phiếu kiểm kho.
 - Quản lý user theo role `admin` và `counter`.
 - Export CSV, Excel và PDF.
 
-## Ports mặc định
-
-| Dịch vụ | Port |
-| --- | --- |
-| Frontend dev | `5178` |
-| Backend API | `4001` |
-| WebSocket | `4001/ws` |
-| Docker frontend | `8080` |
-| PostgreSQL | `5432` |
-
-## Chạy local
+## Chạy nhanh
 
 ```bash
 npm install
-cd server
-npm install
-cd ..
-```
-
-Tạo file cấu hình từ mẫu:
-
-```bash
+cd server && npm install && cd ..
 cp server/.env.example server/.env
+psql -U postgres -d bonario_stock -f database/init.sql
 ```
 
-Khởi tạo database rồi chạy backend và frontend:
+Backend:
 
 ```bash
-psql -U postgres -d bonario_stock -f database/init.sql
-
 cd server
-npm run dev
-
-cd ..
 npm run dev
 ```
 
-## Chạy Docker
+Frontend:
+
+```bash
+npm run dev
+```
+
+Docker:
 
 ```bash
 cp server/.env.example server/.env.production
 docker-compose up -d --build
 ```
 
-Sau khi chạy:
+## Ports
 
-- Frontend: `http://localhost:8080`
-- Backend: `http://localhost:4001`
-- Health check: `http://localhost:4001/api/health`
+| Dịch vụ | URL |
+| --- | --- |
+| Frontend dev | `http://localhost:5178` |
+| Backend API | `http://localhost:4001` |
+| WebSocket | `ws://localhost:4001/ws` |
+| Docker frontend | `http://localhost:8080` |
+| Health check | `http://localhost:4001/api/health` |
 
 ## Tài liệu
 
-- [Thiết lập auth và stocktake](./SETUP-AUTH.md)
-- [Quickstart](./docs/QUICKSTART.md)
-- [Port guide](./docs/PORT-GUIDE.md)
-- [Cấu trúc repo](./FOLDER-STRUCTURE.md)
+- [Setup auth, database và stocktake](./docs/SETUP.md)
+- [Port guide](./docs/PORTS.md)
+- [Scripts](./scripts/README.md)
 
-## Ghi chú bảo mật
+## Trước khi push
 
-- Không commit `.env`, `credentials.json`, token, password hoặc private key.
-- Lockfile được track để CI và môi trường deploy cài đúng dependency.
-- Tài khoản seed dùng `ADMIN_PASSWORD`; đổi mật khẩu ngay sau lần đăng nhập đầu tiên.
+```bash
+npm run build
+npm audit --audit-level=high
+cd server
+npm audit --audit-level=high
+```
+
+## Không commit
+
+- `.env`, `server/.env`, token, password, private key.
+- `credentials.json` và credentials Cloudflare.
+- `node_modules/`, `dist/`, `.venv/`, log, file tạm.
