@@ -6,9 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check-ports": "node check-ports.js",
-    "check-ports:ps1": "powershell -ExecutionPolicy Bypass -File check-ports.ps1",
-    "check-archived": "node check-archived-products.js"
+    "check-ports": "node scripts/check-ports.js",
+    "check-ports:ps1": "powershell -ExecutionPolicy Bypass -File scripts/check-ports.ps1",
+    "check-archived": "node scripts/check-archived-products.js"
   },
   "dependencies": {
     "@preact/signals-core": "^1.12.2",

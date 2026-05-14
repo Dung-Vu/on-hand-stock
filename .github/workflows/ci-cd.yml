@@ -7,9 +7,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, staging]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 env:
   NODE_VERSION: '20'
@@ -90,7 +90,7 @@ jobs:
 
       - name: Install server dependencies
         working-directory: ./server
-        run: npm ci --only=production
+        run: npm ci --omit=dev
 
   # ============================================
   # Docker Build (only on main)
@@ -159,7 +159,7 @@ jobs:
     steps:
       - name: Deploy notification
         run: |
-          echo "🚀 Deployment triggered for commit ${{ github.sha }}"
+          echo "Deployment triggered for commit ${{ github.sha }}"
           echo "Docker images have been built and pushed."
           echo "Configure your deployment target (e.g., SSH to server, Kubernetes, etc.)"
 

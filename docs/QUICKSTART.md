@@ -1,51 +1,74 @@
-# Quick Start
+# Quickstart
 
-## Chạy ứng dụng
-
-### Docker
+## Cài dependencies
 
 ```bash
-docker-compose up -d --build
+npm install
+cd server
+npm install
+cd ..
 ```
 
-- Frontend: `http://localhost:8080`
-- Backend: `http://localhost:4001`
+## Chạy local
 
-### Local dev
+Tạo cấu hình:
+
+```bash
+cp server/.env.example server/.env
+```
+
+Khởi tạo database nếu chưa có:
+
+```bash
+psql -U postgres -d bonario_stock -f database/init.sql
+```
+
+Chạy backend:
 
 ```bash
 cd server
-npm install
-npm run dev
-
-cd ..
-npm install
 npm run dev
 ```
 
-- Frontend local: `http://localhost:5178`
-- Backend local: `http://localhost:4001`
+Chạy frontend ở terminal khác:
+
+```bash
+npm run dev
+```
+
+Mặc định:
+
+- Frontend: `http://localhost:5178`
+- Backend: `http://localhost:4001`
+- WebSocket: `ws://localhost:4001/ws`
+
+## Chạy Docker
+
+```bash
+cp server/.env.example server/.env.production
+docker-compose up -d --build
+```
+
+Mặc định:
+
+- Frontend: `http://localhost:8080`
+- Backend: `http://localhost:4001`
+- PostgreSQL: `localhost:5432`
 
 ## Đăng nhập
 
-Dùng tài khoản seed mặc định:
+Tài khoản seed:
 
 - Username: `dinhdung533`
-- Password: `<ADMIN_PASSWORD>`
+- Password: giá trị `ADMIN_PASSWORD`
 
-## Luồng sử dụng cơ bản
+Đổi mật khẩu sau lần đăng nhập đầu tiên nếu dùng môi trường thật.
 
-1. Mở web và đăng nhập.
-2. Bấm tải dữ liệu tồn kho.
-3. Chọn tab kho cần xem.
-4. Tìm kiếm hoặc lọc theo category.
-5. Vào màn `Kiểm kho` để nhập số thực tế theo tháng/kho.
-6. Chốt phiếu khi hoàn tất.
-7. Xuất CSV hoặc Excel nếu cần.
+## Kiểm tra trước khi push
 
-## Ghi chú vận hành
-
-- Dữ liệu kiểm kho hiện lưu trong PostgreSQL.
-- Phiếu kiểm kho được chia theo `tháng + kho`.
-- API user management dùng `/api/auth/users`.
-- WebSocket local dùng `ws://localhost:4001/ws`.
+```bash
+npm run build
+npm audit --audit-level=high
+cd server
+npm audit --audit-level=high
+```

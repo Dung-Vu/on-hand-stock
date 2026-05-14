@@ -4,19 +4,16 @@
     <link rel="icon" href="/favicon.svg" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Hệ thống quản lý tồn kho Bonario - Kiểm tra số lượng tồn kho theo thời gian thực">
+    <meta name="description" content="Hệ thống quản lý tồn kho và kiểm kho Bonario">
     <meta name="theme-color" content="#6b5a45">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Bonario Stock">
-    
-    <!-- PWA Manifest -->
+
     <link rel="manifest" href="/manifest.json">
-    
-    <!-- Apple Touch Icon (use favicon as fallback) -->
     <link rel="apple-touch-icon" href="/favicon.svg">
-    
-    <title>Quản lý tồn kho - Số lượng tồn</title>
+
+    <title>Bonario Stock</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,27 +21,21 @@
 <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
-    
-    <!-- Service Worker Registration -->
+
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then((registration) => {
-                        console.log('SW registered:', registration.scope);
-                        
-                        // Check for updates periodically
                         setInterval(() => {
                             registration.update();
-                        }, 60 * 60 * 1000); // Check every hour
-                        
-                        // Handle update found
+                        }, 60 * 60 * 1000);
+
                         registration.addEventListener('updatefound', () => {
                             const newWorker = registration.installing;
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // New content available
-                                    if (confirm('Có bản cập nhật mới! Tải lại trang?')) {
+                                    if (confirm('Có bản cập nhật mới. Tải lại trang?')) {
                                         newWorker.postMessage({ type: 'SKIP_WAITING' });
                                         window.location.reload();
                                     }
@@ -57,32 +48,28 @@
                     });
             });
         }
-        
-        // Handle PWA install prompt
+
         let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            
-            // Show install button after data is loaded
+        window.addEventListener('beforeinstallprompt', (event) => {
+            event.preventDefault();
+            deferredPrompt = event;
+
             setTimeout(() => {
                 const installBtn = document.createElement('button');
                 installBtn.id = 'pwaInstallBtn';
-                installBtn.innerHTML = '📱 Cài đặt App';
+                installBtn.textContent = 'Cài đặt App';
                 installBtn.className = 'fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium z-50 animate-bounce';
                 installBtn.style.cssText = 'background: linear-gradient(135deg, #6b5a45, #8b7355);';
                 installBtn.onclick = async () => {
                     if (deferredPrompt) {
                         deferredPrompt.prompt();
-                        const { outcome } = await deferredPrompt.userChoice;
-                        console.log('Install outcome:', outcome);
+                        await deferredPrompt.userChoice;
                         deferredPrompt = null;
                         installBtn.remove();
                     }
                 };
                 document.body.appendChild(installBtn);
-                
-                // Auto-hide after 10 seconds
+
                 setTimeout(() => {
                     if (installBtn.parentNode) {
                         installBtn.style.animation = 'none';

@@ -1,41 +1,31 @@
-# 🔧 Scripts / Công Cụ Hỗ Trợ
+# Scripts
 
-Thư mục này chứa các script tiện ích để kiểm tra và quản lý hệ thống.
+Các script hỗ trợ kiểm tra và vận hành repo. Chạy từ project root.
 
-## 📜 Available Scripts
-
-### JavaScript Scripts
-
-- **check-archived-products.js**
-  - Kiểm tra các sản phẩm đã archive nhưng vẫn còn tồn kho
-  - Tạo báo cáo chi tiết về các sản phẩm cần xem xét
-  - Run: `node scripts/check-archived-products.js`
-
-- **check-ports.js**
-  - Kiểm tra các port đang sử dụng (4000-4010, 5173-5177)
-  - Hiển thị process đang chiếm port
-  - Run: `node scripts/check-ports.js`
-
-### PowerShell Scripts
-
-- **check-ports.ps1**
-  - Version PowerShell của check-ports.js
-  - Kiểm tra và hiển thị thông tin ports trên Windows
-  - Run: `.\scripts\check-ports.ps1`
-
-## 🚀 Usage
+## Lệnh npm
 
 ```bash
-# From project root
-node scripts/check-archived-products.js
-node scripts/check-ports.js
+npm run check-ports
+npm run check-archived
+```
 
-# PowerShell
+```powershell
+npm run check-ports:ps1
+```
+
+## Script trực tiếp
+
+```bash
+node scripts/check-ports.js
+node scripts/check-archived-products.js
+```
+
+```powershell
 .\scripts\check-ports.ps1
 ```
 
-## 📝 Notes
+## Ghi chú
 
-- Đảm bảo đã cài đặt dependencies: `npm install`
-- Cấu hình environment variables trong `server/.env` trước khi chạy
-- Scripts sẽ tạo output files trong thư mục gốc của project
+- `check-ports` kiểm tra các port phát triển thường dùng.
+- `check-archived` cần cấu hình Odoo/API trong environment.
+- Báo cáo sinh ra từ script không nên commit nếu chỉ là output tạm.

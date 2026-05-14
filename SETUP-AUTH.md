@@ -1,201 +1,144 @@
-# Setup Authentication & Stocktake Database
+# Thiết Lập Auth Và Stocktake
 
-Hướng dẫn thiết lập đăng nhập, phân quyền và kiểm kho dùng PostgreSQL.
+Tài liệu này mô tả phần đăng nhập, phân quyền và lưu phiếu kiểm kho bằng PostgreSQL.
 
 ## Tổng quan
 
-Hệ thống hiện tại gồm:
+- JWT authentication.
+- Role: `admin`, `counter`.
+- User management: `/api/auth/users`.
+- Stocktake sessions lưu theo `month + warehouse`.
+- Mỗi phiếu có trạng thái `draft`, `in_progress`, `locked`, `completed`.
 
-- JWT authentication
-- User roles: `admin`, `counter`
-- User management qua `/api/auth/users`
-- Stocktake sessions lưu trong PostgreSQL
-- Lock/unlock phiếu kiểm kho nhiều người dùng
+## Biến môi trường backend
 
-## Ports dùng trong dự án
+Tạo `server/.env` khi chạy local hoặc `server/.env.production` khi chạy Docker:
 
-- Frontend local: `http://localhost:5178`
-- Backend API: `http://localhost:4001`
-- WebSocket: `ws://localhost:4001/ws`
-- Docker frontend: `http://localhost:8080`
-- PostgreSQL: `localhost:5432`
-
-## Setup nhanh
-
-### 1. Cài dependencies
-
-```bash
-npm install
-cd server
-npm install
-cd ..
-```
-
-### 2. Cấu hình environment
-
-Tạo `server/.env.production`:
-
-```bash
-POSTGRES_PASSWORD=your_secure_password_here
-DATABASE_URL=postgresql://bonario:your_secure_password_here@postgres:5432/bonario_stock
-
-JWT_SECRET=<JWT_SECRET>
+```env
+PORT=4001
+DATABASE_URL=postgresql://bonario:your_password@localhost:5432/bonario_stock
+JWT_SECRET=replace_with_a_long_random_secret
+ADMIN_PASSWORD=replace_with_initial_admin_password
 
 ODOO_URL=https://bonario-vietnam.odoo.com
 ODOO_DB=bonario-vietnam
 ODOO_API_ENDPOINT=https://bonario-vietnam.odoo.com/jsonrpc
-ODOO_API_KEY=your_odoo_api_key_here
-PORT=4001
+ODOO_API_KEY=<ODOO_API_KEY>
+
+REDIS_URL=redis://localhost:6379
 ```
 
-### 3. Chạy Docker
+Không commit file `.env` hoặc secret thật.
 
-```bash
-docker-compose up -d --build
-```
-
-Hoặc chạy local:
+## Khởi tạo database
 
 ```bash
 psql -U postgres -d bonario_stock -f database/init.sql
-
-cd server
-npm run dev
-
-cd ..
-npm run dev
 ```
 
-## Tài khoản mặc định
-
-Schema SQL hiện seed sẵn:
-
-- Username: `dinhdung533`
-- Password: `<ADMIN_PASSWORD>`
-- Role: `admin`
-
-Nếu dùng `npm run seed` trong `server/`, script cũng tạo đúng tài khoản mặc định này nếu chưa tồn tại.
-
-## API chính
-
-### Authentication
+Nếu cần tạo admin bằng script:
 
 ```bash
-POST http://localhost:4001/api/auth/login
+cd server
+ADMIN_PASSWORD=your_password npm run seed
+```
+
+Tài khoản seed mặc định:
+
+- Username: `dinhdung533`
+- Password: giá trị `ADMIN_PASSWORD`
+- Role: `admin`
+
+## API auth chính
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
 {
   "username": "dinhdung533",
   "password": "<ADMIN_PASSWORD>"
 }
 ```
 
-```bash
-GET http://localhost:4001/api/auth/me
+```http
+GET /api/auth/me
 Authorization: Bearer <token>
 ```
 
-### User management
-
-```bash
-GET http://localhost:4001/api/auth/users
-Authorization: Bearer <token>
+```http
+GET /api/auth/users
+Authorization: Bearer <admin_token>
 ```
 
-```bash
-POST http://localhost:4001/api/auth/users
-Authorization: Bearer <token>
+```http
+POST /api/auth/users
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
 {
-  "username": "newuser",
-  "password": "password123",
+  "username": "counter01",
+  "password": "strong_password",
   "role": "counter"
 }
 ```
 
-```bash
-PUT http://localhost:4001/api/auth/users/:id
+## API stocktake chính
+
+```http
+GET /api/stocktake/sessions?month=2026-05&warehouse=Kho%20A
 Authorization: Bearer <token>
 ```
 
-```bash
-DELETE http://localhost:4001/api/auth/users/:id
+```http
+GET /api/stocktake/sessions/by-month-warehouse?month=2026-05&warehouse=Kho%20A
 Authorization: Bearer <token>
 ```
 
-### Stocktake
+```http
+POST /api/stocktake/sessions
+Authorization: Bearer <token>
+Content-Type: application/json
 
-```bash
-GET http://localhost:4001/api/stocktake/sessions
-```
-
-```bash
-GET http://localhost:4001/api/stocktake/sessions/by-month-warehouse?month=2026-03&warehouse=BONAP/Stock
-```
-
-```bash
-POST http://localhost:4001/api/stocktake/sessions
 {
-  "month": "2026-03",
-  "warehouse": "BONAP/Stock"
+  "month": "2026-05",
+  "warehouse": "Kho A"
 }
 ```
 
-```bash
-PUT http://localhost:4001/api/stocktake/sessions/1/lines
+```http
+PUT /api/stocktake/sessions/:id/lines
+Authorization: Bearer <token>
+Content-Type: application/json
+
 {
   "lines": [
     {
-      "productId": 123,
-      "productName": "Product A",
-      "systemQty": 100,
-      "countedQty": 98,
-      "note": "Damaged"
+      "product_id": "P001",
+      "product_name": "Product name",
+      "system_qty": 10,
+      "counted_qty": 9,
+      "note": "Short note"
     }
   ]
 }
 ```
 
-```bash
-POST http://localhost:4001/api/stocktake/sessions/1/lock
-POST http://localhost:4001/api/stocktake/sessions/1/unlock
-```
-
-## Hành vi hiện tại của stocktake
-
-- Dữ liệu phiếu kiểm kho lưu ở PostgreSQL
-- Nhiều người dùng thấy cùng một phiên kiểm kho
-- UI web không còn dùng `localStorage` để lưu line items của phiếu
-- `localStorage` chỉ còn có thể được dùng cho vài preference UI cục bộ, không phải nguồn dữ liệu kiểm kho
-
-## Troubleshooting
-
-### Không login được
-
-- Kiểm tra backend đang chạy ở `4001`
-- Kiểm tra `JWT_SECRET`
-- Kiểm tra user còn `is_active = true`
-
-### Không lưu được phiếu kiểm kho
-
-- Kiểm tra PostgreSQL đang chạy
-- Kiểm tra `DATABASE_URL`
-- Kiểm tra schema đã được import từ [database/init.sql](./database/init.sql)
-
-### Kiểm tra backend
+## Kiểm tra nhanh
 
 ```bash
-docker-compose logs -f backend
+cd server
+npm run dev
 ```
 
 ```bash
 curl http://localhost:4001/api/health
 ```
 
-## Reset tài khoản mặc định
-
-Nếu muốn tạo lại tài khoản mặc định bằng script:
+Các thay đổi liên quan auth/stocktake nên được kiểm bằng:
 
 ```bash
+npm run build
 cd server
-npm run seed
+npm audit --audit-level=high
 ```
-
-Script sẽ chỉ tạo user nếu username chưa tồn tại.

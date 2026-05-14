@@ -1,21 +1,20 @@
-# 📚 Documentation / Tài Liệu
+# Tài Liệu Vận Hành
 
-Thư mục này chứa các tài liệu hướng dẫn và báo cáo của dự án.
+Thư mục này chỉ giữ các tài liệu đang dùng trong quá trình chạy và phát triển repo.
 
-## 📄 Files
+## Tài liệu hiện có
 
-### Hướng Dẫn / Guides
+- [Quickstart](./QUICKSTART.md): cài dependency, chạy local và Docker.
+- [Port guide](./PORT-GUIDE.md): port mặc định và nơi cần cập nhật khi đổi port.
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Hướng dẫn bắt đầu nhanh sử dụng hệ thống
-- **[PORT-GUIDE.md](PORT-GUIDE.md)** - Hướng dẫn cấu hình và quản lý ports
+## Tài liệu ở root
 
-### Báo Cáo / Reports
+- [README](../README.md): tổng quan dự án.
+- [SETUP-AUTH](../SETUP-AUTH.md): auth, user management và stocktake API.
+- [FOLDER-STRUCTURE](../FOLDER-STRUCTURE.md): cấu trúc repo.
 
-- **[PILLOW-PRODUCTS-LIST.md](PILLOW-PRODUCTS-LIST.md)** - Danh sách 117 sản phẩm gối
-- **[PILLOW-PRODUCTS-ORD-WAREHOUSES.md](PILLOW-PRODUCTS-ORD-WAREHOUSES.md)** - Báo cáo chi tiết tồn kho sản phẩm gối tại các kho ORD
+## Quy ước
 
-## 📝 Quy Ước
-
-- Tất cả tài liệu được viết bằng Markdown
-- Sử dụng tiếng Việt cho nội dung chính
-- Bổ sung tiếng Anh cho các thuật ngữ kỹ thuật
+- Docs phải mô tả trạng thái hiện tại của code, không giữ kế hoạch cũ trong repo chính.
+- Secret, token, password thật và file credentials không được đưa vào docs.
+- Nếu một tài liệu không còn đúng với code, cập nhật hoặc xoá trong cùng PR/commit thay đổi code.

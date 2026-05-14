@@ -1,100 +1,83 @@
-# Bonario Stock Management
+# Bonario Stock
 
-Ứng dụng tra cứu tồn kho và kiểm kho hàng tháng cho Bonario.
+Ứng dụng quản lý tồn kho và kiểm kho cho Bonario.
 
-## Thành phần chính
+## Thành phần
 
-- Frontend web: Vite + vanilla JS
-- Backend API: Express
-- Database: PostgreSQL
-- Realtime stock updates: WebSocket
-- Mobile app: React Native trong thư mục `mobile/`
+- Web frontend: Vite + JavaScript.
+- Backend API: Express, PostgreSQL, JWT auth, WebSocket.
+- Cache tùy chọn: Redis.
+- Mobile app: thư mục `mobile/`.
 
-## Tính năng hiện tại
+## Chức năng chính
 
-- Tra cứu onhand theo kho, category, search
-- Kiểm kho theo tháng/kho
-- Lưu phiếu kiểm kho vào PostgreSQL
-- Lock/unlock phiếu kiểm kho
-- Quản lý user bằng JWT + role
-- Export CSV / Excel
+- Tra cứu tồn kho theo kho, category và từ khóa.
+- Xem hàng incoming và fabric products.
+- Kiểm kho theo `tháng + kho`.
+- Lưu phiếu kiểm kho vào PostgreSQL.
+- Lock, unlock và complete phiếu kiểm kho.
+- Quản lý user theo role `admin` và `counter`.
+- Export CSV, Excel và PDF.
 
-## Ports chuẩn
+## Ports mặc định
 
-- Frontend local dev: `http://localhost:5178`
-- Backend local dev: `http://localhost:4001`
-- WebSocket local dev: `ws://localhost:4001/ws`
-- Docker frontend: `http://localhost:8080`
-- PostgreSQL: `localhost:5432`
-
-## Chạy bằng Docker
-
-```bash
-cp server/.env.example server/.env.production
-# chỉnh lại biến môi trường nếu cần
-
-docker-compose up -d --build
-```
-
-Truy cập:
-
-- Frontend: `http://localhost:8080`
-- Backend API: `http://localhost:4001`
-- Health check: `http://localhost:4001/api/health`
-
-Tài khoản seed mặc định:
-
-- Username: `dinhdung533`
-- Password: `<ADMIN_PASSWORD>`
+| Dịch vụ | Port |
+| --- | --- |
+| Frontend dev | `5178` |
+| Backend API | `4001` |
+| WebSocket | `4001/ws` |
+| Docker frontend | `8080` |
+| PostgreSQL | `5432` |
 
 ## Chạy local
 
 ```bash
-# cài dependencies
 npm install
 cd server
 npm install
 cd ..
+```
 
-# chạy postgres local nếu chưa có
-docker run -d --name postgres ^
-  -e POSTGRES_PASSWORD=<POSTGRES_PASSWORD> ^
-  -e POSTGRES_DB=bonario_stock ^
-  -p 5432:5432 ^
-  postgres:16-alpine
+Tạo file cấu hình từ mẫu:
 
-# khởi tạo schema + seed user mặc định
+```bash
+cp server/.env.example server/.env
+```
+
+Khởi tạo database rồi chạy backend và frontend:
+
+```bash
 psql -U postgres -d bonario_stock -f database/init.sql
 
-# chạy backend
 cd server
 npm run dev
 
-# terminal khác: chạy frontend
 cd ..
 npm run dev
 ```
+
+## Chạy Docker
+
+```bash
+cp server/.env.example server/.env.production
+docker-compose up -d --build
+```
+
+Sau khi chạy:
+
+- Frontend: `http://localhost:8080`
+- Backend: `http://localhost:4001`
+- Health check: `http://localhost:4001/api/health`
 
 ## Tài liệu
 
-- [SETUP-AUTH.md](./SETUP-AUTH.md)
-- [docs/QUICKSTART.md](./docs/QUICKSTART.md)
-- [docs/PORT-GUIDE.md](./docs/PORT-GUIDE.md)
+- [Thiết lập auth và stocktake](./SETUP-AUTH.md)
+- [Quickstart](./docs/QUICKSTART.md)
+- [Port guide](./docs/PORT-GUIDE.md)
+- [Cấu trúc repo](./FOLDER-STRUCTURE.md)
 
-## Cấu trúc thư mục
+## Ghi chú bảo mật
 
-```text
-onhand-stock-v1/
-├── src/                 # Frontend web
-├── server/              # Express API + WebSocket + auth + stocktake
-├── database/            # PostgreSQL schema và seed SQL
-├── docs/                # Tài liệu vận hành
-├── mobile/              # React Native app
-└── scripts/             # Script tiện ích
-```
-
-## Ghi chú
-
-- UI kiểm kho web hiện lưu phiếu vào PostgreSQL, không còn dùng `localStorage` cho dữ liệu phiếu.
-- API quản lý user dùng namespace `/api/auth/users`.
-- Docker và local dev đều mặc định backend ở port `4001`.
+- Không commit `.env`, `credentials.json`, token, password hoặc private key.
+- Lockfile được track để CI và môi trường deploy cài đúng dependency.
+- Tài khoản seed dùng `ADMIN_PASSWORD`; đổi mật khẩu ngay sau lần đăng nhập đầu tiên.

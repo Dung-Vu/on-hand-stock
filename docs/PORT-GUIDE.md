@@ -1,25 +1,25 @@
 # Port Guide
 
-## Port chuẩn hiện tại
+## Ports mặc định
 
-- Frontend local dev: `5178`
-- Backend API local/dev: `4001`
-- WebSocket local/dev: `4001` trên path `/ws`
-- Docker frontend: `8080`
-- PostgreSQL: `5432`
+| Thành phần | Port/path |
+| --- | --- |
+| Frontend local dev | `5178` |
+| Backend API | `4001` |
+| WebSocket | `4001/ws` |
+| Docker frontend | `8080` |
+| PostgreSQL | `5432` |
 
-## Mapping theo môi trường
-
-### Local development
+## URLs local
 
 - Web app: `http://localhost:5178`
 - API: `http://localhost:4001`
 - WebSocket: `ws://localhost:4001/ws`
 
-### Docker
+## URLs Docker
 
-- Frontend qua nginx: `http://localhost:8080`
-- Backend container: `http://localhost:4001`
+- Web app qua nginx: `http://localhost:8080`
+- API: `http://localhost:4001`
 - PostgreSQL: `localhost:5432`
 
 ## File cấu hình liên quan
@@ -27,20 +27,12 @@
 - [vite.config.js](../vite.config.js)
 - [server/index.js](../server/index.js)
 - [src/config.js](../src/config.js)
+- [src/services/api.js](../src/services/api.js)
 - [src/services/apiClient.js](../src/services/apiClient.js)
 - [src/services/websocket.js](../src/services/websocket.js)
 - [docker-compose.yml](../docker-compose.yml)
 
 ## Kiểm tra port
-
-```powershell
-netstat -ano | findstr ":5178"
-netstat -ano | findstr ":4001"
-netstat -ano | findstr ":8080"
-netstat -ano | findstr ":5432"
-```
-
-Hoặc dùng script:
 
 ```bash
 npm run check-ports
@@ -50,16 +42,19 @@ npm run check-ports
 npm run check-ports:ps1
 ```
 
-## Khi cần đổi port
+Hoặc dùng lệnh Windows:
 
-- Frontend local: sửa [vite.config.js](../vite.config.js)
-- Backend: sửa biến môi trường `PORT`
-- Docker public web port: sửa [docker-compose.yml](../docker-compose.yml)
+```powershell
+netstat -ano | findstr ":5178"
+netstat -ano | findstr ":4001"
+netstat -ano | findstr ":8080"
+netstat -ano | findstr ":5432"
+```
 
-Nếu đổi backend port, cần cập nhật đồng bộ:
+## Khi đổi port
 
-- `src/config.js`
-- `src/services/api.js`
-- `src/services/apiClient.js`
-- `src/services/websocket.js`
-- tài liệu vận hành liên quan
+- Frontend local: cập nhật `vite.config.js`.
+- Backend: cập nhật biến môi trường `PORT`.
+- Docker frontend public port: cập nhật `docker-compose.yml`.
+
+Nếu đổi backend port, cập nhật đồng bộ client API, WebSocket và tài liệu vận hành.

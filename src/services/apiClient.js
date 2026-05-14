@@ -92,12 +92,7 @@ async function request(endpoint, options = {}) {
         },
     };
     
-    // Handle relative vs absolute URLs
-    const url = API_BASE.startsWith('/') 
-        ? `${API_BASE}${endpoint}`  // Relative path for production
-        : `${API_BASE}${endpoint}`;  // Absolute for local
-    
-    console.log('[API Request]', endpoint, url);
+    const url = `${API_BASE}${endpoint}`;
     
     const response = await fetch(url, config);
     const text = await response.text();
@@ -109,9 +104,7 @@ async function request(endpoint, options = {}) {
             data = { success: false, error: text };
         }
     }
-    
-    console.log('[API Response]', endpoint, response.status, data);
-    
+
     if (!response.ok) {
         const error = new Error(data.error || 'API request failed');
         error.code = data.code;

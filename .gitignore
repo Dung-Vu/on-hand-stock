@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
@@ -59,6 +58,5 @@ lerna-debug.log*
 *.temp
 .cache/
 
-# Generated reports (optional - uncomment if you don't want to commit)
-# ARCHIVED-PRODUCTS-WITH-STOCK.md
-# PILLOW-PRODUCTS-*.md
+# Generated reports
+ARCHIVED-PRODUCTS-WITH-STOCK.md
