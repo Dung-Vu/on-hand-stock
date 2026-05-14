@@ -211,6 +211,27 @@ router.put('/users/:id', authenticate, requireAdmin, async (req, res) => {
                 error: 'Cannot change your own role',
             });
         }
+
+        if (role && !['admin', 'counter'].includes(role)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Role must be "admin" or "counter"',
+            });
+        }
+
+        if (is_active !== undefined && typeof is_active !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                error: 'is_active must be a boolean',
+            });
+        }
+
+        if (userId === req.user.id && is_active === false) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot deactivate yourself',
+            });
+        }
         
         const updates = {};
         if (password) updates.password = password;

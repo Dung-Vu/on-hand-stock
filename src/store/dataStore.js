@@ -88,7 +88,12 @@ export function showToast(message, type = "info", duration = 3000) {
         info: "ℹ️"
     };
 
-    toast.innerHTML = `<span>${icons[type] || icons.info}</span><span>${message}</span>`;
+    const icon = document.createElement("span");
+    icon.textContent = icons[type] || icons.info;
+    const text = document.createElement("span");
+    text.textContent = String(message ?? "");
+    toast.appendChild(icon);
+    toast.appendChild(text);
     container.appendChild(toast);
 
     // Animate in
@@ -103,6 +108,15 @@ export function showToast(message, type = "info", duration = 3000) {
         toast.style.opacity = "0";
         setTimeout(() => toast.remove(), 300);
     }, duration);
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 const HIDDEN_CATEGORIES = new Set(["BON", "REM", "PHUKIEN"]);
@@ -1001,10 +1015,11 @@ function createEmptyState(message) {
     const div = document.createElement("div");
     div.className =
         "flex flex-col items-center justify-center py-20 text-center";
+    const safeMessage = escapeHtml(message);
     div.innerHTML = `
         <div class="text-5xl mb-4">📭</div>
         <h2 class="text-xl font-semibold mb-2" style="color: #2a231f;">Không có dữ liệu</h2>
-        <p style="color: #5d5044;">${message}</p>
+        <p style="color: #5d5044;">${safeMessage}</p>
     `;
     return div;
 }
@@ -1014,10 +1029,11 @@ function createErrorState(message) {
     const div = document.createElement("div");
     div.className =
         "flex flex-col items-center justify-center py-20 text-center";
+    const safeMessage = escapeHtml(message);
     div.innerHTML = `
         <div class="text-5xl mb-4">⚠️</div>
         <h2 class="text-xl font-semibold text-red-700 mb-2">Tải thất bại</h2>
-        <p style="color: #5d5044;">${message}</p>
+        <p style="color: #5d5044;">${safeMessage}</p>
     `;
     return div;
 }
@@ -1122,8 +1138,9 @@ function renderStockData(groupedData) {
                             const count = allProducts.filter(
                                 (p) => p.categoryName === cat
                             ).length;
-                            return `<button class="category-filter-chip" data-category="${cat}">
-                            ${cat} (${count})
+                            const safeCat = escapeHtml(cat);
+                            return `<button class="category-filter-chip" data-category="${safeCat}">
+                            ${safeCat} (${count})
                         </button>`;
                         })
                         .join("")}
@@ -1157,9 +1174,13 @@ function renderStockData(groupedData) {
         const badge = getStockBadge(status);
         const unit =
             product.uom_id && product.uom_id[1] ? product.uom_id[1] : "";
+        const safeProductName = escapeHtml(productName);
+        const safeCategoryName = escapeHtml(product.categoryName);
+        const safeUnit = escapeHtml(unit);
+        const safeLotIds = escapeHtml(lotIds);
 
         html += `
-            <div class="stock-card animate-slide-down flex flex-col" data-category="${product.categoryName}" style="animation-delay: ${Math.min(
+            <div class="stock-card animate-slide-down flex flex-col" data-category="${safeCategoryName}" style="animation-delay: ${Math.min(
                 index * 0.02,
                 0.5
             )}s; height: 100%;">
@@ -1167,10 +1188,10 @@ function renderStockData(groupedData) {
                 <div class="flex items-start justify-between mb-4" style="min-height: 70px;">
                     <div class="flex-1 pr-2">
                         <h3 class="text-sm font-semibold mb-1 line-clamp-2" style="color: #2a231f; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                            ${productName}
+                            ${safeProductName}
                         </h3>
                         <span class="category-badge">${
-                            product.categoryName
+                            safeCategoryName
                         }</span>
                     </div>
                     ${badge}
@@ -1184,7 +1205,7 @@ function renderStockData(groupedData) {
                         ).toLocaleString()}</p>
                         ${
                             unit
-                                ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${unit}</p>`
+                                ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${safeUnit}</p>`
                                 : `<div style="height: 16px;"></div>`
                         }
                     </div>
@@ -1199,7 +1220,7 @@ function renderStockData(groupedData) {
         ).toLocaleString()}</p>
                         ${
                             unit
-                                ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${unit}</p>`
+                                ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${safeUnit}</p>`
                                 : `<div style="height: 16px;"></div>`
                         }
                     </div>
@@ -1219,7 +1240,7 @@ function renderStockData(groupedData) {
                         }
                         ${
                             unit
-                                ? `<p class="text-xs" style="color: #8b7355;">${unit}</p>`
+                                ? `<p class="text-xs" style="color: #8b7355;">${safeUnit}</p>`
                                 : `<div style="height: 16px;"></div>`
                         }
                         </div>
@@ -1232,7 +1253,7 @@ function renderStockData(groupedData) {
                         ? `
                 <div class="mt-3 pt-3" style="border-top: 1px solid #f5f1ea;">
                     <p class="text-xs" style="color: #7d6d5a;">
-                        <strong>Số lô:</strong> ${lotIds}
+                        <strong>Số lô:</strong> ${safeLotIds}
                     </p>
                 </div>
                 `

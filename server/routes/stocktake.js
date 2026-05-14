@@ -86,6 +86,58 @@ router.post('/sessions', async (req, res) => {
 });
 
 /**
+ * GET /api/stocktake/sessions/by-month-warehouse
+ * Get session by month and warehouse
+ * Query params: month, warehouse
+ *
+ * This route must be declared before /sessions/:id so Express does not
+ * interpret "by-month-warehouse" as a dynamic session id.
+ */
+router.get('/sessions/by-month-warehouse', async (req, res) => {
+    try {
+        const { month, warehouse } = req.query;
+        
+        if (!month || !warehouse) {
+            return res.status(400).json({
+                success: false,
+                error: 'Month and warehouse required',
+            });
+        }
+        
+        const session = await stocktakeService.getSessionByMonthWarehouse(month, warehouse);
+        
+        if (!session) {
+            // Return empty session structure
+            return res.json({
+                success: true,
+                data: null,
+            });
+        }
+        
+        // Get lines
+        const lines = await stocktakeService.getSessionLines(session.id);
+        
+        // Get stats
+        const stats = await stocktakeService.getSessionStats(session.id);
+        
+        res.json({
+            success: true,
+            data: {
+                ...session,
+                lines,
+                stats,
+            },
+        });
+    } catch (error) {
+        console.error('[Stocktake Route] Get session by month/warehouse error:', error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+        });
+    }
+});
+
+/**
  * GET /api/stocktake/sessions/:id
  * Get session by ID with lines
  */
@@ -125,55 +177,6 @@ router.get('/sessions/:id', async (req, res) => {
         });
     } catch (error) {
         console.error('[Stocktake Route] Get session error:', error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-        });
-    }
-});
-
-/**
- * GET /api/stocktake/sessions/by-month-warehouse
- * Get session by month and warehouse
- * Query params: month, warehouse
- */
-router.get('/sessions/by-month-warehouse', async (req, res) => {
-    try {
-        const { month, warehouse } = req.query;
-        
-        if (!month || !warehouse) {
-            return res.status(400).json({
-                success: false,
-                error: 'Month and warehouse required',
-            });
-        }
-        
-        const session = await stocktakeService.getSessionByMonthWarehouse(month, warehouse);
-        
-        if (!session) {
-            // Return empty session structure
-            return res.json({
-                success: true,
-                data: null,
-            });
-        }
-        
-        // Get lines
-        const lines = await stocktakeService.getSessionLines(session.id);
-        
-        // Get stats
-        const stats = await stocktakeService.getSessionStats(session.id);
-        
-        res.json({
-            success: true,
-            data: {
-                ...session,
-                lines,
-                stats,
-            },
-        });
-    } catch (error) {
-        console.error('[Stocktake Route] Get session by month/warehouse error:', error.message);
         res.status(500).json({
             success: false,
             error: error.message,

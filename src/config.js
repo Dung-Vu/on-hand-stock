@@ -5,11 +5,18 @@
 // If running on tunnel domain, use tunnel API endpoint; otherwise use localhost
 const getApiEndpoint = () => {
     if (typeof window !== "undefined") {
-        const hostname = window.location.hostname;
+        const { hostname, protocol, port } = window.location;
+        if (window.API_BASE_URL) {
+            return `${window.API_BASE_URL}/api/stock`;
+        }
         // Check if running on tunnel domain
         if (hostname.includes("bonstu.site") || hostname.includes("stock.bonstu.site")) {
             // Use HTTPS for production tunnel
             return "https://api-stock.bonstu.site/api/stock";
+        }
+        // LAN Vite access: use the same host with backend port.
+        if (hostname !== "localhost" && hostname !== "127.0.0.1" && /^517\d$/.test(port)) {
+            return `${protocol}//${hostname}:4001/api/stock`;
         }
     }
     // Default to localhost for local development

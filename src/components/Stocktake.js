@@ -14,6 +14,15 @@ function formatNumber(n) {
     return Number.isFinite(num) ? num.toLocaleString() : "0";
 }
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 function toCsv(rows) {
     const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
     return rows.map((r) => r.map(esc).join(",")).join("\n");
@@ -299,6 +308,9 @@ export default function Stocktake({
         const mobile = isMobile();
 
         rows.forEach((r) => {
+            const safeName = escapeHtml(r.name);
+            const safeProductId = escapeHtml(r.productId);
+
             if (mobile) {
                 // Mobile card layout
                 const card = createElement("div", {
@@ -308,8 +320,8 @@ export default function Stocktake({
 
                 const top = createElement("div", { class: "flex items-start justify-between gap-2" });
                 const name = createElement("div", { class: "flex-1 min-w-0" });
-                name.innerHTML = `<div class="font-semibold text-sm" style="color:#2a231f">${r.name}</div>
-                    <div class="text-[11px]" style="color:#7d6d5a">ID: ${r.productId}</div>`;
+                name.innerHTML = `<div class="font-semibold text-sm" style="color:#2a231f">${safeName}</div>
+                    <div class="text-[11px]" style="color:#7d6d5a">ID: ${safeProductId}</div>`;
 
                 const noteBtn = createElement("button", {
                     class: "text-xs px-2 py-1 rounded-lg shrink-0",
@@ -419,8 +431,8 @@ export default function Stocktake({
             row.style.borderBottom = "1px solid #f5f1ea";
 
             const name = createElement("div", { class: "col-span-5" });
-            name.innerHTML = `<div class="font-semibold" style="color:#2a231f">${r.name}</div>
-                <div class="text-[11px]" style="color:#7d6d5a">ID: ${r.productId}</div>`;
+            name.innerHTML = `<div class="font-semibold" style="color:#2a231f">${safeName}</div>
+                <div class="text-[11px]" style="color:#7d6d5a">ID: ${safeProductId}</div>`;
 
             const sys = createElement("div", { class: "col-span-2 text-right font-semibold" });
             sys.style.color = "#2a231f";

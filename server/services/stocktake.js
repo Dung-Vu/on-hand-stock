@@ -18,13 +18,16 @@ export async function createSession({ month, warehouse, createdBy }) {
         const result = await query(
             `INSERT INTO stocktake_sessions (month, warehouse, created_by, status)
              VALUES ($1, $2, $3, 'draft')
-             ON CONFLICT (month, warehouse) DO UPDATE
-             SET updated_at = NOW(), status = 'draft'
+             ON CONFLICT (month, warehouse) DO NOTHING
              RETURNING *`,
             [month, warehouse, createdBy]
         );
 
-        return result.rows[0];
+        if (result.rows[0]) {
+            return result.rows[0];
+        }
+
+        return getSessionByMonthWarehouse(month, warehouse);
     } catch (error) {
         console.error('[Stocktake] Create session error:', error.message);
         throw error;
@@ -162,7 +165,8 @@ export async function upsertLine({ sessionId, productId, productName, systemQty,
             `INSERT INTO stocktake_lines (session_id, product_id, product_name, system_qty, counted_qty, note, counted_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              ON CONFLICT (session_id, product_id) DO UPDATE
-             SET counted_qty = $5, note = COALESCE($6, stocktake_lines.note), 
+                 SET product_name = $3, system_qty = $4,
+                 counted_qty = $5, note = COALESCE($6, stocktake_lines.note),
                  counted_by = $7, counted_at = NOW(), updated_at = NOW()
              RETURNING *`,
             [sessionId, productId, productName, systemQty, countedQty, note, countedBy]
@@ -203,7 +207,8 @@ export async function bulkUpsertLines(sessionId, lines, countedBy) {
                 `INSERT INTO stocktake_lines (session_id, product_id, product_name, system_qty, counted_qty, note, counted_by)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT (session_id, product_id) DO UPDATE
-                 SET counted_qty = $5, note = COALESCE($6, stocktake_lines.note), 
+                 SET product_name = $3, system_qty = $4,
+                     counted_qty = $5, note = COALESCE($6, stocktake_lines.note),
                      counted_by = $7, counted_at = NOW(), updated_at = NOW()
                  RETURNING *`,
                 [sessionId, line.productId, line.productName, line.systemQty, line.countedQty, line.note, countedBy]
@@ -240,7 +245,7 @@ export async function lockSession(sessionId, lockedBy) {
     const result = await query(
         `UPDATE stocktake_sessions 
          SET status = 'locked', locked_at = NOW(), locked_by = $1, updated_at = NOW()
-         WHERE id = $2 AND status != 'locked'
+         WHERE id = $2 AND status IN ('draft', 'in_progress')
          RETURNING *`,
         [lockedBy, sessionId]
     );
@@ -275,7 +280,7 @@ export async function completeSession(sessionId, completedBy) {
     const result = await query(
         `UPDATE stocktake_sessions 
          SET status = 'completed', completed_at = NOW(), completed_by = $1, updated_at = NOW()
-         WHERE id = $2
+         WHERE id = $2 AND status != 'completed'
          RETURNING *`,
         [completedBy, sessionId]
     );

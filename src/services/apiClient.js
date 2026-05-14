@@ -3,11 +3,31 @@
 // Backend API client for auth and stocktake
 // ============================================
 
-const API_BASE = typeof window !== 'undefined' 
-    ? (window.location.hostname.includes('bonstu.site') 
-        ? ''  // Empty - nginx handles /api routing
-        : 'http://localhost:4001')
-    : 'http://localhost:4001';
+function getApiBase() {
+    if (typeof window === 'undefined') return 'http://localhost:4001';
+
+    if (window.API_BASE_URL) return window.API_BASE_URL;
+
+    const { hostname, protocol, port } = window.location;
+
+    // Production/proxy deployment: nginx handles /api routing on the same origin.
+    if (hostname.includes('bonstu.site')) return '';
+
+    // Local Vite development on the same machine.
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:4001';
+    }
+
+    // LAN Vite access, e.g. http://192.168.1.178:5178.
+    if (/^517\d$/.test(port)) {
+        return `${protocol}//${hostname}:4001`;
+    }
+
+    // Docker/nginx or any non-dev host should use same-origin /api.
+    return '';
+}
+
+const API_BASE = getApiBase();
 
 /**
  * Get auth token from localStorage
@@ -40,7 +60,13 @@ function removeToken() {
 function getCurrentUser() {
     if (typeof window === 'undefined') return null;
     const userStr = localStorage.getItem('auth_user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) return null;
+    try {
+        return JSON.parse(userStr);
+    } catch {
+        removeToken();
+        return null;
+    }
 }
 
 /**
@@ -74,7 +100,15 @@ async function request(endpoint, options = {}) {
     console.log('[API Request]', endpoint, url);
     
     const response = await fetch(url, config);
-    const data = await response.json();
+    const text = await response.text();
+    let data = {};
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = { success: false, error: text };
+        }
+    }
     
     console.log('[API Response]', endpoint, response.status, data);
     

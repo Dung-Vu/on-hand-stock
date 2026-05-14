@@ -126,6 +126,7 @@ function getBaseUrl() {
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const protocol = window.location.protocol;
+        const port = window.location.port;
 
         // If running on tunnel domain (stock.bonstu.site), use relative path
         // This allows Nginx to proxy API requests, avoiding CORS issues
@@ -133,6 +134,10 @@ function getBaseUrl() {
         if (hostname.includes('bonstu.site')) {
             // Use relative path to avoid CORS - Nginx will proxy to backend
             return '';
+        }
+
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && /^517\d$/.test(port)) {
+            return `${protocol}//${hostname}:4001`;
         }
     }
 

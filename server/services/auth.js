@@ -5,7 +5,10 @@
 
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { config } from 'dotenv';
 import { query } from '../db/index.js';
+
+config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
