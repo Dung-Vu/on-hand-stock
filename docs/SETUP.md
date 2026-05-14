@@ -25,8 +25,11 @@ Không đưa secret thật vào Git.
 ## Database
 
 ```bash
-psql -U postgres -d bonario_stock -f database/init.sql
+cd server
+npm run db:init
 ```
+
+`db:init` đọc `DATABASE_URL`, hoặc bộ `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`/`POSTGRES_PASSWORD`.
 
 Seed admin nếu cần:
 

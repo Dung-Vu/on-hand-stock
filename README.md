@@ -27,7 +27,7 @@ Web app quản lý tồn kho và kiểm kho cho Bonario.
 npm install
 cd server && npm install && cd ..
 cp server/.env.example server/.env
-psql -U postgres -d bonario_stock -f database/init.sql
+cd server && npm run db:init && cd ..
 ```
 
 Backend:

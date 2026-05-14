@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 -- USERS TABLE
 -- ============================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -21,14 +21,14 @@ CREATE TABLE users (
 );
 
 -- Index for login lookups
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 
 -- ============================================
 -- STOCKTAKE SESSIONS
 -- ============================================
-CREATE TABLE stocktake_sessions (
+CREATE TABLE IF NOT EXISTS stocktake_sessions (
     id SERIAL PRIMARY KEY,
     month VARCHAR(7) NOT NULL CHECK (month ~ '^\d{4}-\d{2}$'), -- YYYY-MM format
     warehouse VARCHAR(100) NOT NULL,
@@ -45,16 +45,16 @@ CREATE TABLE stocktake_sessions (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_stocktake_sessions_month ON stocktake_sessions(month);
-CREATE INDEX idx_stocktake_sessions_warehouse ON stocktake_sessions(warehouse);
-CREATE INDEX idx_stocktake_sessions_status ON stocktake_sessions(status);
-CREATE INDEX idx_stocktake_sessions_created_by ON stocktake_sessions(created_by);
-CREATE INDEX idx_stocktake_sessions_month_warehouse ON stocktake_sessions(month, warehouse);
+CREATE INDEX IF NOT EXISTS idx_stocktake_sessions_month ON stocktake_sessions(month);
+CREATE INDEX IF NOT EXISTS idx_stocktake_sessions_warehouse ON stocktake_sessions(warehouse);
+CREATE INDEX IF NOT EXISTS idx_stocktake_sessions_status ON stocktake_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_stocktake_sessions_created_by ON stocktake_sessions(created_by);
+CREATE INDEX IF NOT EXISTS idx_stocktake_sessions_month_warehouse ON stocktake_sessions(month, warehouse);
 
 -- ============================================
 -- STOCKTAKE LINES
 -- ============================================
-CREATE TABLE stocktake_lines (
+CREATE TABLE IF NOT EXISTS stocktake_lines (
     id SERIAL PRIMARY KEY,
     session_id INTEGER NOT NULL REFERENCES stocktake_sessions(id) ON DELETE CASCADE,
     product_id INTEGER NOT NULL,
@@ -71,15 +71,15 @@ CREATE TABLE stocktake_lines (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_stocktake_lines_session_id ON stocktake_lines(session_id);
-CREATE INDEX idx_stocktake_lines_product_id ON stocktake_lines(product_id);
-CREATE INDEX idx_stocktake_lines_counted_by ON stocktake_lines(counted_by);
-CREATE INDEX idx_stocktake_lines_session_product ON stocktake_lines(session_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_stocktake_lines_session_id ON stocktake_lines(session_id);
+CREATE INDEX IF NOT EXISTS idx_stocktake_lines_product_id ON stocktake_lines(product_id);
+CREATE INDEX IF NOT EXISTS idx_stocktake_lines_counted_by ON stocktake_lines(counted_by);
+CREATE INDEX IF NOT EXISTS idx_stocktake_lines_session_product ON stocktake_lines(session_id, product_id);
 
 -- ============================================
 -- AUDIT LOG (optional, for tracking changes)
 -- ============================================
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     action VARCHAR(50) NOT NULL, -- LOGIN, LOGOUT, CREATE_SESSION, UPDATE_LINE, LOCK_SESSION, etc.
@@ -91,10 +91,10 @@ CREATE TABLE audit_log (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
-CREATE INDEX idx_audit_log_action ON audit_log(action);
-CREATE INDEX idx_audit_log_entity ON audit_log(entity_type, entity_id);
-CREATE INDEX idx_audit_log_created_at ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
 
 -- ============================================
 -- FUNCTIONS & TRIGGERS
@@ -110,18 +110,21 @@ END;
 $$ language 'plpgsql';
 
 -- Apply to users table
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Apply to stocktake_sessions table
+DROP TRIGGER IF EXISTS update_stocktake_sessions_updated_at ON stocktake_sessions;
 CREATE TRIGGER update_stocktake_sessions_updated_at
     BEFORE UPDATE ON stocktake_sessions
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Apply to stocktake_lines table
+DROP TRIGGER IF EXISTS update_stocktake_lines_updated_at ON stocktake_lines;
 CREATE TRIGGER update_stocktake_lines_updated_at
     BEFORE UPDATE ON stocktake_lines
     FOR EACH ROW
