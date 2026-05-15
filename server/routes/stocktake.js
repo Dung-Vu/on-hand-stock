@@ -9,6 +9,16 @@ import * as stocktakeService from '../services/stocktake.js';
 
 const router = Router();
 
+function normalizeLineInput(line = {}) {
+    return {
+        productId: line.productId ?? line.product_id,
+        productName: line.productName ?? line.product_name,
+        systemQty: line.systemQty ?? line.system_qty,
+        countedQty: line.countedQty ?? line.counted_qty,
+        note: line.note,
+    };
+}
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -208,9 +218,21 @@ router.put('/sessions/:id/lines', async (req, res) => {
             });
         }
         
+        const normalizedLines = lines.map(normalizeLineInput);
+        const invalidLine = normalizedLines.find(
+            (line) => line.productId === undefined || !line.productName || line.systemQty === undefined
+        );
+
+        if (invalidLine) {
+            return res.status(400).json({
+                success: false,
+                error: 'Each line requires productId/product_id, productName/product_name, and systemQty/system_qty',
+            });
+        }
+
         const results = await stocktakeService.bulkUpsertLines(
             sessionId,
-            lines,
+            normalizedLines,
             req.user.id
         );
         
@@ -235,7 +257,7 @@ router.put('/sessions/:id/lines', async (req, res) => {
 router.post('/sessions/:id/line', async (req, res) => {
     try {
         const sessionId = parseInt(req.params.id);
-        const { productId, productName, systemQty, countedQty, note } = req.body;
+        const { productId, productName, systemQty, countedQty, note } = normalizeLineInput(req.body);
         
         if (isNaN(sessionId)) {
             return res.status(400).json({
@@ -244,10 +266,10 @@ router.post('/sessions/:id/line', async (req, res) => {
             });
         }
         
-        if (!productId || !productName || systemQty === undefined) {
+        if (productId === undefined || !productName || systemQty === undefined) {
             return res.status(400).json({
                 success: false,
-                error: 'productId, productName, and systemQty required',
+                error: 'productId/product_id, productName/product_name, and systemQty/system_qty required',
             });
         }
         

@@ -419,7 +419,32 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     `;
 
     const filtersContent = createElement("div", {});
-    filtersContent.style.cssText = 'max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 8px;';
+    filtersContent.style.cssText = 'max-width: 820px; margin: 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;';
+
+    const companyFilter = createElement("select", {
+        id: "companyFilter",
+        title: "Công ty",
+    });
+    companyFilter.style.cssText = `
+        flex: 0 1 170px;
+        min-width: 145px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1.5px solid #d4c4b0;
+        background: #ffffff;
+        font-size: 13px;
+        color: #2a231f;
+        outline: none;
+        font-family: inherit;
+        cursor: pointer;
+    `;
+    const bonarioOpt = createElement("option", { value: "Bonario" });
+    bonarioOpt.textContent = "Bonario";
+    const ordinaireOpt = createElement("option", { value: "Ordinaire" });
+    ordinaireOpt.textContent = "Ordinaire";
+    companyFilter.appendChild(bonarioOpt);
+    companyFilter.appendChild(ordinaireOpt);
 
     const categoryFilter = createElement("select", {
         id: "categoryFilter",
@@ -466,6 +491,7 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         clearBtn.style.borderColor = "#d4c4b0";
     });
 
+    filtersContent.appendChild(companyFilter);
     filtersContent.appendChild(categoryFilter);
 
     // Discontinued filter toggle
@@ -560,6 +586,10 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     }
 
     searchInput.addEventListener("input", debounced);
+    companyFilter.addEventListener("change", () => {
+        localStorage.setItem("selectedCompany", companyFilter.value || "Bonario");
+        document.dispatchEvent(new CustomEvent("companyContextChange"));
+    });
     categoryFilter.addEventListener("change", triggerFilterChange);
     clearBtn.addEventListener("click", () => {
         searchInput.value = "";

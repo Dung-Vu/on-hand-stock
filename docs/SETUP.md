@@ -14,7 +14,10 @@ ADMIN_PASSWORD=<ADMIN_PASSWORD>
 
 ODOO_URL=https://bonario-vietnam.odoo.com
 ODOO_DB=bonario-vietnam
+ODOO_DATABASE=bonario-vietnam
+# Optional. If omitted, backend uses ODOO_URL + /jsonrpc.
 ODOO_API_ENDPOINT=https://bonario-vietnam.odoo.com/jsonrpc
+ODOO_USER_ID=<ODOO_USER_ID>
 ODOO_API_KEY=<ODOO_API_KEY>
 
 REDIS_URL=redis://localhost:6379

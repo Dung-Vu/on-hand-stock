@@ -37,12 +37,14 @@ export default defineConfig({
     // Code splitting for better caching
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // Split large libraries into separate chunks
-          'exceljs': ['exceljs'],
-          'jspdf': ['jspdf', 'jspdf-autotable'],
-          'html2canvas': ['html2canvas'],
-          'dompurify': ['dompurify']
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('exceljs')) return 'exceljs'
+          if (id.includes('jspdf')) return 'jspdf'
+          if (id.includes('html2canvas')) return 'html2canvas'
+          if (id.includes('dompurify')) return 'dompurify'
+          return undefined
         }
       }
     },

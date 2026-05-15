@@ -13,7 +13,6 @@ import {
     clearLoadedWarehouses
 } from '../services/api.js';
 import { initWebSocket } from '../services/websocket.js';
-import { SAMPLE_DATA } from './sampleData.js';
 import { exportToExcel, exportToPDF } from '../utils/export.js';
 import { WAREHOUSE_MAP, PRODUCT_WAREHOUSES, FABRIC_WAREHOUSES, sortWarehouses as sortWarehousesFromModule } from './modules/warehouse.js';
 
@@ -128,6 +127,39 @@ const BONAP_VISIBLE_CATEGORY_ALLOWLIST = new Set([
     "BON / REM / TPREM",
 ]);
 
+const COMPANY_FILTER_STORAGE_KEY = "selectedCompany";
+const COMPANY_FILTERS = [
+    { key: "Bonario", label: "Bonario", aliases: ["bonario"] },
+    { key: "Ordinaire", label: "Ordinaire", aliases: ["ordinaire"] },
+];
+const DEFAULT_COMPANY_FILTER = COMPANY_FILTERS[0].key;
+
+function normalizeCompanyName(companyName = "") {
+    return String(companyName || "").trim();
+}
+
+function getProductCompanyName(product = {}) {
+    return normalizeCompanyName(
+        product.product_company_name ||
+            product.company_name ||
+            (Array.isArray(product.company_id) ? product.company_id[1] : "")
+    );
+}
+
+function isAllowedCompanyKey(companyKey) {
+    return COMPANY_FILTERS.some((company) => company.key === companyKey);
+}
+
+function productMatchesCompany(product, companyKey) {
+    const company = COMPANY_FILTERS.find((item) => item.key === companyKey);
+    if (!company) return false;
+
+    const productCompanyName = getProductCompanyName(product).toLowerCase();
+    if (!productCompanyName) return false;
+
+    return company.aliases.some((alias) => productCompanyName.includes(alias));
+}
+
 function normalizeCategoryName(categoryName = "") {
     return categoryName
         .split("/")
@@ -179,12 +211,14 @@ export function getCurrentGroupedData() {
 }
 
 export function getWarehouseNames() {
-    return currentGroupedData ? Object.keys(currentGroupedData) : [];
+    const scopedData = getCompanyScopedGroupedData();
+    return scopedData ? Object.keys(scopedData) : [];
 }
 
 export function getProductsForWarehouse(warehouseName) {
-    if (!currentGroupedData || !warehouseName || !currentGroupedData[warehouseName]) return [];
-    const wh = currentGroupedData[warehouseName];
+    const scopedData = getCompanyScopedGroupedData();
+    if (!scopedData || !warehouseName || !scopedData[warehouseName]) return [];
+    const wh = scopedData[warehouseName];
     const products = [];
     Object.entries(wh.categories || {}).forEach(([categoryName, category]) => {
         if (shouldHideCategory(categoryName, warehouseName)) {
@@ -235,6 +269,8 @@ function processOdooData(data) {
                 ? item.product_uom_id
                 : [item.product_uom_id, ""]
             : false,
+        product_company_id: item.product_company_id || null,
+        product_company_name: normalizeCompanyName(item.product_company_name),
     }));
 }
 
@@ -265,6 +301,8 @@ function processIncomingData(incomingData, onhandProcessed) {
                 incoming_date: date,
                 product_id: item.product_id,
                 uom_id: item.product_uom || false,
+                product_company_id: item.product_company_id || null,
+                product_company_name: normalizeCompanyName(item.product_company_name),
             });
         } else if (date && existing.incoming_date) {
             // So sánh ngày (chỉ so sánh phần ngày, bỏ qua giờ)
@@ -334,6 +372,8 @@ function processIncomingData(incomingData, onhandProcessed) {
             owner_id: false,
             product_categ_id: item.product_categ_id || [0, "Uncategorized"],
             uom_id: item.uom_id || false,
+            product_company_id: item.product_company_id || null,
+            product_company_name: getProductCompanyName(item),
         });
     });
 
@@ -368,6 +408,8 @@ function processIncomingData(incomingData, onhandProcessed) {
             owner_id: false,
             product_categ_id: [0, "Vải Incoming"],
             uom_id: incoming.uom_id || false,
+            product_company_id: incoming.product_company_id || null,
+            product_company_name: getProductCompanyName(incoming),
         });
     });
 
@@ -444,6 +486,8 @@ function groupDataByWarehouseAndCategory(data, discontinuedIds = new Set()) {
                 incoming_date: null,
                 lot_ids: [], // Collect all lot IDs
                 uom_id: item.uom_id || false, // Unit of measure
+                product_company_id: item.product_company_id || null,
+                product_company_name: getProductCompanyName(item),
                 isDiscontinued: discontinuedIds.has(productId), // Sản phẩm ngưng sản xuất
             };
         }
@@ -531,8 +575,9 @@ function filterAndSearchData(
               })()
             : null;
 
-    // Use active warehouse if no explicit filter
-    const effectiveWarehouseFilter = warehouseFilter || activeWarehouse;
+    // Search should scan all warehouses unless the user explicitly selects a warehouse.
+    // Without a search term, keep the tab-scoped warehouse view.
+    const effectiveWarehouseFilter = warehouseFilter || (searchLower ? "" : activeWarehouse);
 
     Object.keys(groupedData).forEach((warehouseName) => {
         if (
@@ -597,6 +642,106 @@ function filterAndSearchData(
     return filtered;
 }
 
+function getSelectedCompanyName() {
+    let selectedCompany = "";
+
+    if (typeof document !== "undefined") {
+        const companyFilter = document.getElementById("companyFilter");
+        if (companyFilter) {
+            selectedCompany = normalizeCompanyName(companyFilter.value);
+        }
+    }
+
+    if (!selectedCompany && typeof localStorage !== "undefined") {
+        selectedCompany = normalizeCompanyName(localStorage.getItem(COMPANY_FILTER_STORAGE_KEY));
+    }
+
+    return isAllowedCompanyKey(selectedCompany) ? selectedCompany : DEFAULT_COMPANY_FILTER;
+}
+
+function getCompanyOptions(groupedData) {
+    const companies = new Set();
+
+    Object.values(groupedData || {}).forEach((warehouse) => {
+        Object.values(warehouse.categories || {}).forEach((category) => {
+            Object.values(category.products || {}).forEach((product) => {
+                const companyName = getProductCompanyName(product);
+                if (companyName) companies.add(companyName);
+            });
+        });
+    });
+
+    return Array.from(companies).sort((a, b) => a.localeCompare(b, "vi"));
+}
+
+function filterGroupedDataByCompany(groupedData, companyName) {
+    const selectedCompany = normalizeCompanyName(companyName);
+    const effectiveCompany = isAllowedCompanyKey(selectedCompany)
+        ? selectedCompany
+        : DEFAULT_COMPANY_FILTER;
+
+    const filtered = {};
+
+    Object.entries(groupedData || {}).forEach(([warehouseName, warehouse]) => {
+        const filteredCategories = {};
+
+        Object.entries(warehouse.categories || {}).forEach(([categoryName, category]) => {
+            const filteredProducts = {};
+
+            Object.entries(category.products || {}).forEach(([productKey, product]) => {
+                if (productMatchesCompany(product, effectiveCompany)) {
+                    filteredProducts[productKey] = product;
+                }
+            });
+
+            if (Object.keys(filteredProducts).length > 0) {
+                filteredCategories[categoryName] = {
+                    ...category,
+                    products: filteredProducts,
+                };
+            }
+        });
+
+        if (Object.keys(filteredCategories).length > 0) {
+            filtered[warehouseName] = {
+                ...warehouse,
+                categories: filteredCategories,
+            };
+        }
+    });
+
+    return filtered;
+}
+
+function getCompanyScopedGroupedData() {
+    return filterGroupedDataByCompany(currentGroupedData, getSelectedCompanyName());
+}
+
+function updateCompanyFilterOptions(groupedData) {
+    if (typeof document === "undefined") return;
+
+    const companySelect = document.getElementById("companyFilter");
+    if (!companySelect) return;
+
+    const savedCompany = normalizeCompanyName(
+        companySelect.value || localStorage.getItem(COMPANY_FILTER_STORAGE_KEY)
+    );
+    const nextValue = isAllowedCompanyKey(savedCompany)
+        ? savedCompany
+        : DEFAULT_COMPANY_FILTER;
+
+    companySelect.innerHTML = "";
+    COMPANY_FILTERS.forEach((company) => {
+        const option = document.createElement("option");
+        option.value = company.key;
+        option.textContent = company.label;
+        companySelect.appendChild(option);
+    });
+
+    companySelect.value = nextValue;
+    localStorage.setItem(COMPANY_FILTER_STORAGE_KEY, nextValue);
+}
+
 // Calculate statistics
 function calculateStats(groupedData) {
     let totalProducts = 0;
@@ -621,9 +766,16 @@ function calculateStats(groupedData) {
 
 // Update filter options and tabs
 export function updateFilterOptions(groupedData) {
+    if (groupedData === currentGroupedData) {
+        updateCompanyFilterOptions(currentGroupedData);
+    }
+
+    const effectiveGroupedData =
+        groupedData === currentGroupedData ? getCompanyScopedGroupedData() : (groupedData || {});
+
     // Update tabs first
     if (typeof window !== "undefined" && window.updateTabs) {
-        const warehouses = Object.keys(groupedData || {});
+        const warehouses = Object.keys(effectiveGroupedData || {});
         const sortedWarehouses = sortWarehouses(warehouses);
         window.updateTabs(sortedWarehouses);
     }
@@ -636,7 +788,7 @@ export function updateFilterOptions(groupedData) {
 
     categorySelect.innerHTML = '<option value="">Tất cả nhóm sản phẩm</option>';
 
-    if (!groupedData || Object.keys(groupedData).length === 0) {
+    if (!effectiveGroupedData || Object.keys(effectiveGroupedData).length === 0) {
         return;
     }
 
@@ -647,13 +799,13 @@ export function updateFilterOptions(groupedData) {
         const activeName = activeTab
             ? activeTab.getAttribute("data-warehouse")
             : null;
-        if (activeName && groupedData[activeName]) {
-            warehousesToUse.push(groupedData[activeName]);
+        if (activeName && effectiveGroupedData[activeName]) {
+            warehousesToUse.push(effectiveGroupedData[activeName]);
         }
     }
     // Fallback: use all warehouses
     if (warehousesToUse.length === 0) {
-        warehousesToUse = Object.values(groupedData);
+        warehousesToUse = Object.values(effectiveGroupedData);
     }
 
     // Collect categories only from selected warehouses
@@ -677,7 +829,7 @@ export function updateFilterOptions(groupedData) {
 // Helper to refresh category filter based on currentGroupedData and active tab
 export function refreshCategoryFilter() {
     if (!currentGroupedData) return;
-    updateFilterOptions(currentGroupedData);
+    updateFilterOptions(getCompanyScopedGroupedData());
 }
 
 // Load data with caching and retry support
@@ -751,7 +903,8 @@ export async function loadData(options = {}) {
         // Mark all warehouses as loaded
         Object.keys(groupedData).forEach(wh => markWarehouseLoaded(wh));
 
-        updateFilterOptions(groupedData);
+        updateCompanyFilterOptions(groupedData);
+        updateFilterOptions(getCompanyScopedGroupedData());
         applyFilters();
 
         // Show success toast with cache indicator
@@ -806,8 +959,9 @@ export function applyFilters() {
     const discontinuedFilter = document.getElementById("discontinuedFilter");
     const discontinuedOnly = discontinuedFilter?.checked || false;
 
+    const scopedData = getCompanyScopedGroupedData();
     const filteredData = filterAndSearchData(
-        currentGroupedData,
+        scopedData,
         searchTerm,
         warehouseValue,
         categoryValue,
@@ -839,8 +993,10 @@ export function exportData() {
         return;
     }
 
+    const exportGroupedData = getCompanyScopedGroupedData();
+
     // Use ExcelJS for professional Excel export
-    exportToExcel(currentGroupedData, {
+    exportToExcel(exportGroupedData, {
         filename: `stock_data_${new Date().toISOString().split('T')[0]}`,
         includeStats: true,
         includeSummary: true
@@ -858,13 +1014,14 @@ export function exportData() {
 // Fallback CSV export (in case ExcelJS fails)
 function fallbackExportCSV() {
     if (!currentGroupedData) return;
+    const exportGroupedData = getCompanyScopedGroupedData();
 
     let csv = "Kho,Nhóm,Sản phẩm,Số lượng tồn,Số lượng khả dụng,Đang đến,Số lô\n";
 
-    Object.keys(currentGroupedData)
+    Object.keys(exportGroupedData)
         .sort()
         .forEach((warehouseName) => {
-            const warehouse = currentGroupedData[warehouseName];
+            const warehouse = exportGroupedData[warehouseName];
 
             Object.keys(warehouse.categories || {})
                 .sort()
@@ -925,7 +1082,7 @@ export function exportDataPDF() {
 
     showToast("Đang tạo PDF...", "info");
 
-    exportToPDF(currentGroupedData, {
+    exportToPDF(getCompanyScopedGroupedData(), {
         filename: `stock_report_${new Date().toISOString().split('T')[0]}`,
         includeStats: true,
         includeSummary: true
@@ -1069,6 +1226,9 @@ function renderStockData(groupedData) {
         return;
     }
 
+    const searchInput = document.getElementById("searchInput");
+    const isGlobalSearch = Boolean((searchInput?.value || "").trim());
+
     // Get active warehouse from tab
     let activeWarehouse = null;
     if (typeof document !== "undefined") {
@@ -1082,14 +1242,19 @@ function renderStockData(groupedData) {
         }
     }
 
-    // Only render active warehouse
-    if (!activeWarehouse || !groupedData[activeWarehouse]) {
+    const warehousesToRender = isGlobalSearch
+        ? Object.entries(groupedData)
+        : activeWarehouse && groupedData[activeWarehouse]
+            ? [[activeWarehouse, groupedData[activeWarehouse]]]
+            : [];
+
+    // Only render active warehouse unless the user is searching globally
+    if (warehousesToRender.length === 0) {
         container.innerHTML = "";
         container.appendChild(createEmptyState("Vui lòng chọn kho"));
         return;
     }
 
-    const warehouse = groupedData[activeWarehouse];
     const hideIncomingWarehouses = new Set([
         "BONAP/Stock",
         "O-BAP/Stock",
@@ -1098,55 +1263,27 @@ function renderStockData(groupedData) {
         "ORDHY/Stock",
         "ORDST/Stock",
     ]);
-    const hideIncoming = hideIncomingWarehouses.has(activeWarehouse);
 
     // Collect all products across categories for card display
     const allProducts = [];
-    Object.entries(warehouse.categories || {}).forEach(
-        ([categoryName, category]) => {
+    warehousesToRender.forEach(([warehouseName, warehouse]) => {
+        Object.entries(warehouse.categories || {}).forEach(([categoryName, category]) => {
             Object.values(category.products || {}).forEach((product) => {
                 allProducts.push({
                     ...product,
+                    warehouseName,
                     categoryName: categoryName,
                 });
             });
-        }
-    );
+        });
+    });
 
     // Sort products by quantity (descending) so high-stock items appear first
     allProducts.sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
 
-    // Get unique categories for quick filter
-    const categories = [
-        ...new Set(allProducts.map((p) => p.categoryName)),
-    ].sort();
-
     // Build HTML with card-based layout
     let html = `
         <div class="max-w-7xl mx-auto px-4 py-6">
-            <!-- Quick Category Filter - HIDDEN ON MOBILE, use dropdown filter instead -->
-            <div class="mb-6 animate-fade-in hidden md:block" id="quickFilterSection">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-semibold" style="color: #3f3630;">🏷️ Lọc nhanh theo nhóm:</span>
-                </div>
-                <div class="flex flex-wrap gap-2 transition-all duration-300" id="quickCategoryFilter">
-                    <button class="category-filter-chip active" data-category="">
-                        Tất cả (${allProducts.length})
-                    </button>
-                    ${categories
-                        .map((cat) => {
-                            const count = allProducts.filter(
-                                (p) => p.categoryName === cat
-                            ).length;
-                            const safeCat = escapeHtml(cat);
-                            return `<button class="category-filter-chip" data-category="${safeCat}">
-                            ${safeCat} (${count})
-                        </button>`;
-                        })
-                        .join("")}
-                </div>
-            </div>
-
             <!-- Product cards grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch" id="productCardsGrid">
     `;
@@ -1176,8 +1313,10 @@ function renderStockData(groupedData) {
             product.uom_id && product.uom_id[1] ? product.uom_id[1] : "";
         const safeProductName = escapeHtml(productName);
         const safeCategoryName = escapeHtml(product.categoryName);
+        const safeWarehouseName = escapeHtml(product.warehouseName || "");
         const safeUnit = escapeHtml(unit);
         const safeLotIds = escapeHtml(lotIds);
+        const hideIncoming = hideIncomingWarehouses.has(product.warehouseName);
 
         html += `
             <div class="stock-card animate-slide-down flex flex-col" data-category="${safeCategoryName}" style="animation-delay: ${Math.min(
@@ -1193,6 +1332,11 @@ function renderStockData(groupedData) {
                         <span class="category-badge">${
                             safeCategoryName
                         }</span>
+                        ${
+                            isGlobalSearch
+                                ? `<span class="category-badge ml-1">${safeWarehouseName}</span>`
+                                : ""
+                        }
                     </div>
                     ${badge}
                 </div>
@@ -1269,34 +1413,6 @@ function renderStockData(groupedData) {
     `;
 
     container.innerHTML = html;
-
-    // Add event listeners for quick category filter (desktop only)
-    const filterChips = document.querySelectorAll(".category-filter-chip");
-    filterChips.forEach((chip) => {
-        chip.addEventListener("click", () => {
-            const selectedCategory = chip.getAttribute("data-category");
-
-            // Update active state
-            filterChips.forEach((c) => c.classList.remove("active"));
-            chip.classList.add("active");
-
-            // Filter products
-            const productCards = document.querySelectorAll(
-                "#productCardsGrid .stock-card"
-            );
-            productCards.forEach((card) => {
-                const cardCategory = card.getAttribute("data-category");
-                if (
-                    !selectedCategory ||
-                    cardCategory === selectedCategory
-                ) {
-                    card.style.display = "";
-                } else {
-                    card.style.display = "none";
-                }
-            });
-        });
-    });
 }
 
 // Toggle category expand/collapse
@@ -1340,6 +1456,11 @@ window.toggleCategory = toggleCategory;
 
 // Listen for filter change events
 document.addEventListener("filterChange", applyFilters);
+document.addEventListener("companyContextChange", () => {
+    if (!currentGroupedData) return;
+    updateFilterOptions(getCompanyScopedGroupedData());
+    applyFilters();
+});
 
 // ============================================
 // WEBSOCKET INTEGRATION

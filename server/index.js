@@ -18,6 +18,76 @@ import stocktakeRoutes from "./routes/stocktake.js";
 // Load environment variables
 config();
 
+function parseIntegerEnv(name, fallbackValue = undefined) {
+    const raw = process.env[name];
+    if (raw === undefined || raw === null || raw === "") return fallbackValue;
+
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : fallbackValue;
+}
+
+function getOdooJsonRpcEndpoint() {
+    const explicitEndpoint = (process.env.ODOO_API_ENDPOINT || "").trim();
+    if (explicitEndpoint) return explicitEndpoint;
+
+    const baseUrl = (process.env.ODOO_URL || "").trim().replace(/\/+$/, "");
+    if (!baseUrl) return "";
+
+    return baseUrl.endsWith("/jsonrpc") ? baseUrl : `${baseUrl}/jsonrpc`;
+}
+
+function getOdooConfig() {
+    return {
+        apiEndpoint: getOdooJsonRpcEndpoint(),
+        database: process.env.ODOO_DATABASE || process.env.ODOO_DB,
+        userId: parseIntegerEnv("ODOO_USER_ID"),
+        apiKey: process.env.ODOO_API_KEY,
+    };
+}
+
+function validateOdooConfig(config) {
+    const missing = [];
+    if (!config.apiEndpoint) missing.push("ODOO_API_ENDPOINT");
+    if (!config.database) missing.push("ODOO_DATABASE or ODOO_DB");
+    if (!Number.isFinite(config.userId)) missing.push("ODOO_USER_ID");
+    if (!config.apiKey) missing.push("ODOO_API_KEY");
+
+    if (missing.length > 0) {
+        throw new Error(`Missing Odoo configuration: ${missing.join(", ")}`);
+    }
+}
+
+async function alertApiError(endpoint, message) {
+    if (process.env.ENABLE_MONITORING !== "true") {
+        return;
+    }
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (!botToken || !chatId) {
+        console.warn("[Monitoring] ENABLE_MONITORING=true but Telegram settings are missing");
+        return;
+    }
+
+    const text = [
+        "Bonario Stock API error",
+        `Endpoint: ${endpoint}`,
+        `Message: ${message}`,
+        `Time: ${new Date().toISOString()}`
+    ].join("\n");
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Telegram alert failed with status ${response.status}`);
+    }
+}
+
 // Initialize Redis cache (optional)
 redis.initRedis().catch(err => {
     console.warn('[Redis] Initialization failed, continuing without cache:', err.message);
@@ -131,15 +201,94 @@ app.use(sanitizeRequest);
 app.use(optionalHmacVerification());
 
 // Odoo API Configuration from environment
-const ODOO_CONFIG = {
-    apiEndpoint: process.env.ODOO_API_ENDPOINT,
-    database: process.env.ODOO_DATABASE,
-    userId: parseInt(process.env.ODOO_USER_ID),
-    apiKey: process.env.ODOO_API_KEY,
-};
+const ODOO_CONFIG = getOdooConfig();
 
 // Warehouse mapping
 const WAREHOUSE_IDS = [165, 328, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
+
+function getOdooMany2OneId(value) {
+    return Array.isArray(value) ? value[0] : value;
+}
+
+async function fetchProductCompanyMap(productIds) {
+    const uniqueProductIds = [...new Set(productIds.filter((id) => id !== null && id !== undefined))];
+    const companyByProduct = new Map();
+
+    if (uniqueProductIds.length === 0) {
+        return companyByProduct;
+    }
+
+    const chunkSize = 1000;
+    for (let i = 0; i < uniqueProductIds.length; i += chunkSize) {
+        const chunk = uniqueProductIds.slice(i, i + chunkSize);
+        const requestBody = {
+            jsonrpc: "2.0",
+            method: "call",
+            params: {
+                service: "object",
+                method: "execute_kw",
+                args: [
+                    ODOO_CONFIG.database,
+                    ODOO_CONFIG.userId,
+                    ODOO_CONFIG.apiKey,
+                    "product.product",
+                    "search_read",
+                    [[["id", "in", chunk]]],
+                    {
+                        fields: ["id", "company_id"],
+                        limit: chunk.length,
+                    },
+                ],
+            },
+            id: 1,
+        };
+
+        const response = await fetch(ODOO_CONFIG.apiEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Odoo product company lookup error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error.message || "Odoo product company lookup failed");
+        }
+
+        (result.result || []).forEach((product) => {
+            const company = Array.isArray(product.company_id) ? product.company_id : null;
+            companyByProduct.set(product.id, {
+                product_company_id: company ? company[0] : null,
+                product_company_name: company ? company[1] : "",
+            });
+        });
+    }
+
+    return companyByProduct;
+}
+
+async function enrichWithProductCompany(records) {
+    const productIds = records.map((record) => getOdooMany2OneId(record.product_id));
+    const companyByProduct = await fetchProductCompanyMap(productIds);
+
+    return records.map((record) => {
+        const productId = getOdooMany2OneId(record.product_id);
+        const company = companyByProduct.get(productId) || {
+            product_company_id: null,
+            product_company_name: "",
+        };
+
+        return {
+            ...record,
+            product_company_id: company.product_company_id,
+            product_company_name: company.product_company_name,
+        };
+    });
+}
 
 /**
  * GET /api/stock
@@ -149,6 +298,8 @@ const WAREHOUSE_IDS = [165, 328, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324
  */
 app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
     try {
+        validateOdooConfig(ODOO_CONFIG);
+
         // Get location IDs from query or use default
         const locationIds = req.query.locationIds
             ? req.query.locationIds.split(",").map((id) => parseInt(id.trim()))
@@ -215,11 +366,13 @@ app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
             throw new Error(result.error.message || "Odoo API call failed");
         }
 
+        const data = await enrichWithProductCompany(result.result || []);
+
         // Return successful response
         res.json({
             success: true,
-            data: result.result || [],
-            count: (result.result || []).length,
+            data,
+            count: data.length,
         });
     } catch (error) {
         console.error("Error fetching stock data:", error.message);
@@ -244,6 +397,8 @@ app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
  */
 app.get("/api/incoming", cacheMiddleware(300), async (req, res) => {
     try {
+        validateOdooConfig(ODOO_CONFIG);
+
         // Build Odoo API request for stock.move based on user's exact query
         const requestBody = {
             jsonrpc: "2.0",
@@ -313,11 +468,15 @@ app.get("/api/incoming", cacheMiddleware(300), async (req, res) => {
 
         // Trả về tất cả các moves riêng lẻ để frontend xử lý logic
         // Frontend sẽ quyết định: cùng ngày thì cộng dồn, khác ngày thì chỉ lấy đợt sớm nhất
-        const incomingData = filteredMoves.map((move) => ({
+        const enrichedMoves = await enrichWithProductCompany(filteredMoves);
+
+        const incomingData = enrichedMoves.map((move) => ({
             product_id: move.product_id,
             incoming_qty: move.product_qty, // Giữ nguyên số lượng từng move
             incoming_date: move.date,
             product_uom: move.product_uom,
+            product_company_id: move.product_company_id,
+            product_company_name: move.product_company_name,
         }));
 
         res.json({
@@ -340,6 +499,8 @@ app.get("/api/incoming", cacheMiddleware(300), async (req, res) => {
  */
 app.get("/api/fabric-products", async (req, res) => {
     try {
+        validateOdooConfig(ODOO_CONFIG);
+
         // Build Odoo API request to get products with "Stock fabrics" tag
         const requestBody = {
             jsonrpc: "2.0",
@@ -435,6 +596,8 @@ function parseMonitorVariantIds(raw = "") {
  */
 app.get("/api/discontinued-products", cacheMiddleware(300), async (req, res) => {
     try {
+        validateOdooConfig(ODOO_CONFIG);
+
         // Source 1: Odoo tag-based discontinued variants
         const requestBody = {
             jsonrpc: "2.0",
@@ -510,6 +673,8 @@ app.get("/api/discontinued-products", cacheMiddleware(300), async (req, res) => 
  */
 app.get("/api/archived-products-with-stock", async (req, res) => {
     try {
+        validateOdooConfig(ODOO_CONFIG);
+
         // Get location IDs from query or use default
         const locationIds = req.query.locationIds
             ? req.query.locationIds.split(",").map((id) => parseInt(id.trim()))

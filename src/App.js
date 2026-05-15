@@ -251,14 +251,21 @@ export default function App() {
 
     container.innerHTML = ''
 
+    const availableWarehouses = Array.isArray(warehouseList)
+      ? warehouseList
+      : (warehouseList.all || [
+          ...(warehouseList.productGroup || []),
+          ...(warehouseList.fabricGroup || []),
+          ...(warehouseList.otherGroup || [])
+        ])
+
     // Restore last active warehouse from localStorage
     const savedWarehouse = localStorage.getItem('lastActiveWarehouse')
-    const activeWarehouse = savedWarehouse &&
-      (warehouses.all?.includes(savedWarehouse) ||
-       warehouses.productGroup?.includes(savedWarehouse) ||
-       warehouses.fabricGroup?.includes(savedWarehouse))
+    const activeWarehouse = savedWarehouse && availableWarehouses.includes(savedWarehouse)
       ? savedWarehouse
-      : (currentActiveWarehouse || firstWarehouse)
+      : (currentActiveWarehouse && availableWarehouses.includes(currentActiveWarehouse)
+          ? currentActiveWarehouse
+          : firstWarehouse)
 
     const tabs = Tabs({
       warehouses: warehouseList,
@@ -274,9 +281,8 @@ export default function App() {
     container.appendChild(tabs)
 
     // Set active warehouse
-    if (!currentActiveWarehouse) {
-      currentActiveWarehouse = activeWarehouse
-    }
+    currentActiveWarehouse = activeWarehouse
+    localStorage.setItem('lastActiveWarehouse', activeWarehouse)
   }
 
   // ============================================
