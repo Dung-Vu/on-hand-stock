@@ -8,6 +8,8 @@ import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refres
 import { auth, stocktake } from './services/apiClient.js'
 
 let currentActiveWarehouse = null
+const COMPANY_FILTER_STORAGE_KEY = 'selectedCompany'
+const COMPANY_OPTIONS = ['Bonario', 'Ordinaire']
 
 // Warehouse list for keyboard navigation
 const WAREHOUSE_SHORTCUTS = ['BONAP/Stock', 'O-BAP/Stock', 'ORDAP/Stock', 'ORDHL/Stock', 'ORDHY/Stock', 'ORDST/Stock', 'Kho Vải']
@@ -29,6 +31,85 @@ export default function App() {
     isLoggedIn = auth.isAuthenticated()
     currentUser = auth.getCurrentUser()
     return isLoggedIn
+  }
+
+  function getUrlCompany() {
+    if (typeof window === 'undefined') return null
+    const company = new URLSearchParams(window.location.search).get('company')
+    return COMPANY_OPTIONS.includes(company) ? company : null
+  }
+
+  function hasConfirmedCompanySelection() {
+    const urlCompany = getUrlCompany()
+    if (urlCompany) {
+      localStorage.setItem(COMPANY_FILTER_STORAGE_KEY, urlCompany)
+      return true
+    }
+
+    return false
+  }
+
+  function renderCompanyChooser(onSelected) {
+    const overlay = createElement('div', {
+      class: 'fixed inset-0 z-50 flex items-center justify-center px-4'
+    })
+    overlay.style.cssText = 'background: rgba(42,35,31,0.42); backdrop-filter: blur(2px);'
+
+    const panel = createElement('div', {})
+    panel.style.cssText = `
+      width: min(420px, 100%);
+      background: #ffffff;
+      border: 1.5px solid #e8ddd4;
+      border-radius: 8px;
+      box-shadow: 0 18px 50px rgba(42,35,31,0.22);
+      padding: 22px;
+    `
+
+    const title = createElement('h2', {})
+    title.textContent = 'Chọn công ty'
+    title.style.cssText = 'margin: 0 0 6px; color: #2a231f; font-size: 22px; line-height: 1.2; font-weight: 800;'
+
+    const subtitle = createElement('p', {})
+    subtitle.textContent = 'Bạn muốn xem tồn kho của công ty nào?'
+    subtitle.style.cssText = 'margin: 0 0 18px; color: #6b5a45; font-size: 14px;'
+
+    const actions = createElement('div', {})
+    actions.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;'
+
+    function chooseCompany(company) {
+      localStorage.setItem(COMPANY_FILTER_STORAGE_KEY, company)
+      const companyFilter = document.getElementById('companyFilter')
+      if (companyFilter) companyFilter.value = company
+      overlay.remove()
+      onSelected?.(company)
+    }
+
+    COMPANY_OPTIONS.forEach((company) => {
+      const button = createElement('button', {
+        type: 'button',
+        'aria-label': `Xem tồn kho ${company}`
+      })
+      button.textContent = company
+      button.style.cssText = `
+        min-height: 48px;
+        border: 1.5px solid #d4c4b0;
+        border-radius: 8px;
+        background: ${company === 'Bonario' ? '#6b5a45' : '#ffffff'};
+        color: ${company === 'Bonario' ? '#ffffff' : '#2a231f'};
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 800;
+      `
+      button.addEventListener('click', () => chooseCompany(company))
+      actions.appendChild(button)
+    })
+
+    panel.appendChild(title)
+    panel.appendChild(subtitle)
+    panel.appendChild(actions)
+    overlay.appendChild(panel)
+    container.appendChild(overlay)
   }
 
   // Render login modal (only when needed for Stocktake/Admin)
@@ -259,10 +340,13 @@ export default function App() {
           ...(warehouseList.otherGroup || [])
         ])
 
-    // Restore last active warehouse from localStorage
+    const urlWarehouse = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('warehouse')
+      : null
     const savedWarehouse = localStorage.getItem('lastActiveWarehouse')
-    const activeWarehouse = savedWarehouse && availableWarehouses.includes(savedWarehouse)
-      ? savedWarehouse
+    const preferredWarehouse = urlWarehouse || savedWarehouse
+    const activeWarehouse = preferredWarehouse && availableWarehouses.includes(preferredWarehouse)
+      ? preferredWarehouse
       : (currentActiveWarehouse && availableWarehouses.includes(currentActiveWarehouse)
           ? currentActiveWarehouse
           : firstWarehouse)
@@ -346,7 +430,14 @@ export default function App() {
   checkAuth() // Check if already logged in (for showing user badge)
   renderMainApp()
   setTimeout(() => {
-    loadData()
+    if (hasConfirmedCompanySelection()) {
+      loadData()
+      return
+    }
+
+    renderCompanyChooser(() => {
+      loadData()
+    })
   }, 100)
 
   return container

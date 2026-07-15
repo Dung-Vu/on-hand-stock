@@ -1,5 +1,4 @@
 import { createElement } from "../utils/dom.js";
-import { exportStocktakeToExcel } from "../utils/export.js";
 import { defaultMonth } from "../store/stocktakeStore.js";
 import {
     loadStocktakeDb as loadStocktake,
@@ -610,7 +609,9 @@ export default function Stocktake({
     exportExcelBtn.addEventListener("click", async () => {
         if (!doc) return;
         try {
+            onToast?.("Đang chuẩn bị file Excel", "info", 1500);
             const rows = computeRows();
+            const { exportStocktakeToExcel } = await import("../utils/export.js");
             await exportStocktakeToExcel(
                 doc,
                 rows.map((r) => ({
@@ -638,9 +639,9 @@ export default function Stocktake({
         await reloadAll();
     };
 
-    // initial
+    // initial: keep the hidden view idle until the user opens it after login.
     refreshWarehouses();
-    reloadAll();
+    showTableMessage("Chọn kho để bắt đầu kiểm kho.");
 
     return container;
 }

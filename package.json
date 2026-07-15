@@ -2,9 +2,11 @@
   "name": "onhand-stock",
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.5.1",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test",
     "preview": "vite preview",
     "check-ports": "node scripts/check-ports.js",
     "check-ports:ps1": "powershell -ExecutionPolicy Bypass -File scripts/check-ports.ps1",
@@ -14,8 +16,10 @@
     "@preact/signals-core": "^1.12.2",
     "@sentry/browser": "^10.36.0",
     "dotenv": "^16.6.1",
+    "dompurify": "^3.4.3",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7"
   },

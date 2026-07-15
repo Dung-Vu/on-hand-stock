@@ -13,8 +13,14 @@ import {
     clearLoadedWarehouses
 } from '../services/api.js';
 import { initWebSocket } from '../services/websocket.js';
-import { exportToExcel, exportToPDF } from '../utils/export.js';
 import { WAREHOUSE_MAP, PRODUCT_WAREHOUSES, FABRIC_WAREHOUSES, sortWarehouses as sortWarehousesFromModule } from './modules/warehouse.js';
+import {
+    DEFAULT_SORT_KEY,
+    getProductName,
+    getSortLabel as getStockSortLabel,
+    getVisibleWarehouseCount as countVisibleWarehouses,
+    sortProducts as sortStockProducts,
+} from './modules/stockView.js';
 
 // ============================================
 // TOAST NOTIFICATION SYSTEM
@@ -36,6 +42,8 @@ function getToastContainer() {
             gap: 10px;
             pointer-events: none;
         `;
+        container.setAttribute("aria-live", "polite");
+        container.setAttribute("aria-atomic", "false");
         // Mobile: show at bottom for better visibility
         if (typeof window !== 'undefined' && window.innerWidth < 768) {
             container.style.top = 'auto';
@@ -53,6 +61,7 @@ export function showToast(message, type = "info", duration = 3000) {
     const container = getToastContainer();
 
     const toast = document.createElement("div");
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
     toast.style.cssText = `
         padding: 12px 20px;
         border-radius: 8px;
@@ -124,15 +133,36 @@ const BONAP_VISIBLE_CATEGORY_ALLOWLIST = new Set([
     "BON / GDT / LM",
     "BON / GDT / ROLL",
     "BON / GDT / MURALS - CLOTH",
+    "BON / NVL / VAISOFA",
     "BON / REM / TPREM",
+]);
+const FABRIC_VISIBLE_CATEGORY_ALLOWLIST = new Set([
+    "BON / NVL / VAISOFA",
 ]);
 
 const COMPANY_FILTER_STORAGE_KEY = "selectedCompany";
 const COMPANY_FILTERS = [
-    { key: "Bonario", label: "Bonario", aliases: ["bonario"] },
-    { key: "Ordinaire", label: "Ordinaire", aliases: ["ordinaire"] },
+    {
+        key: "Bonario",
+        label: "Bonario",
+        aliases: ["bonario"],
+        categoryPrefixes: ["BON"],
+        productPrefixes: ["BON-", "[BON-"],
+        productTokens: ["BONARIO"],
+    },
+    {
+        key: "Ordinaire",
+        label: "Ordinaire",
+        aliases: ["ordinaire"],
+        categoryPrefixes: ["ORD"],
+        productPrefixes: ["ORD-", "[ORD-"],
+        productTokens: ["ORDINAIRE"],
+    },
 ];
 const DEFAULT_COMPANY_FILTER = COMPANY_FILTERS[0].key;
+const KNOWN_COMPANY_CATEGORY_PREFIXES = new Set(
+    COMPANY_FILTERS.flatMap((company) => company.categoryPrefixes || [])
+);
 
 function normalizeCompanyName(companyName = "") {
     return String(companyName || "").trim();
@@ -146,6 +176,18 @@ function getProductCompanyName(product = {}) {
     );
 }
 
+function getProductCategoryName(product = {}) {
+    if (product.category_name) return product.category_name;
+    if (Array.isArray(product.product_categ_id)) return product.product_categ_id[1] || "";
+    return product.product_categ_id || "";
+}
+
+function getProductNameForCompanyMatch(product = {}) {
+    if (product.product_name) return product.product_name;
+    if (Array.isArray(product.product_id)) return product.product_id[1] || "";
+    return product.product_id || "";
+}
+
 function isAllowedCompanyKey(companyKey) {
     return COMPANY_FILTERS.some((company) => company.key === companyKey);
 }
@@ -153,6 +195,29 @@ function isAllowedCompanyKey(companyKey) {
 function productMatchesCompany(product, companyKey) {
     const company = COMPANY_FILTERS.find((item) => item.key === companyKey);
     if (!company) return false;
+
+    const categoryPrefix = normalizeCategoryName(getProductCategoryName(product))
+        .split(" / ")[0];
+    if (KNOWN_COMPANY_CATEGORY_PREFIXES.has(categoryPrefix)) {
+        return (company.categoryPrefixes || []).includes(categoryPrefix);
+    }
+
+    const productName = String(getProductNameForCompanyMatch(product)).trim().toUpperCase();
+    const productHasCompanyPrefix = (company.productPrefixes || []).some((prefix) =>
+        productName.startsWith(prefix)
+    );
+    const productHasCompanyToken = (company.productTokens || []).some((token) =>
+        productName.includes(token)
+    );
+    if (productHasCompanyPrefix || productHasCompanyToken) return true;
+
+    const matchesOtherCompanyByProduct = COMPANY_FILTERS
+        .filter((item) => item.key !== company.key)
+        .some((item) =>
+            (item.productPrefixes || []).some((prefix) => productName.startsWith(prefix)) ||
+            (item.productTokens || []).some((token) => productName.includes(token))
+        );
+    if (matchesOtherCompanyByProduct) return false;
 
     const productCompanyName = getProductCompanyName(product).toLowerCase();
     if (!productCompanyName) return false;
@@ -173,6 +238,13 @@ function shouldHideCategory(categoryName = "", warehouseName = "") {
     if (
         warehouseName === "BONAP/Stock" &&
         BONAP_VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)
+    ) {
+        return false;
+    }
+
+    if (
+        warehouseName === "Kho Vải" &&
+        FABRIC_VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)
     ) {
         return false;
     }
@@ -204,6 +276,7 @@ function sortWarehouses(warehouses) {
 let currentGroupedData = null;
 let allProcessedData = null;
 let isLoading = false;
+const CARD_RENDER_LIMIT = 300;
 
 // Expose grouped data for other features (e.g. monthly stocktake)
 export function getCurrentGroupedData() {
@@ -575,9 +648,8 @@ function filterAndSearchData(
               })()
             : null;
 
-    // Search should scan all warehouses unless the user explicitly selects a warehouse.
-    // Without a search term, keep the tab-scoped warehouse view.
-    const effectiveWarehouseFilter = warehouseFilter || (searchLower ? "" : activeWarehouse);
+    // Always respect the active warehouse tab - search only within selected warehouse
+    const effectiveWarehouseFilter = warehouseFilter || activeWarehouse;
 
     Object.keys(groupedData).forEach((warehouseName) => {
         if (
@@ -734,7 +806,7 @@ function updateCompanyFilterOptions(groupedData) {
     COMPANY_FILTERS.forEach((company) => {
         const option = document.createElement("option");
         option.value = company.key;
-        option.textContent = company.label;
+        option.textContent = `Công ty: ${company.label}`;
         companySelect.appendChild(option);
     });
 
@@ -824,6 +896,17 @@ export function updateFilterOptions(groupedData) {
         option.textContent = categoryName;
         categorySelect.appendChild(option);
     });
+
+    const pendingCategory = categorySelect.getAttribute("data-pending-category");
+    if (pendingCategory) {
+        const hasPendingCategory = Array.from(categorySelect.options).some(
+            (option) => option.value === pendingCategory
+        );
+        if (hasPendingCategory) {
+            categorySelect.value = pendingCategory;
+        }
+        categorySelect.removeAttribute("data-pending-category");
+    }
 }
 
 // Helper to refresh category filter based on currentGroupedData and active tab
@@ -942,6 +1025,47 @@ export async function forceRefreshData() {
     await loadData({ forceRefresh: true });
 }
 
+function getActiveWarehouseName() {
+    const activeTab = document.querySelector(".tab-active[data-warehouse]");
+    return activeTab?.getAttribute("data-warehouse") || "";
+}
+
+function syncFilterStateToUrl() {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    params.delete("view");
+    params.delete("density");
+
+    const query = document.getElementById("searchInput")?.value?.trim() || "";
+    const values = {
+        q: query,
+        company: document.getElementById("companyFilter")?.value || "",
+        category: document.getElementById("categoryFilter")?.value || "",
+        sort: document.getElementById("sortFilter")?.value || "",
+        discontinued: document.getElementById("discontinuedFilter")?.checked ? "1" : "",
+        warehouse: getActiveWarehouseName(),
+    };
+
+    Object.entries(values).forEach(([key, value]) => {
+        const isDefault =
+            (key === "company" && value === DEFAULT_COMPANY_FILTER) ||
+            (key === "sort" && value === DEFAULT_SORT_KEY);
+
+        if (!value || isDefault) {
+            params.delete(key);
+        } else {
+            params.set(key, value);
+        }
+    });
+
+    const nextQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+    if (nextUrl !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+        window.history.replaceState(null, "", nextUrl);
+    }
+}
+
 // Apply filters
 export function applyFilters() {
     if (!currentGroupedData) {
@@ -959,6 +1083,8 @@ export function applyFilters() {
     const discontinuedFilter = document.getElementById("discontinuedFilter");
     const discontinuedOnly = discontinuedFilter?.checked || false;
 
+    document.getElementById("stockData")?.setAttribute("data-show-all-cards", "false");
+
     const scopedData = getCompanyScopedGroupedData();
     const filteredData = filterAndSearchData(
         scopedData,
@@ -969,6 +1095,7 @@ export function applyFilters() {
     );
 
     renderStockData(filteredData);
+    syncFilterStateToUrl();
 }
 
 // Clear filters
@@ -976,11 +1103,13 @@ export function clearFilters() {
     const searchInput = document.getElementById("searchInput");
     const warehouseFilter = document.getElementById("warehouseFilter");
     const categoryFilter = document.getElementById("categoryFilter");
+    const sortFilter = document.getElementById("sortFilter");
     const discontinuedFilter = document.getElementById("discontinuedFilter");
 
     if (searchInput) searchInput.value = "";
     if (warehouseFilter) warehouseFilter.value = "";
     if (categoryFilter) categoryFilter.value = "";
+    if (sortFilter) sortFilter.value = DEFAULT_SORT_KEY;
     if (discontinuedFilter) discontinuedFilter.checked = false;
 
     applyFilters();
@@ -994,13 +1123,14 @@ export function exportData() {
     }
 
     const exportGroupedData = getCompanyScopedGroupedData();
+    showToast("Dang chuan bi file Excel...", "info");
 
     // Use ExcelJS for professional Excel export
-    exportToExcel(exportGroupedData, {
+    import('../utils/export.js').then(({ exportToExcel }) => exportToExcel(exportGroupedData, {
         filename: `stock_data_${new Date().toISOString().split('T')[0]}`,
         includeStats: true,
         includeSummary: true
-    }).then(() => {
+    })).then(() => {
         showToast("Đã xuất file Excel thành công!", "success");
     }).catch((error) => {
         console.error("Export error:", error);
@@ -1082,11 +1212,11 @@ export function exportDataPDF() {
 
     showToast("Đang tạo PDF...", "info");
 
-    exportToPDF(getCompanyScopedGroupedData(), {
+    import('../utils/export.js').then(({ exportToPDF }) => exportToPDF(getCompanyScopedGroupedData(), {
         filename: `stock_report_${new Date().toISOString().split('T')[0]}`,
         includeStats: true,
         includeSummary: true
-    }).then(() => {
+    })).then(() => {
         showToast("Đã xuất file PDF thành công!", "success");
     }).catch((error) => {
         console.error("PDF export error:", error);
@@ -1213,6 +1343,49 @@ function getStockBadge(status) {
     }
 }
 
+function getSelectedSortKey() {
+    const sortFilter = document.getElementById("sortFilter");
+    return sortFilter?.value || DEFAULT_SORT_KEY;
+}
+
+function getSortLabel(sortKey) {
+    const labels = {
+        quantity_desc: "Sắp xếp: tồn nhiều nhất",
+        quantity_asc: "Sắp xếp: tồn ít nhất",
+        available_asc: "Sắp xếp: khả dụng thấp",
+        incoming_desc: "Sắp xếp: đang đến nhiều",
+        name_asc: "Sắp xếp: tên A-Z",
+    };
+    return labels[sortKey] || labels.quantity_desc;
+}
+
+function sortProducts(products, sortKey) {
+    const sorted = [...products];
+    const byName = (a, b) => getProductName(a).localeCompare(getProductName(b), "vi");
+
+    sorted.sort((a, b) => {
+        switch (sortKey) {
+            case "quantity_asc":
+                return getNumericStockValue(a, "quantity") - getNumericStockValue(b, "quantity") || byName(a, b);
+            case "available_asc":
+                return getNumericStockValue(a, "available_quantity") - getNumericStockValue(b, "available_quantity") || byName(a, b);
+            case "incoming_desc":
+                return getNumericStockValue(b, "incoming_qty") - getNumericStockValue(a, "incoming_qty") || byName(a, b);
+            case "name_asc":
+                return byName(a, b);
+            case "quantity_desc":
+            default:
+                return getNumericStockValue(b, "quantity") - getNumericStockValue(a, "quantity") || byName(a, b);
+        }
+    });
+
+    return sorted;
+}
+
+function getVisibleWarehouseCount(products) {
+    return new Set(products.map((product) => product.warehouseName).filter(Boolean)).size;
+}
+
 // Render stock data - Card-based layout for sales team
 function renderStockData(groupedData) {
     const container = document.getElementById("stockData");
@@ -1226,10 +1399,7 @@ function renderStockData(groupedData) {
         return;
     }
 
-    const searchInput = document.getElementById("searchInput");
-    const isGlobalSearch = Boolean((searchInput?.value || "").trim());
-
-    // Get active warehouse from tab
+    // Get active warehouse from tab - always render only selected warehouse
     let activeWarehouse = null;
     if (typeof document !== "undefined") {
         const activeTab = document.querySelector(".tab-active[data-warehouse]");
@@ -1242,11 +1412,9 @@ function renderStockData(groupedData) {
         }
     }
 
-    const warehousesToRender = isGlobalSearch
-        ? Object.entries(groupedData)
-        : activeWarehouse && groupedData[activeWarehouse]
-            ? [[activeWarehouse, groupedData[activeWarehouse]]]
-            : [];
+    const warehousesToRender = activeWarehouse && groupedData[activeWarehouse]
+        ? [[activeWarehouse, groupedData[activeWarehouse]]]
+        : [];
 
     // Only render active warehouse unless the user is searching globally
     if (warehousesToRender.length === 0) {
@@ -1278,17 +1446,30 @@ function renderStockData(groupedData) {
         });
     });
 
-    // Sort products by quantity (descending) so high-stock items appear first
-    allProducts.sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+    const sortKey = getSelectedSortKey();
+    const sortedProducts = sortStockProducts(allProducts, sortKey);
+    const showAllCards = container.getAttribute("data-show-all-cards") === "true";
+    const cardProducts = showAllCards ? sortedProducts : sortedProducts.slice(0, CARD_RENDER_LIMIT);
+    const hiddenCardCount = Math.max(sortedProducts.length - cardProducts.length, 0);
+    const visibleWarehouseCount = countVisibleWarehouses(sortedProducts);
 
     // Build HTML with card-based layout
     let html = `
         <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="stock-results-summary">
+                <div>
+                    <span class="stock-results-count">${sortedProducts.length.toLocaleString("vi-VN")}</span>
+                    <span>sản phẩm</span>
+                    <span class="stock-results-divider">/</span>
+                    <span>${visibleWarehouseCount.toLocaleString("vi-VN")} kho</span>
+                </div>
+                <div class="stock-results-sort-label">${escapeHtml(getStockSortLabel(sortKey))}</div>
+            </div>
             <!-- Product cards grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch" id="productCardsGrid">
     `;
 
-    allProducts.forEach((product, index) => {
+    cardProducts.forEach((product, index) => {
         const productName =
             product.product_name || `Sản phẩm ID: ${product.product_id[0]}`;
         const lotIds = (product.lot_ids && product.lot_ids.length > 0)
@@ -1316,10 +1497,11 @@ function renderStockData(groupedData) {
         const safeWarehouseName = escapeHtml(product.warehouseName || "");
         const safeUnit = escapeHtml(unit);
         const safeLotIds = escapeHtml(lotIds);
+        const safeProductId = escapeHtml(product.product_id?.[0] ?? "");
         const hideIncoming = hideIncomingWarehouses.has(product.warehouseName);
 
         html += `
-            <div class="stock-card animate-slide-down flex flex-col" data-category="${safeCategoryName}" style="animation-delay: ${Math.min(
+            <div class="stock-card animate-slide-down flex flex-col" data-category="${safeCategoryName}" data-product-id="${safeProductId}" style="animation-delay: ${Math.min(
                 index * 0.02,
                 0.5
             )}s; height: 100%;">
@@ -1332,11 +1514,6 @@ function renderStockData(groupedData) {
                         <span class="category-badge">${
                             safeCategoryName
                         }</span>
-                        ${
-                            isGlobalSearch
-                                ? `<span class="category-badge ml-1">${safeWarehouseName}</span>`
-                                : ""
-                        }
                     </div>
                     ${badge}
                 </div>
@@ -1344,7 +1521,7 @@ function renderStockData(groupedData) {
                 <div class="grid ${hideIncoming ? "grid-cols-2" : "grid-cols-3"} gap-2 mt-auto pt-4" style="border-top: 1px solid #e8ddd4;">
                     <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #faf8f5; min-height: 90px;">
                         <p class="quantity-label mb-1.5">Tồn kho</p>
-                        <p class="quantity-display mb-1">${(
+                        <p class="quantity-display product-quantity mb-1">${(
                             product.quantity || 0
                         ).toLocaleString()}</p>
                         ${
@@ -1409,10 +1586,26 @@ function renderStockData(groupedData) {
 
     html += `
             </div>
+            ${
+                hiddenCardCount > 0
+                    ? `<div class="stock-show-more-wrap">
+                        <button type="button" class="stock-show-more-btn" id="showMoreStockCards">
+                            Hiển thị thêm ${hiddenCardCount.toLocaleString("vi-VN")} sản phẩm
+                        </button>
+                    </div>`
+                    : ""
+            }
         </div>
     `;
 
     container.innerHTML = html;
+    const showMoreButton = document.getElementById("showMoreStockCards");
+    if (showMoreButton) {
+        showMoreButton.addEventListener("click", () => {
+            container.setAttribute("data-show-all-cards", "true");
+            renderStockData(groupedData);
+        });
+    }
 }
 
 // Toggle category expand/collapse

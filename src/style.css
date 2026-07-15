@@ -28,6 +28,11 @@
     overflow-x: hidden;
     max-width: 100vw;
   }
+
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid #2f6fed !important;
+    outline-offset: 2px;
+  }
 }
 
 @layer utilities {
@@ -41,9 +46,12 @@
     @apply bg-white rounded-xl p-4 transition-all duration-200;
     border: 1.5px solid #e8ddd4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    content-visibility: auto;
+    contain-intrinsic-size: 240px;
     display: flex;
     flex-direction: column;
     height: 100%;
+    transition-property: border-color, box-shadow, transform, background-color;
   }
   .stock-card:hover {
     border-color: #c9b99e;
@@ -151,6 +159,66 @@
     background-color: #f5f1ea;
     color: #6b5a45;
     border: 1px solid #e8ddd4;
+  }
+
+  .warehouse-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-md text-xs font-bold;
+    background-color: #e0f2fe;
+    color: #075985;
+    border: 1px solid #7dd3fc;
+  }
+
+  .stock-results-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    color: #5d5044;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .stock-results-count {
+    color: #2a231f;
+    font-size: 16px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stock-results-divider {
+    color: #c9b99e;
+    margin: 0 6px;
+  }
+
+  .stock-results-sort-label {
+    color: #7d6d5a;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .stock-show-more-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+  }
+
+  .stock-show-more-btn {
+    background: #ffffff;
+    border: 1.5px solid #d4c4b0;
+    border-radius: 8px;
+    color: #5d5044;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    min-height: 40px;
+    padding: 0 16px;
+  }
+
+  .stock-show-more-btn:hover {
+    background: #f5f1ea;
+    border-color: #c9b99e;
   }
 
   .discontinued-badge {
@@ -299,6 +367,27 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .stock-card:hover,
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .category-filter-chip:hover,
+  .tab-pill-inactive:hover,
+  .input-field:focus,
+  .search-input-large:focus {
+    transform: none;
+  }
+}
+
 /* Mobile Optimizations */
 @media (max-width: 768px) {
   .search-input-large {
@@ -311,6 +400,18 @@
 
   .quantity-display {
     @apply text-xl;
+  }
+
+  .stock-results-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .stock-results-sort-label {
+    text-align: left;
+    white-space: normal;
   }
 
   .btn-primary,

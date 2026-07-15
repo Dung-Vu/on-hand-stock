@@ -28,7 +28,10 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
     const hasGroups = productList.length > 0 || fabricList.length > 0;
 
     // Container bao toàn bộ tabs - flex-wrap: tự xuống hàng, không scroll ngang
-    const allTabsContainer = createElement("div", {});
+    const allTabsContainer = createElement("div", {
+        role: "group",
+        "aria-label": "Chọn kho",
+    });
     allTabsContainer.style.cssText = "width: 100%; box-sizing: border-box;";
 
     // Helper tạo tab button
@@ -38,6 +41,9 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
 
         const tab = createElement("button", {
             "data-warehouse": warehouseName,
+            type: "button",
+            "aria-pressed": String(isActive),
+            "aria-label": `Chọn kho ${shortName}`,
         });
         tab.style.cssText = `
             display: inline-flex;
@@ -50,7 +56,7 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
-            transition: all 0.15s ease;
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, transform 0.15s ease;
             outline: none;
             border: 1.5px solid ${isActive ? 'transparent' : '#d4c4b0'};
             background: ${isActive ? 'linear-gradient(135deg,#6b5a45,#8b7355)' : '#ffffff'};
@@ -91,6 +97,7 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
                 t.style.color = "#5d5044";
                 t.style.border = "1.5px solid #d4c4b0";
                 t.style.boxShadow = "none";
+                t.setAttribute("aria-pressed", "false");
                 const wh = t.getAttribute('data-warehouse');
                 t.textContent = wh ? wh.replace('/Stock', '') : t.textContent;
             });
@@ -101,6 +108,7 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
             tab.style.color = "#ffffff";
             tab.style.border = "1.5px solid transparent";
             tab.style.boxShadow = "0 2px 8px rgba(107,90,69,0.28)";
+            tab.setAttribute("aria-pressed", "true");
             tab.innerHTML = `<span style="font-size:10px;">✓</span><span>${shortName}</span>`;
 
             onTabChange(warehouseName);

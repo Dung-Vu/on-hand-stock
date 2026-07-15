@@ -29,6 +29,11 @@ function injectHeaderStyles() {
         .hdr-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
         .hdr-btn:active { transform: translateY(0); box-shadow: none; }
         .hdr-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+        .hdr-btn:focus-visible,
+        .hdr-dropdown-item:focus-visible {
+            outline: 2px solid #2f6fed !important;
+            outline-offset: 2px;
+        }
 
         /* ─── MOBILE DROPDOWN - fixed vào body, tính toán vị trí từ button ─── */
         .hdr-dropdown-portal {
@@ -72,6 +77,7 @@ function injectHeaderStyles() {
             min-height: 52px;
         }
         .hdr-dropdown-item:active { background: #f0ebe4; }
+        .hdr-dropdown-item:focus-visible { background: #f5f1ea; }
         .hdr-dropdown-item-icon {
             width: 36px; height: 36px;
             border-radius: 10px;
@@ -113,6 +119,16 @@ function injectHeaderStyles() {
             font-weight: 600;
             border: 1.5px solid transparent;
             white-space: nowrap;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hdr-btn,
+            .hdr-dropdown-portal,
+            .hdr-dropdown-item {
+                transition: none !important;
+            }
+            .hdr-btn:hover {
+                transform: none;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -207,7 +223,12 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     }
 
     function makeBtn(emoji, label, color, onClick) {
-        const btn = createElement("button", { class: 'hdr-btn', title: label });
+        const btn = createElement("button", {
+            class: 'hdr-btn',
+            type: 'button',
+            title: label,
+            'aria-label': label,
+        });
         btn.style.background = color;
         btn.innerHTML = `<span>${emoji}</span><span>${label}</span>`;
         btn.addEventListener("click", onClick);
@@ -229,7 +250,13 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     const mobileDropdownWrap = createElement("div", { class: 'mobile-menu-btn' });
     mobileDropdownWrap.style.cssText = 'display: none; position: relative;';
 
-    const mobileMenuBtn = createElement("button", { class: 'hdr-btn' });
+    const mobileMenuBtn = createElement("button", {
+        class: 'hdr-btn',
+        type: 'button',
+        'aria-label': 'Mở menu thao tác',
+        'aria-haspopup': 'menu',
+        'aria-expanded': 'false',
+    });
     mobileMenuBtn.style.cssText = `
         background: linear-gradient(135deg,#6b5a45,#8b7355);
         padding: 0 14px;
@@ -242,7 +269,11 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     mobileMenuBtn.innerHTML = '☰ <span>More</span>';
 
     // Portal panel - gắn trực tiếp vào document.body để tránh bị clip bởi overflow:hidden
-    const dropdownPortal = createElement("div", { class: 'hdr-dropdown-portal' });
+    const dropdownPortal = createElement("div", {
+        class: 'hdr-dropdown-portal',
+        role: 'menu',
+        'aria-label': 'Menu thao tác',
+    });
     let dropdownOpen = false;
     let backdropEl = null;
 
@@ -261,12 +292,13 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     function openDropdown() {
         if (dropdownOpen) { closeDropdown(); return; }
         dropdownOpen = true;
+        mobileMenuBtn.setAttribute('aria-expanded', 'true');
         mobileMenuBtn.innerHTML = '✕ <span>Close</span>';
         // Gắn portal vào body
         document.body.appendChild(dropdownPortal);
         positionPortal();
         // Backdrop
-        backdropEl = createElement("div", { class: 'hdr-dropdown-backdrop' });
+        backdropEl = createElement("div", { class: 'hdr-dropdown-backdrop', 'aria-hidden': 'true' });
         backdropEl.addEventListener('click', closeDropdown);
         document.body.appendChild(backdropEl);
         // Trigger animation sau 1 frame
@@ -278,6 +310,7 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     function closeDropdown() {
         if (!dropdownOpen) return;
         dropdownOpen = false;
+        mobileMenuBtn.setAttribute('aria-expanded', 'false');
         mobileMenuBtn.innerHTML = '☰ <span>More</span>';
         dropdownPortal.classList.remove('open');
         if (backdropEl) { backdropEl.remove(); backdropEl = null; }
@@ -299,7 +332,11 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
 
     // Helper tạo dropdown item
     function dropdownItem(emoji, iconBg, label, sub, onClick, danger = false) {
-        const btn = createElement("button", { class: 'hdr-dropdown-item' });
+        const btn = createElement("button", {
+            class: 'hdr-dropdown-item',
+            type: 'button',
+            role: 'menuitem',
+        });
         const iconEl = createElement("div", { class: 'hdr-dropdown-item-icon' });
         iconEl.style.background = iconBg;
         iconEl.textContent = emoji;
@@ -364,6 +401,7 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     searchWrap.style.cssText = 'max-width: 720px; margin: 0 auto; position: relative;';
 
     const searchIcon = createElement("span", {});
+    searchIcon.setAttribute("aria-hidden", "true");
     searchIcon.style.cssText = `
         position: absolute; left: 12px; top: 50%;
         transform: translateY(-50%);
@@ -375,6 +413,8 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     const searchInput = createElement("input", {
         id: "searchInput",
         type: "text",
+        "aria-label": "Tìm kiếm sản phẩm",
+        autocomplete: "off",
         placeholder: "Tìm kiếm sản phẩm...",
     });
     searchInput.style.cssText = `
@@ -424,30 +464,34 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     const companyFilter = createElement("select", {
         id: "companyFilter",
         title: "Công ty",
+        "aria-label": "Lọc theo công ty",
     });
     companyFilter.style.cssText = `
-        flex: 0 1 170px;
-        min-width: 145px;
+        flex: 0 1 190px;
+        min-width: 165px;
         height: 34px;
-        padding: 0 10px;
+        padding: 0 12px;
         border-radius: 8px;
-        border: 1.5px solid #d4c4b0;
-        background: #ffffff;
+        border: 2px solid #2563eb;
+        background: #eff6ff;
         font-size: 13px;
-        color: #2a231f;
+        color: #1e3a8a;
         outline: none;
         font-family: inherit;
+        font-weight: 800;
         cursor: pointer;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
     `;
     const bonarioOpt = createElement("option", { value: "Bonario" });
-    bonarioOpt.textContent = "Bonario";
+    bonarioOpt.textContent = "Công ty: Bonario";
     const ordinaireOpt = createElement("option", { value: "Ordinaire" });
-    ordinaireOpt.textContent = "Ordinaire";
+    ordinaireOpt.textContent = "Công ty: Ordinaire";
     companyFilter.appendChild(bonarioOpt);
     companyFilter.appendChild(ordinaireOpt);
 
     const categoryFilter = createElement("select", {
         id: "categoryFilter",
+        "aria-label": "Lọc theo nhóm sản phẩm",
     });
     categoryFilter.style.cssText = `
         flex: 1;
@@ -466,7 +510,41 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     defaultOpt.textContent = "Tất cả nhóm sản phẩm";
     categoryFilter.appendChild(defaultOpt);
 
-    const clearBtn = createElement("button", { id: "clearFiltersBtn" });
+    const sortFilter = createElement("select", {
+        id: "sortFilter",
+        "aria-label": "Sắp xếp sản phẩm",
+    });
+    sortFilter.style.cssText = `
+        flex: 0 1 170px;
+        min-width: 145px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1.5px solid #d4c4b0;
+        background: #ffffff;
+        font-size: 13px;
+        color: #2a231f;
+        outline: none;
+        font-family: inherit;
+        cursor: pointer;
+    `;
+    [
+        ["quantity_desc", "Tồn nhiều nhất"],
+        ["quantity_asc", "Tồn ít nhất"],
+        ["available_asc", "Khả dụng thấp"],
+        ["incoming_desc", "Đang đến nhiều"],
+        ["name_asc", "Tên A-Z"],
+    ].forEach(([value, label]) => {
+        const option = createElement("option", { value });
+        option.textContent = label;
+        sortFilter.appendChild(option);
+    });
+
+    const clearBtn = createElement("button", {
+        id: "clearFiltersBtn",
+        type: "button",
+        "aria-label": "Xóa bộ lọc",
+    });
     clearBtn.style.cssText = `
         height: 34px;
         padding: 0 12px;
@@ -493,6 +571,7 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
 
     filtersContent.appendChild(companyFilter);
     filtersContent.appendChild(categoryFilter);
+    filtersContent.appendChild(sortFilter);
 
     // Discontinued filter toggle
     const discontinuedToggle = createElement("label", {});
@@ -521,6 +600,7 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     const discontinuedCheckbox = createElement("input", {
         id: "discontinuedFilter",
         type: "checkbox",
+        "aria-label": "Chỉ hiển thị sản phẩm ngưng sản xuất",
     });
     discontinuedCheckbox.style.cssText = `
         width: 15px;
@@ -538,8 +618,7 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
     discontinuedToggle.appendChild(discontinuedCheckbox);
     discontinuedToggle.appendChild(discontinuedLabel);
 
-    // Style change when checked
-    discontinuedCheckbox.addEventListener("change", () => {
+    function updateDiscontinuedToggleState() {
         if (discontinuedCheckbox.checked) {
             discontinuedToggle.style.background = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
             discontinuedToggle.style.borderColor = '#f0c040';
@@ -551,6 +630,11 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
             discontinuedToggle.style.color = '#5d5044';
             discontinuedToggle.style.boxShadow = 'none';
         }
+    }
+
+    // Style change when checked
+    discontinuedCheckbox.addEventListener("change", () => {
+        updateDiscontinuedToggleState();
         triggerFilterChange();
     });
 
@@ -585,20 +669,45 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         searchTimeout = setTimeout(triggerFilterChange, 300);
     }
 
+    function hydrateInitialFilters() {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        const searchValue = params.get("q");
+        const companyValue = params.get("company");
+        const categoryValue = params.get("category");
+        const sortValue = params.get("sort");
+        const discontinuedValue = params.get("discontinued");
+
+        if (searchValue !== null) searchInput.value = searchValue;
+        if (companyValue && Array.from(companyFilter.options).some((option) => option.value === companyValue)) {
+            companyFilter.value = companyValue;
+            localStorage.setItem("selectedCompany", companyValue);
+        }
+        if (categoryValue !== null) categoryFilter.setAttribute("data-pending-category", categoryValue);
+        if (sortValue && Array.from(sortFilter.options).some((option) => option.value === sortValue)) {
+            sortFilter.value = sortValue;
+        }
+        if (discontinuedValue === "1") {
+            discontinuedCheckbox.checked = true;
+            updateDiscontinuedToggleState();
+        }
+    }
+
+    hydrateInitialFilters();
+
     searchInput.addEventListener("input", debounced);
     companyFilter.addEventListener("change", () => {
         localStorage.setItem("selectedCompany", companyFilter.value || "Bonario");
         document.dispatchEvent(new CustomEvent("companyContextChange"));
     });
     categoryFilter.addEventListener("change", triggerFilterChange);
+    sortFilter.addEventListener("change", triggerFilterChange);
     clearBtn.addEventListener("click", () => {
         searchInput.value = "";
         categoryFilter.value = "";
+        sortFilter.value = "quantity_desc";
         discontinuedCheckbox.checked = false;
-        discontinuedToggle.style.background = '#ffffff';
-        discontinuedToggle.style.borderColor = '#d4c4b0';
-        discontinuedToggle.style.color = '#5d5044';
-        discontinuedToggle.style.boxShadow = 'none';
+        updateDiscontinuedToggleState();
         triggerFilterChange();
     });
 

@@ -1,14 +1,14 @@
 # Scripts
 
-Chạy từ project root.
+Chay tu project root.
 
-| Lệnh | Mục đích |
+| Lenh | Muc dich |
 | --- | --- |
-| `npm run check-ports` | Kiểm tra port dev thường dùng |
-| `npm run check-ports:ps1` | Kiểm tra port bằng PowerShell |
-| `npm run check-archived` | Tìm sản phẩm archived vẫn còn tồn |
+| `pnpm run check-ports` | Kiem tra port dev thuong dung |
+| `pnpm run check-ports:ps1` | Kiem tra port bang PowerShell |
+| `pnpm run check-archived` | Tim san pham archived van con ton |
 
-Chạy trực tiếp:
+Chay truc tiep:
 
 ```bash
 node scripts/check-ports.js
@@ -19,4 +19,4 @@ node scripts/check-archived-products.js
 .\scripts\check-ports.ps1
 ```
 
-Output báo cáo tạm không nên commit.
+Output bao cao tam khong nen commit.

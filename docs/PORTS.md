@@ -11,11 +11,11 @@
 ## Kiểm tra
 
 ```bash
-npm run check-ports
+pnpm run check-ports
 ```
 
 ```powershell
-npm run check-ports:ps1
+pnpm run check-ports:ps1
 netstat -ano | findstr ":4001"
 ```
 

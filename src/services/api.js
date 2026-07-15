@@ -322,7 +322,7 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
             error.message.includes("NetworkError")
         ) {
             throw new Error(
-                "Không thể kết nối đến server. Vui lòng kiểm tra backend đã chạy chưa (npm start trong folder server)."
+                "Không thể kết nối đến server. Vui lòng kiểm tra backend đã chạy chưa (pnpm start trong folder server)."
             );
         }
         throw error;

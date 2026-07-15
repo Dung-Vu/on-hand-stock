@@ -3,15 +3,16 @@
 # Bonario Stock Management - Express Server
 # ============================================
 
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
 # Copy package files
-COPY server/package*.json ./
+COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
+RUN pnpm install --prod --frozen-lockfile
 
 # Copy server files
 COPY server/ .

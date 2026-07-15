@@ -1,14 +1,12 @@
 const CACHE_NAME = 'bonario-stock-v1';
-const CACHE_VERSION = '3.2.0';
+const CACHE_VERSION = '3.2.2';
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/src/main.js',
-    '/src/App.js',
-    '/src/config.js',
-    '/src/style.css',
+    '/manifest.json',
+    '/favicon.svg',
 ];
 
 const API_CACHE_URLS = [
@@ -20,7 +18,13 @@ const API_CACHE_URLS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(FULL_CACHE_NAME)
-            .then((cache) => cache.addAll(STATIC_ASSETS))
+            .then((cache) => Promise.all(
+                STATIC_ASSETS.map((asset) =>
+                    cache.add(asset).catch((error) => {
+                        console.warn(`[SW] Skipping cache for ${asset}:`, error);
+                    })
+                )
+            ))
             .then(() => self.skipWaiting())
             .catch((error) => {
                 console.error('[SW] Failed to cache static assets:', error);
@@ -53,8 +57,34 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    if (request.mode === 'navigate') {
+        event.respondWith(networkFirstNavigationStrategy(request));
+        return;
+    }
+
     event.respondWith(cacheFirstStrategy(request));
 });
+
+async function networkFirstNavigationStrategy(request) {
+    const cache = await caches.open(FULL_CACHE_NAME);
+
+    try {
+        const networkResponse = await fetch(request);
+        if (networkResponse.ok) {
+            cache.put(request, networkResponse.clone());
+            cache.put('/index.html', networkResponse.clone());
+        }
+        return networkResponse;
+    } catch {
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse) return cachedResponse;
+
+        const fallbackResponse = await cache.match('/index.html');
+        if (fallbackResponse) return fallbackResponse;
+
+        return new Response('Offline', { status: 503 });
+    }
+}
 
 async function networkFirstStrategy(request) {
     const cache = await caches.open(FULL_CACHE_NAME);
@@ -72,7 +102,7 @@ async function networkFirstStrategy(request) {
         return new Response(
             JSON.stringify({
                 success: false,
-                error: 'Không có kết nối mạng và không có dữ liệu cache',
+                error: 'Offline and no cached API data available',
                 offline: true,
             }),
             {

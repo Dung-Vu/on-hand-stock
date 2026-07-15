@@ -29,7 +29,7 @@ Không đưa secret thật vào Git.
 
 ```bash
 cd server
-npm run db:init
+pnpm run db:init
 ```
 
 `db:init` đọc `DATABASE_URL`, hoặc bộ `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`/`POSTGRES_PASSWORD`.
@@ -38,7 +38,7 @@ Seed admin nếu cần:
 
 ```bash
 cd server
-ADMIN_PASSWORD=<ADMIN_PASSWORD> npm run seed
+ADMIN_PASSWORD=<ADMIN_PASSWORD> pnpm run seed
 ```
 
 Tài khoản seed:

@@ -2,6 +2,7 @@
   "name": "onhand-stock-server",
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.5.1",
   "description": "Backend server for Onhand Stock - Secure Odoo API proxy",
   "main": "index.js",
   "scripts": {

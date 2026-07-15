@@ -24,23 +24,23 @@ Web app quản lý tồn kho và kiểm kho cho Bonario.
 ## Chạy nhanh
 
 ```bash
-npm install
-cd server && npm install && cd ..
+pnpm install
+cd server && pnpm install && cd ..
 cp server/.env.example server/.env
-cd server && npm run db:init && cd ..
+cd server && pnpm run db:init && cd ..
 ```
 
 Backend:
 
 ```bash
 cd server
-npm run dev
+pnpm run dev
 ```
 
 Frontend:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Docker:
@@ -69,10 +69,10 @@ docker-compose up -d --build
 ## Trước khi push
 
 ```bash
-npm run build
-npm audit --audit-level=high
+pnpm run build
+pnpm audit --audit-level high
 cd server
-npm audit --audit-level=high
+pnpm audit --audit-level high
 ```
 
 ## Không commit

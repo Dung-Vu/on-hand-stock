@@ -115,11 +115,22 @@ function formatDate(date) {
 }
 
 const HIDDEN_CATEGORIES = new Set(['BON', 'REM', 'PHUKIEN']);
+const VISIBLE_CATEGORY_ALLOWLIST = new Set([
+    'BON / NVL / VAISOFA',
+]);
 
 function shouldHideCategory(categoryName = '') {
-    return categoryName
+    const normalizedCategoryName = categoryName
         .split('/')
         .map((segment) => segment.trim().toUpperCase())
+        .join(' / ');
+
+    if (VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)) {
+        return false;
+    }
+
+    return normalizedCategoryName
+        .split(' / ')
         .some((segment) => HIDDEN_CATEGORIES.has(segment));
 }
 

@@ -17,9 +17,13 @@ const pool = new Pool({
     connectionTimeoutMillis: 2000,
 });
 
-// Test connection on startup
-pool.on('connect', () => {
-    console.log('[DB] Connected to PostgreSQL');
+// Test connection on startup — log only once on initial pool setup, not every recycle
+let dbConnectLogged = false;
+pool.on('connect', (client) => {
+    if (!dbConnectLogged) {
+        console.log('[DB] Initial pool connection to PostgreSQL established');
+        dbConnectLogged = true;
+    }
 });
 
 pool.on('error', (err) => {
