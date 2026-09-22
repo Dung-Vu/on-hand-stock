@@ -121,8 +121,8 @@ export default function ArteStock({ onToast }) {
             value: currentReference,
             autocomplete: 'off',
             'aria-label': 'Mã sản phẩm ARTE',
-            disabled: isLoadingBatches || isCheckingStock,
         });
+        refInput.disabled = isLoadingBatches || isCheckingStock;
         refInput.style.cssText = `
             flex: 1;
             height: 40px;
@@ -148,8 +148,8 @@ export default function ArteStock({ onToast }) {
         const searchBtn = createElement('button', {
             type: 'button',
             'aria-label': 'Tìm lô hàng',
-            disabled: isLoadingBatches || isCheckingStock,
         });
+        searchBtn.disabled = isLoadingBatches || isCheckingStock;
         searchBtn.style.cssText = `
             height: 40px;
             padding: 0 16px;
@@ -319,8 +319,8 @@ export default function ArteStock({ onToast }) {
             const batchSelect = createElement('select', {
                 id: 'arteBatchSelect',
                 'aria-label': 'Chọn số lô ARTE',
-                disabled: isCheckingStock,
             });
+            batchSelect.disabled = isCheckingStock;
             batchSelect.style.cssText = `
                 width: 100%;
                 height: 40px;
@@ -366,8 +366,8 @@ export default function ArteStock({ onToast }) {
                 step: 'any',
                 value: String(currentAmount),
                 'aria-label': 'Số lượng kiểm tra',
-                disabled: isCheckingStock,
             });
+            amountInput.disabled = isCheckingStock;
             amountInput.style.cssText = `
                 width: 100%;
                 height: 40px;
@@ -397,8 +397,8 @@ export default function ArteStock({ onToast }) {
             const submitBtn = createElement('button', {
                 type: 'button',
                 'aria-label': 'Kiểm tra tồn kho',
-                disabled: isCheckingStock || !selectedBatch || currentAmount <= 0,
             });
+            submitBtn.disabled = isCheckingStock || !selectedBatch || currentAmount <= 0;
             submitBtn.style.cssText = `
                 width: 100%;
                 height: 44px;
