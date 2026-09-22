@@ -1,5 +1,10 @@
 import * as cheerio from 'cheerio';
 import { CookieJar } from 'tough-cookie';
+import { Agent } from 'undici';
+
+// ARTE occasionally takes longer than Node/Undici's 10-second default TCP connect timeout.
+// Keep this backend-only dispatcher scoped to ARTE requests.
+const ARTE_DISPATCHER = new Agent({ connect: { timeout: 30000 } });
 
 /**
  * Custom error class for ARTE upstream operations.
@@ -254,7 +259,7 @@ export async function fetchWithCookies(fetchFn, cookieJar, url, options = {}, ma
     }
 
     const controller = new AbortController();
-    const timeoutMs = currentOptions.timeoutMs || 15000;
+    const timeoutMs = currentOptions.timeoutMs || 30000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     let response;
@@ -264,6 +269,7 @@ export async function fetchWithCookies(fetchFn, cookieJar, url, options = {}, ma
         headers,
         signal: currentOptions.signal || controller.signal,
         redirect: 'manual',
+        dispatcher: currentOptions.dispatcher || ARTE_DISPATCHER,
       });
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -324,7 +330,7 @@ export class ArteService {
     this.password = options.password ?? process.env.ARTE_PASSWORD;
     this.fetchFn = options.fetchFn ?? globalThis.fetch;
     this.cookieJar = options.cookieJar ?? new CookieJar();
-    this.timeoutMs = options.timeoutMs ?? 15000;
+    this.timeoutMs = options.timeoutMs ?? 30000;
     this.queue = new ConcurrencyQueue(
       options.maxConcurrency ?? 2,
       options.maxQueueSize ?? 50,

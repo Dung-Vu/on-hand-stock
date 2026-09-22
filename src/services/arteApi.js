@@ -20,7 +20,7 @@ function getApiBase() {
 
 const API_BASE = getApiBase();
 
-const DEFAULT_TIMEOUT_MS = 25000;
+const DEFAULT_TIMEOUT_MS = 70000;
 
 const FRIENDLY_CODE_MESSAGES = {
     INVALID_REFERENCE: 'Mã sản phẩm không hợp lệ (tối đa 40 ký tự chữ cái, số, dấu chấm, gạch ngang).',

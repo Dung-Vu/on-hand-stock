@@ -12,20 +12,21 @@
     "seed": "node seed.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cheerio": "^1.2.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
-    "morgan": "^1.10.1",
-    "redis": "^5.10.0",
-    "ws": "^8.19.0",
-    "zod": "^4.3.6",
-    "pg": "^8.11.3",
-    "bcrypt": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
-    "cheerio": "^1.2.0",
-    "tough-cookie": "^6.0.2"
+    "morgan": "^1.10.1",
+    "pg": "^8.11.3",
+    "redis": "^5.10.0",
+    "tough-cookie": "^6.0.2",
+    "undici": "^7.29.1",
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
   }
 }
