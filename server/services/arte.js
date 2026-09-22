@@ -13,6 +13,13 @@ export class ArteError extends Error {
   }
 }
 
+function isRetryableSessionError(err) {
+  return err?.status === 419
+    || err?.code === 'SESSION_EXPIRED'
+    || err?.code === 'UPSTREAM_NETWORK_ERROR'
+    || err?.code === 'TIMEOUT';
+}
+
 /**
  * Conservative reference validator:
  * Trimmed string 1..40 chars consisting only of letters, digits, '.', '-', '_', '/', and spaces.
@@ -892,7 +899,9 @@ export class ArteService {
       try {
         result = await this._lookupBatchesInternal(reference, false);
       } catch (err) {
-        if (err.status === 419 || err.code === 'SESSION_EXPIRED') {
+        if (isRetryableSessionError(err)) {
+          // Retry once with a fresh authenticated session. This also recovers
+          // transient connection resets during the multi-step upstream flow.
           result = await this._lookupBatchesInternal(reference, true);
         } else {
           throw err;
@@ -1021,8 +1030,8 @@ export class ArteService {
       try {
         result = await executeFreshChain(false);
       } catch (err) {
-        if (err.status === 419 || err.code === 'SESSION_EXPIRED') {
-          // Retry once with reauth
+        if (isRetryableSessionError(err)) {
+          // Retry exactly once with reauth; never loop indefinitely.
           result = await executeFreshChain(true);
         } else {
           throw err;

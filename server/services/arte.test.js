@@ -674,6 +674,34 @@ test('ArteService handles controlled re-login and retry on 419 Page Expired', as
   assert.equal(updateAttempts, 2);
 });
 
+test('ArteService retries one transient upstream network failure with a fresh session', async () => {
+  const service = new ArteService({
+    email: 'test@example.com',
+    password: 'secure-password',
+    fetchFn: async () => {
+      throw new Error('fetch should not be called by this isolated retry test');
+    },
+    cookieJar: new CookieJar(),
+  });
+
+  const forceReauthCalls = [];
+  service._lookupBatchesInternal = async (reference, forceReauth) => {
+    forceReauthCalls.push(forceReauth);
+    if (forceReauthCalls.length === 1) {
+      throw new ArteError('temporary connection reset', 'UPSTREAM_NETWORK_ERROR', 503);
+    }
+    return {
+      reference,
+      batches: ['02512120'],
+      checkedAt: new Date().toISOString(),
+    };
+  };
+
+  const result = await service.getBatches('60741');
+  assert.deepEqual(forceReauthCalls, [false, true]);
+  assert.deepEqual(result.batches, ['02512120']);
+});
+
 test('ArteService redacts sensitive data and does not leak credentials in errors', async () => {
   const secretPassword = 'my-secret-arte-password-12345';
   const secretEmail = 'agent@secret-arte-corp.com';
