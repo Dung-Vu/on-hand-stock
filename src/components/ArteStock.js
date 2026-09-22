@@ -40,36 +40,6 @@ export default function ArteStock({ onToast }) {
             font-family: inherit;
         `;
 
-        // 1. Caveat Banner (static trusted markup)
-        const caveatBanner = createElement('div', {
-            role: 'note',
-            'aria-label': 'Lưu ý tồn kho ARTE',
-        });
-        caveatBanner.style.cssText = `
-            background: #fffbeb;
-            border: 1px solid #fef3c7;
-            border-left: 4px solid #f59e0b;
-            padding: 10px 14px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            color: #92400e;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            line-height: 1.4;
-        `;
-        const warnIcon = createElement('span', { style: 'font-size: 16px;' });
-        warnIcon.textContent = '⚠️';
-        const warnText = createElement('span');
-        const warnStrong = createElement('strong');
-        warnStrong.textContent = 'Lưu ý: ';
-        warnText.appendChild(warnStrong);
-        warnText.appendChild(document.createTextNode('Tồn kho ARTE là dữ liệu tại thời điểm tra cứu và không đảm bảo giữ hàng.'));
-        caveatBanner.appendChild(warnIcon);
-        caveatBanner.appendChild(warnText);
-        card.appendChild(caveatBanner);
-
         // Header Title (static trusted markup)
         const header = createElement('div', {
             style: 'margin-bottom: 20px; border-bottom: 1px solid #f0ebe4; padding-bottom: 14px;',
@@ -229,51 +199,6 @@ export default function ArteStock({ onToast }) {
         refSection.appendChild(refLabel);
         refSection.appendChild(refInputGroup);
         card.appendChild(refSection);
-
-        // Product Info Card (if loaded)
-        if (currentProductName || currentImageUrl) {
-            const prodPreview = createElement('div', {
-                style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 10px 14px;
-                    background: #fbf9f6;
-                    border-radius: 8px;
-                    border: 1px solid #ede4da;
-                    margin-bottom: 18px;
-                `,
-            });
-
-            if (currentImageUrl) {
-                const img = createElement('img', {
-                    src: currentImageUrl,
-                    alt: currentProductName || 'Product image',
-                });
-                img.style.cssText = 'width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid #d4c4b0;';
-                prodPreview.appendChild(img);
-            }
-
-            const prodDetails = createElement('div');
-            const prodTitle = createElement('div', {
-                style: 'font-size: 14px; font-weight: 700; color: #2a231f;',
-            });
-            prodTitle.textContent = currentProductName || currentReference;
-
-            const prodMeta = createElement('div', {
-                style: 'font-size: 12px; color: #7a6652;',
-            });
-            prodMeta.appendChild(document.createTextNode('Mã sản phẩm: '));
-            const refStrong = createElement('strong');
-            refStrong.textContent = currentReference;
-            prodMeta.appendChild(refStrong);
-            prodMeta.appendChild(document.createTextNode(` • ${batchesList.length} lô`));
-
-            prodDetails.appendChild(prodTitle);
-            prodDetails.appendChild(prodMeta);
-            prodPreview.appendChild(prodDetails);
-            card.appendChild(prodPreview);
-        }
 
         // Error message banner
         if (errorMessage) {
@@ -472,6 +397,30 @@ export default function ArteStock({ onToast }) {
             });
 
             card.appendChild(submitBtn);
+
+            // ARTE only returns the product image after the final amount check.
+            // Show a large, image-only preview directly below the check button.
+            if (currentImageUrl) {
+                const imageWrap = createElement('div', {
+                    style: 'display:flex; justify-content:center; margin:0 0 18px;',
+                });
+                const productImage = createElement('img', {
+                    src: currentImageUrl,
+                    alt: 'Hình ảnh sản phẩm ARTE',
+                });
+                productImage.style.cssText = `
+                    display: block;
+                    width: min(100%, 360px);
+                    aspect-ratio: 1 / 1;
+                    object-fit: cover;
+                    border-radius: 12px;
+                    border: 1px solid #e2d6ca;
+                    box-shadow: 0 6px 18px rgba(42,35,31,0.12);
+                    background: #f8f5f1;
+                `;
+                imageWrap.appendChild(productImage);
+                card.appendChild(imageWrap);
+            }
         }
 
         // 4. Result View State (Available / Unavailable)
@@ -529,16 +478,6 @@ export default function ArteStock({ onToast }) {
             const detailsGrid = createElement('div', {
                 style: 'display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; font-size:12px; background:rgba(255,255,255,0.7); padding:10px; border-radius:6px; border:1px solid rgba(0,0,0,0.05);',
             });
-
-            // Product column
-            const prodCol = createElement('div');
-            const prodLbl = createElement('span', { style: 'color:#6b7280;' });
-            prodLbl.textContent = 'Sản phẩm: ';
-            const prodVal = createElement('strong', { style: 'color:#111827;' });
-            prodVal.textContent = checkResult.productName || checkResult.reference;
-            prodCol.appendChild(prodLbl);
-            prodCol.appendChild(prodVal);
-            detailsGrid.appendChild(prodCol);
 
             // Batch column
             const batchCol = createElement('div');
