@@ -71,6 +71,8 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
 
         if (isActive) {
             tab.innerHTML = `<span style="font-size:10px;">✓</span><span>${shortName}</span>`;
+        } else if (warehouseName === 'Kho ARTE') {
+            tab.innerHTML = `<span style="font-size:11px;">🏛️</span><span>Kho ARTE</span>`;
         } else {
             tab.textContent = shortName;
         }
@@ -99,7 +101,11 @@ export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
                 t.style.boxShadow = "none";
                 t.setAttribute("aria-pressed", "false");
                 const wh = t.getAttribute('data-warehouse');
-                t.textContent = wh ? wh.replace('/Stock', '') : t.textContent;
+                if (wh === 'Kho ARTE') {
+                    t.innerHTML = `<span style="font-size:11px;">🏛️</span><span>Kho ARTE</span>`;
+                } else {
+                    t.textContent = wh ? wh.replace('/Stock', '') : t.textContent;
+                }
             });
             // Activate clicked tab
             tab.classList.add("tab-active", "tab-pill-active");

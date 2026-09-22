@@ -2,9 +2,11 @@ import { createElement } from './utils/dom.js'
 import Header from './components/Header.js'
 import Tabs from './components/Tabs.js'
 import Stocktake from './components/Stocktake.js'
+import ArteStock from './components/ArteStock.js'
 import Login from './components/Login.js'
 import AdminDashboard from './components/AdminDashboard.js'
 import { loadData, applyFilters, clearFilters, exportData, exportDataPDF, refreshCategoryFilter, forceRefreshData, clearCache, getWarehouseNames, getProductsForWarehouse, showToast, getCurrentGroupedData, updateFilterOptions } from './store/dataStore.js'
+import { syncArteWarehouse } from './store/modules/warehouse.js'
 import { auth, stocktake } from './services/apiClient.js'
 
 let currentActiveWarehouse = null
@@ -12,7 +14,7 @@ const COMPANY_FILTER_STORAGE_KEY = 'selectedCompany'
 const COMPANY_OPTIONS = ['Bonario', 'Ordinaire']
 
 // Warehouse list for keyboard navigation
-const WAREHOUSE_SHORTCUTS = ['BONAP/Stock', 'O-BAP/Stock', 'ORDAP/Stock', 'ORDHL/Stock', 'ORDHY/Stock', 'ORDST/Stock', 'Kho Vải']
+const WAREHOUSE_SHORTCUTS = ['BONAP/Stock', 'O-BAP/Stock', 'ACENB/Stock', 'ORDAP/Stock', 'ORDHL/Stock', 'ORDHY/Stock', 'ORDST/Stock', 'Kho Vải']
 
 export default function App() {
   const container = createElement('div', {
@@ -198,6 +200,10 @@ export default function App() {
     const stockDataContainer = createElement('div', { id: 'stockData' })
     mainContent.appendChild(stockDataContainer)
 
+    // ARTE stock check view (hidden by default)
+    const arteStockView = ArteStock({ onToast: showToast })
+    mainContent.appendChild(arteStockView)
+
     // Stocktake view (hidden by default)
     const stocktakeView = Stocktake({
       getWarehouses: () => getWarehouseNames(),
@@ -227,6 +233,8 @@ export default function App() {
     if (isHidden) {
       // Mở kiểm kho
       stockDataEl.classList.add('hidden')
+      const arteStockEl = document.getElementById('arteStockView')
+      arteStockEl?.classList.add('hidden')
       stocktakeEl.classList.remove('hidden')
       stocktakeEl.refresh?.()
       headerSearch?.classList.add('hidden')
@@ -236,13 +244,17 @@ export default function App() {
     } else {
       // Quay về tra cứu tồn
       stocktakeEl.classList.add('hidden')
-      stockDataEl.classList.remove('hidden')
-      headerSearch?.classList.remove('hidden')
-      headerFilters?.classList.remove('hidden')
       headerWarehouseTabs?.classList.remove('hidden')
-      // Luôn re-render data khi quay về trang kho
-      applyFilters()
-      refreshCategoryFilter()
+      if (currentActiveWarehouse === 'Kho ARTE') {
+        setArteViewActive(true)
+      } else {
+        stockDataEl.classList.remove('hidden')
+        headerSearch?.classList.remove('hidden')
+        headerFilters?.classList.remove('hidden')
+        // Luôn re-render data khi quay về trang kho
+        applyFilters()
+        refreshCategoryFilter()
+      }
       showToast('Đã quay lại Tra cứu tồn', 'info', 1500)
     }
   }
@@ -284,13 +296,57 @@ export default function App() {
     }, 30)
   }
 
+  function setArteViewActive(isActive) {
+    const stockDataEl = document.getElementById('stockData')
+    const arteStockEl = document.getElementById('arteStockView')
+    const headerSearch = document.getElementById('headerSearchSection')
+    const categoryFilter = document.getElementById('categoryFilter')
+    const sortFilter = document.getElementById('sortFilter')
+    const clearBtn = document.getElementById('clearFiltersBtn')
+    const discontinuedToggle = document.querySelector('.discontinued-filter-toggle')
+
+    if (isActive) {
+      stockDataEl?.classList.add('hidden')
+      arteStockEl?.classList.remove('hidden')
+      headerSearch?.classList.add('hidden')
+      if (categoryFilter) categoryFilter.style.display = 'none'
+      if (sortFilter) sortFilter.style.display = 'none'
+      if (clearBtn) clearBtn.style.display = 'none'
+      if (discontinuedToggle) discontinuedToggle.style.display = 'none'
+    } else {
+      arteStockEl?.classList.add('hidden')
+      stockDataEl?.classList.remove('hidden')
+      headerSearch?.classList.remove('hidden')
+      if (categoryFilter) categoryFilter.style.display = ''
+      if (sortFilter) sortFilter.style.display = ''
+      if (clearBtn) clearBtn.style.display = ''
+      if (discontinuedToggle) discontinuedToggle.style.display = ''
+    }
+  }
+
+  // When company changes away from Bonario, reset Kho ARTE if active
+  document.addEventListener('companyContextChange', () => {
+    const selectedCompany = localStorage.getItem(COMPANY_FILTER_STORAGE_KEY) || 'Bonario'
+    if (selectedCompany !== 'Bonario' && currentActiveWarehouse === 'Kho ARTE') {
+      currentActiveWarehouse = null
+      localStorage.removeItem('lastActiveWarehouse')
+      setArteViewActive(false)
+    }
+  })
+
   // Function to handle tab change
   window.handleTabChange = (warehouseName) => {
     currentActiveWarehouse = warehouseName
     // Save to localStorage
     localStorage.setItem('lastActiveWarehouse', warehouseName)
-    applyFilters()
-    refreshCategoryFilter()
+
+    if (warehouseName === 'Kho ARTE') {
+      setArteViewActive(true)
+    } else {
+      setArteViewActive(false)
+      applyFilters()
+      refreshCategoryFilter()
+    }
   }
 
   // Function to switch warehouse programmatically
@@ -304,25 +360,22 @@ export default function App() {
   // Function to update tabs
   window.updateTabs = (warehouses) => {
     const container = document.getElementById('warehouseTabsPlaceholder')
+    const selectedCompany = localStorage.getItem(COMPANY_FILTER_STORAGE_KEY) || 'Bonario'
 
-    // Handle warehouses as object with groups or array
-    let warehouseList = warehouses
+    // Handle warehouses as object with groups or array, synchronizing Kho ARTE consistently
+    const warehouseList = syncArteWarehouse(warehouses, selectedCompany)
     let firstWarehouse = null
 
-    if (warehouses && typeof warehouses === 'object' && !Array.isArray(warehouses)) {
-      // It's a grouped object
-      warehouseList = warehouses
+    if (warehouseList && typeof warehouseList === 'object' && !Array.isArray(warehouseList)) {
       // Get first warehouse from any group
       firstWarehouse =
-        (warehouses.productGroup && warehouses.productGroup[0]) ||
-        (warehouses.fabricGroup && warehouses.fabricGroup[0]) ||
-        (warehouses.otherGroup && warehouses.otherGroup[0]) ||
-        (warehouses.all && warehouses.all[0]) ||
+        (warehouseList.productGroup && warehouseList.productGroup[0]) ||
+        (warehouseList.fabricGroup && warehouseList.fabricGroup[0]) ||
+        (warehouseList.otherGroup && warehouseList.otherGroup[0]) ||
+        (warehouseList.all && warehouseList.all[0]) ||
         null
-    } else if (Array.isArray(warehouses)) {
-      // It's an array
-      warehouseList = warehouses
-      firstWarehouse = warehouses[0]
+    } else if (Array.isArray(warehouseList)) {
+      firstWarehouse = warehouseList[0]
     }
 
     if (!container || !firstWarehouse) {
@@ -340,6 +393,12 @@ export default function App() {
           ...(warehouseList.otherGroup || [])
         ])
 
+    if (selectedCompany !== 'Bonario' && currentActiveWarehouse === 'Kho ARTE') {
+      currentActiveWarehouse = firstWarehouse
+      localStorage.setItem('lastActiveWarehouse', firstWarehouse)
+      setArteViewActive(false)
+    }
+
     const urlWarehouse = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('warehouse')
       : null
@@ -355,10 +414,7 @@ export default function App() {
       warehouses: warehouseList,
       activeWarehouse: activeWarehouse,
       onTabChange: (warehouse) => {
-        currentActiveWarehouse = warehouse
-        localStorage.setItem('lastActiveWarehouse', warehouse)
-        applyFilters()
-        refreshCategoryFilter()
+        window.handleTabChange(warehouse)
       }
     })
 
@@ -367,6 +423,7 @@ export default function App() {
     // Set active warehouse
     currentActiveWarehouse = activeWarehouse
     localStorage.setItem('lastActiveWarehouse', activeWarehouse)
+    setArteViewActive(activeWarehouse === 'Kho ARTE')
   }
 
   // ============================================
@@ -398,8 +455,8 @@ export default function App() {
       exportData()
     }
 
-    // Number keys 1-7: Switch warehouses (only when not typing)
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key >= '1' && e.key <= '7') {
+    // Number keys 1-8: Switch warehouses (only when not typing)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key >= '1' && e.key <= '8') {
       const activeElement = document.activeElement
       const isTyping = activeElement && (
         activeElement.tagName === 'INPUT' ||

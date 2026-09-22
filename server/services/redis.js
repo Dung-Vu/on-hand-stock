@@ -1,6 +1,6 @@
 // ============================================
 // REDIS CACHE SERVICE
-// Centralized Redis caching with TTL and error handling
+// Redis + in-memory fallback (TTL + stale window)
 // ============================================
 
 import { createClient } from 'redis';
@@ -11,22 +11,117 @@ import { createClient } from 'redis';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 5 * 60; // 5 minutes in seconds
+const STALE_TTL = parseInt(process.env.CACHE_STALE_TTL) || 30 * 60; // serve stale up to 30 min on errors
 const CACHE_PREFIX = process.env.CACHE_PREFIX || 'onhand:';
 
 // ============================================
-// REDIS CLIENT
+// STATE
 // ============================================
 
 let redisClient = null;
 let isConnected = false;
 let isEnabled = process.env.ENABLE_REDIS !== 'false'; // Default enabled
 
+/** @type {Map<string, { value: any, expiresAt: number, staleUntil: number }>} */
+const memoryStore = new Map();
+
+const DEFAULT_MAX_MEMORY_KEYS = 500;
+let maxMemoryKeys = parseInt(process.env.CACHE_MEMORY_MAX_KEYS) || DEFAULT_MAX_MEMORY_KEYS;
+
+/**
+ * Test-safe helper to set memory store hard cap.
+ * @param {number} limit
+ * @returns {number} previous limit
+ */
+function _setMaxMemoryKeysForTest(limit) {
+    const prev = maxMemoryKeys;
+    maxMemoryKeys = limit;
+    pruneMemoryIfNeeded();
+    return prev;
+}
+
+/**
+ * Test-safe helper to inspect in-memory store size.
+ * @returns {number}
+ */
+function _getMemorySize() {
+    return memoryStore.size;
+}
+
+function fullKey(key) {
+    return CACHE_PREFIX + key;
+}
+
+function pruneMemoryIfNeeded() {
+    const now = Date.now();
+    // 1. Remove expired entries beyond stale window
+    for (const [k, entry] of memoryStore.entries()) {
+        if (entry.staleUntil <= now) {
+            memoryStore.delete(k);
+        }
+    }
+
+    // 2. Real hard cap: Evict least-recently-used (oldest in Map) until size <= maxMemoryKeys
+    while (memoryStore.size > maxMemoryKeys) {
+        const oldestKey = memoryStore.keys().next().value;
+        if (oldestKey === undefined) break;
+        memoryStore.delete(oldestKey);
+    }
+}
+
+function setMemory(key, value, ttlSeconds = CACHE_TTL) {
+    const ttlMs = Math.max(1, ttlSeconds) * 1000;
+    const staleMs = Math.max(ttlMs, STALE_TTL * 1000);
+    const now = Date.now();
+    const fKey = fullKey(key);
+
+    // Refresh position to most recent on overwrite
+    if (memoryStore.has(fKey)) {
+        memoryStore.delete(fKey);
+    }
+
+    memoryStore.set(fKey, {
+        value,
+        expiresAt: now + ttlMs,
+        staleUntil: now + staleMs,
+    });
+    pruneMemoryIfNeeded();
+}
+
+function getMemory(key, { allowStale = false } = {}) {
+    const fKey = fullKey(key);
+    const entry = memoryStore.get(fKey);
+    if (!entry) return null;
+
+    const now = Date.now();
+    if (now <= entry.expiresAt) {
+        // Refresh recency in LRU
+        memoryStore.delete(fKey);
+        memoryStore.set(fKey, entry);
+        return entry.value;
+    }
+    if (allowStale && now <= entry.staleUntil) {
+        // Refresh recency in LRU
+        memoryStore.delete(fKey);
+        memoryStore.set(fKey, entry);
+        return entry.value;
+    }
+    if (now > entry.staleUntil) {
+        memoryStore.delete(fKey);
+    }
+    return null;
+}
+
+// ============================================
+// REDIS CLIENT
+// ============================================
+
 /**
  * Initialize Redis client
  */
 async function initRedis() {
     if (!isEnabled) {
-        console.log('[Redis] Redis caching is disabled');
+        console.log('[Redis] Redis caching is disabled — using in-memory cache only');
         return null;
     }
 
@@ -37,17 +132,19 @@ async function initRedis() {
                 connectTimeout: 5000,
                 reconnectStrategy: (retries) => {
                     if (retries > 10) {
-                        console.error('[Redis] Max reconnection attempts reached');
-                        return new Error('Max reconnection attempts reached');
+                        console.error('[Redis] Max reconnection attempts reached — falling back to memory cache');
+                        return false; // stop reconnecting
                     }
                     return Math.min(retries * 100, 3000);
                 }
             }
         });
 
-        // Event handlers
         redisClient.on('error', (err) => {
-            console.error('[Redis] Error:', err.message);
+            // Avoid log spam: only first-line errors
+            if (isConnected) {
+                console.error('[Redis] Error:', err.message);
+            }
             isConnected = false;
         });
 
@@ -70,14 +167,15 @@ async function initRedis() {
             isConnected = false;
         });
 
-        // Connect to Redis
         await redisClient.connect();
-
         return redisClient;
     } catch (error) {
         console.error('[Redis] Failed to initialize:', error.message);
-        console.warn('[Redis] Continuing without cache');
-        isEnabled = false;
+        console.warn('[Redis] Continuing with in-memory cache fallback');
+        // Keep isEnabled true so memory fallback still used via get/set paths;
+        // redis itself stays disconnected.
+        isConnected = false;
+        redisClient = null;
         return null;
     }
 }
@@ -89,6 +187,7 @@ function getStatus() {
     return {
         enabled: isEnabled,
         connected: isConnected,
+        memoryKeys: memoryStore.size,
         client: redisClient ? 'initialized' : 'null'
     };
 }
@@ -98,70 +197,96 @@ function getStatus() {
 // ============================================
 
 /**
- * Get value from cache
+ * Get value from cache (fresh only)
  * @param {string} key - Cache key
- * @returns {Promise<any|null>} - Cached value or null
+ * @returns {Promise<any|null>}
  */
 async function get(key) {
-    if (!isEnabled || !isConnected || !redisClient) {
-        return null;
-    }
-
-    try {
-        const fullKey = CACHE_PREFIX + key;
-        const value = await redisClient.get(fullKey);
-
-        if (value) {
-            console.log(`[Redis] Cache HIT: ${key}`);
-            return JSON.parse(value);
+    // Prefer Redis when available
+    if (isEnabled && isConnected && redisClient) {
+        try {
+            const value = await redisClient.get(fullKey(key));
+            if (value) {
+                console.log(`[Redis] Cache HIT: ${key}`);
+                const parsed = JSON.parse(value);
+                // Mirror into memory for stale fallback if Redis later dies
+                setMemory(key, parsed, CACHE_TTL);
+                return parsed;
+            }
+            console.log(`[Redis] Cache MISS: ${key}`);
+        } catch (error) {
+            console.error(`[Redis] Get error for key "${key}":`, error.message);
         }
-
-        console.log(`[Redis] Cache MISS: ${key}`);
-        return null;
-    } catch (error) {
-        console.error(`[Redis] Get error for key "${key}":`, error.message);
-        return null;
     }
+
+    const mem = getMemory(key, { allowStale: false });
+    if (mem) {
+        console.log(`[Memory] Cache HIT: ${key}`);
+        return mem;
+    }
+
+    console.log(`[Memory] Cache MISS: ${key}`);
+    return null;
+}
+
+/**
+ * Get stale value if fresh TTL expired but still within stale window
+ * Used when Odoo is rate-limited / down
+ * @param {string} key
+ * @returns {Promise<any|null>}
+ */
+async function getStale(key) {
+    // Fresh first
+    const fresh = await get(key);
+    if (fresh) return fresh;
+
+    const stale = getMemory(key, { allowStale: true });
+    if (stale) {
+        console.log(`[Memory] Cache STALE HIT: ${key}`);
+        return stale;
+    }
+    return null;
 }
 
 /**
  * Set value in cache with TTL
- * @param {string} key - Cache key
- * @param {any} value - Value to cache
- * @param {number} ttl - Time to live in seconds (optional, defaults to CACHE_TTL)
- * @returns {Promise<boolean>} - Success status
+ * @param {string} key
+ * @param {any} value
+ * @param {number} ttl - seconds
+ * @returns {Promise<boolean>}
  */
 async function set(key, value, ttl = CACHE_TTL) {
+    // Always write memory fallback
+    setMemory(key, value, ttl);
+
     if (!isEnabled || !isConnected || !redisClient) {
-        return false;
+        console.log(`[Memory] Cache SET: ${key} (TTL: ${ttl}s)`);
+        return true;
     }
 
     try {
-        const fullKey = CACHE_PREFIX + key;
         const serialized = JSON.stringify(value);
-
-        await redisClient.setEx(fullKey, ttl, serialized);
+        await redisClient.setEx(fullKey(key), ttl, serialized);
         console.log(`[Redis] Cache SET: ${key} (TTL: ${ttl}s)`);
         return true;
     } catch (error) {
         console.error(`[Redis] Set error for key "${key}":`, error.message);
-        return false;
+        return true; // memory write already succeeded
     }
 }
 
 /**
  * Delete value from cache
- * @param {string} key - Cache key
- * @returns {Promise<boolean>} - Success status
  */
 async function del(key) {
+    memoryStore.delete(fullKey(key));
+
     if (!isEnabled || !isConnected || !redisClient) {
-        return false;
+        return true;
     }
 
     try {
-        const fullKey = CACHE_PREFIX + key;
-        const result = await redisClient.del(fullKey);
+        const result = await redisClient.del(fullKey(key));
         console.log(`[Redis] Cache DEL: ${key}`);
         return result > 0;
     } catch (error) {
@@ -172,44 +297,44 @@ async function del(key) {
 
 /**
  * Delete all keys matching pattern
- * @param {string} pattern - Key pattern (e.g., "stock:*")
- * @returns {Promise<number>} - Number of deleted keys
  */
 async function delPattern(pattern) {
+    let deleted = 0;
+
+    // Memory: simple prefix match (pattern ends with * usually)
+    const memPattern = fullKey(pattern).replace(/\*/g, '');
+    for (const k of [...memoryStore.keys()]) {
+        if (k.startsWith(memPattern) || (pattern === '*' && k.startsWith(CACHE_PREFIX))) {
+            memoryStore.delete(k);
+            deleted += 1;
+        }
+    }
+
     if (!isEnabled || !isConnected || !redisClient) {
-        return 0;
+        return deleted;
     }
 
     try {
-        const fullPattern = CACHE_PREFIX + pattern;
-        const keys = await redisClient.keys(fullPattern);
-
-        if (keys.length === 0) {
-            return 0;
-        }
-
+        const keys = await redisClient.keys(fullKey(pattern));
+        if (keys.length === 0) return deleted;
         const result = await redisClient.del(keys);
         console.log(`[Redis] Cache DEL pattern "${pattern}": ${result} keys deleted`);
-        return result;
+        return deleted + result;
     } catch (error) {
         console.error(`[Redis] Delete pattern error for "${pattern}":`, error.message);
-        return 0;
+        return deleted;
     }
 }
 
-/**
- * Check if key exists
- * @param {string} key - Cache key
- * @returns {Promise<boolean>} - Existence status
- */
 async function exists(key) {
+    if (getMemory(key, { allowStale: false })) return true;
+
     if (!isEnabled || !isConnected || !redisClient) {
         return false;
     }
 
     try {
-        const fullKey = CACHE_PREFIX + key;
-        const result = await redisClient.exists(fullKey);
+        const result = await redisClient.exists(fullKey(key));
         return result === 1;
     } catch (error) {
         console.error(`[Redis] Exists error for key "${key}":`, error.message);
@@ -217,97 +342,94 @@ async function exists(key) {
     }
 }
 
-/**
- * Get remaining TTL for key
- * @param {string} key - Cache key
- * @returns {Promise<number>} - TTL in seconds, -1 if no TTL, -2 if key doesn't exist
- */
 async function ttl(key) {
+    const entry = memoryStore.get(fullKey(key));
+    if (entry) {
+        const remaining = Math.ceil((entry.expiresAt - Date.now()) / 1000);
+        return remaining > 0 ? remaining : -1;
+    }
+
     if (!isEnabled || !isConnected || !redisClient) {
         return -2;
     }
 
     try {
-        const fullKey = CACHE_PREFIX + key;
-        return await redisClient.ttl(fullKey);
+        return await redisClient.ttl(fullKey(key));
     } catch (error) {
         console.error(`[Redis] TTL error for key "${key}":`, error.message);
         return -2;
     }
 }
 
-/**
- * Clear all cache with prefix
- * @returns {Promise<number>} - Number of deleted keys
- */
 async function flushAll() {
+    const memCount = memoryStore.size;
+    memoryStore.clear();
+
     if (!isEnabled || !isConnected || !redisClient) {
-        return 0;
+        console.log(`[Memory] Flushed ${memCount} keys`);
+        return memCount;
     }
 
     try {
-        const pattern = CACHE_PREFIX + '*';
-        const keys = await redisClient.keys(pattern);
-
+        const keys = await redisClient.keys(CACHE_PREFIX + '*');
         if (keys.length === 0) {
-            console.log('[Redis] No keys to flush');
-            return 0;
+            console.log(`[Cache] Flushed ${memCount} memory keys (no redis keys)`);
+            return memCount;
         }
-
         const result = await redisClient.del(keys);
-        console.log(`[Redis] Flushed ${result} keys`);
-        return result;
+        console.log(`[Redis] Flushed ${result} redis + ${memCount} memory keys`);
+        return result + memCount;
     } catch (error) {
         console.error('[Redis] Flush error:', error.message);
-        return 0;
+        return memCount;
     }
 }
 
-/**
- * Get cache statistics
- * @returns {Promise<Object>} - Cache stats
- */
 async function getStats() {
+    const memoryKeys = memoryStore.size;
+
     if (!isEnabled || !isConnected || !redisClient) {
         return {
-            enabled: isEnabled,
-            connected: isConnected,
-            keys: 0,
-            memory: 0
+            enabled: true, // memory always available
+            connected: false,
+            backend: 'memory',
+            keys: memoryKeys,
+            memory: memoryKeys,
+            prefix: CACHE_PREFIX,
+            ttl: CACHE_TTL,
+            staleTtl: STALE_TTL
         };
     }
 
     try {
-        const pattern = CACHE_PREFIX + '*';
-        const keys = await redisClient.keys(pattern);
+        const keys = await redisClient.keys(CACHE_PREFIX + '*');
         const info = await redisClient.info('memory');
-
-        // Parse memory usage
         const memoryMatch = info.match(/used_memory_human:(.+)/);
         const memory = memoryMatch ? memoryMatch[1].trim() : 'N/A';
 
         return {
-            enabled: isEnabled,
-            connected: isConnected,
+            enabled: true,
+            connected: true,
+            backend: 'redis+memory',
             keys: keys.length,
+            memoryKeys,
             memory,
             prefix: CACHE_PREFIX,
-            ttl: CACHE_TTL
+            ttl: CACHE_TTL,
+            staleTtl: STALE_TTL
         };
     } catch (error) {
         console.error('[Redis] Stats error:', error.message);
         return {
-            enabled: isEnabled,
-            connected: isConnected,
-            keys: 0,
+            enabled: true,
+            connected: false,
+            backend: 'memory',
+            keys: memoryKeys,
             memory: 'N/A'
         };
     }
 }
 
-/**
- * Close Redis connection
- */
 async function close() {
     if (redisClient) {
         try {
@@ -327,6 +449,7 @@ export {
     initRedis,
     getStatus,
     get,
+    getStale,
     set,
     del,
     delPattern,
@@ -334,13 +457,16 @@ export {
     ttl,
     flushAll,
     getStats,
-    close
+    close,
+    _setMaxMemoryKeysForTest,
+    _getMemorySize
 };
 
 export default {
     init: initRedis,
     getStatus,
     get,
+    getStale,
     set,
     del,
     delPattern,

@@ -68,29 +68,34 @@ export function sleep(ms) {
  * @returns {boolean}
  */
 export function isRetryableError(error) {
+    const message = String(error?.message || "");
+
+    // Never retry Odoo / API rate limits — retries make 429 worse
+    if (
+        message.includes("status: 429") ||
+        /rate limit|ODOO_RATE_LIMIT|unusually high number of requests/i.test(message)
+    ) {
+        return false;
+    }
+
     // Network errors
     if (
-        error.message.includes("Failed to fetch") ||
-        error.message.includes("NetworkError") ||
-        error.message.includes("ETIMEDOUT") ||
-        error.message.includes("ECONNREFUSED") ||
-        error.message.includes("ECONNRESET")
+        message.includes("Failed to fetch") ||
+        message.includes("NetworkError") ||
+        message.includes("ETIMEDOUT") ||
+        message.includes("ECONNREFUSED") ||
+        message.includes("ECONNRESET")
     ) {
         return true;
     }
 
-    // HTTP 5xx errors (server errors)
-    if (error.message.includes("status: 5")) {
+    // HTTP 5xx errors (server errors) — but not 429 wrapped as message body only (handled above)
+    if (message.includes("status: 5")) {
         return true;
     }
 
-    // HTTP 429 (rate limited)
-    if (error.message.includes("status: 429")) {
-        return true;
-    }
-
-    // Don't retry 4xx errors (client errors)
-    if (error.message.includes("status: 4")) {
+    // Don't retry other 4xx errors (client errors)
+    if (message.includes("status: 4")) {
         return false;
     }
 

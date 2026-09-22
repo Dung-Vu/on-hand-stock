@@ -12,6 +12,7 @@ import { signal, computed } from '@preact/signals-core';
 export const WAREHOUSE_MAP = {
     165: "BONAP/Stock",
     328: "O-BAP/Stock",
+    173: "ACENB/Stock", // Kho ACENB (Bonario)
     157: "ORDAP/Stock",
     261: "ORDAP/Stock", // Gộp ORDAP location 261 và 157
     20: "ORDHL/Stock",
@@ -33,6 +34,7 @@ export const WAREHOUSE_MAP = {
 export const PRODUCT_WAREHOUSES = [
     "BONAP/Stock",
     "O-BAP/Stock",
+    "ACENB/Stock",
     "ORDAP/Stock",
     "ORDHL/Stock",
     "ORDHY/Stock",
@@ -87,6 +89,56 @@ export function sortWarehouses(warehouses) {
         otherGroup,
         all: [...productGroup, ...fabricGroup, ...otherGroup],
     };
+}
+
+/**
+ * Synchronize Kho ARTE across warehouse groups and available list.
+ * Adds 'Kho ARTE' to both display group (otherGroup) and available set (all) for 'Bonario'.
+ * Keeps 'Kho ARTE' absent from all groups for 'Ordinaire' or other companies.
+ * Guarantees no duplicates.
+ *
+ * @param {Object|Array} warehouses
+ * @param {string} [selectedCompany='Bonario']
+ * @returns {Object|Array}
+ */
+export function syncArteWarehouse(warehouses, selectedCompany = 'Bonario') {
+    const isBonario = selectedCompany === 'Bonario';
+
+    if (Array.isArray(warehouses)) {
+        const list = warehouses.filter((w) => w !== 'Kho ARTE');
+        if (isBonario) {
+            list.push('Kho ARTE');
+        }
+        return list;
+    }
+
+    if (warehouses && typeof warehouses === 'object') {
+        const productGroup = (warehouses.productGroup || []).filter((w) => w !== 'Kho ARTE');
+        const fabricGroup = (warehouses.fabricGroup || []).filter((w) => w !== 'Kho ARTE');
+        const otherGroup = (warehouses.otherGroup || []).filter((w) => w !== 'Kho ARTE');
+        const all = Array.isArray(warehouses.all)
+            ? warehouses.all.filter((w) => w !== 'Kho ARTE')
+            : [...productGroup, ...fabricGroup, ...otherGroup];
+
+        if (isBonario) {
+            if (!otherGroup.includes('Kho ARTE')) {
+                otherGroup.push('Kho ARTE');
+            }
+            if (!all.includes('Kho ARTE')) {
+                all.push('Kho ARTE');
+            }
+        }
+
+        return {
+            ...warehouses,
+            productGroup,
+            fabricGroup,
+            otherGroup,
+            all,
+        };
+    }
+
+    return warehouses;
 }
 
 // Mark warehouse as loaded

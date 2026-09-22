@@ -235,6 +235,13 @@ function normalizeCategoryName(categoryName = "") {
 function shouldHideCategory(categoryName = "", warehouseName = "") {
     const normalizedCategoryName = normalizeCategoryName(categoryName);
 
+    // ACENB: không ẩn category (chỉ ẩn F-DACINCO ở bước group).
+    // Toàn bộ tồn ACENB đang nằm ở BON / NVL / VAIREM — nếu áp HIDDEN_CATEGORIES
+    // thì kho biến mất dù vẫn còn vải non-F-DACINCO.
+    if (warehouseName === "ACENB/Stock") {
+        return false;
+    }
+
     if (
         warehouseName === "BONAP/Stock" &&
         BONAP_VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)
@@ -504,6 +511,14 @@ function groupDataByWarehouseAndCategory(data, discontinuedIds = new Set()) {
         // Filter out "F-Khăn tay (Mẫu)" as requested by user
         if (productName.includes("F-Khăn tay (Mẫu)")) {
             return;
+        }
+
+        // ACENB: ẩn sản phẩm mã bắt đầu bằng F-DACINCO
+        if (warehouseName === "ACENB/Stock") {
+            const nameUpper = productName.toUpperCase().trim();
+            if (nameUpper.startsWith("F-DACINCO") || nameUpper.startsWith("[F-DACINCO")) {
+                return;
+            }
         }
 
         // Filter Kho Vải: chỉ hiển thị sản phẩm có chứa F-SF hoặc F-ORD trong tên
@@ -1426,6 +1441,7 @@ function renderStockData(groupedData) {
     const hideIncomingWarehouses = new Set([
         "BONAP/Stock",
         "O-BAP/Stock",
+        "ACENB/Stock",
         "ORDAP/Stock",
         "ORDHL/Stock",
         "ORDHY/Stock",

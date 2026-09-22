@@ -159,9 +159,9 @@ function getBaseUrl() {
 // ============================================
 
 const RETRY_OPTIONS = {
-    maxRetries: 3,
-    baseDelay: 1000,
-    maxDelay: 10000,
+    maxRetries: 2,
+    baseDelay: 1500,
+    maxDelay: 8000,
     shouldRetry: isRetryableError,
     onRetry: (attempt, error, delay) => {
         console.warn(`[API] Retry attempt ${attempt} after ${Math.round(delay)}ms:`, error.message);

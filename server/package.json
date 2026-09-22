@@ -24,6 +24,8 @@
     "zod": "^4.3.6",
     "pg": "^8.11.3",
     "bcrypt": "^6.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "cheerio": "^1.2.0",
+    "tough-cookie": "^6.0.2"
   }
 }

@@ -9,11 +9,13 @@ import { sanitizeRequest } from "./middleware/validate.js";
 import { optionalHmacVerification, verifyHmacSignature } from "./middleware/auth.js";
 import { startWebSocketServer, getClientCount } from "./websocket.js";
 import * as redis from "./services/redis.js";
-import { cacheMiddleware, invalidateCache, clearAllCache } from "./middleware/cache.js";
+import { cacheMiddleware, trySendStaleCache, invalidateCache, clearAllCache } from "./middleware/cache.js";
 
 import { healthCheck as dbHealthCheck, getStats as getDbStats } from "./db/index.js";
 import authRoutes from "./routes/auth.js";
 import stocktakeRoutes from "./routes/stocktake.js";
+import arteRoutes from "./routes/arte.js";
+import { arteService } from "./services/arte.js";
 
 // Load environment variables
 config();
@@ -204,7 +206,7 @@ app.use(optionalHmacVerification());
 const ODOO_CONFIG = getOdooConfig();
 
 // Warehouse mapping
-const WAREHOUSE_IDS = [165, 328, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
+const WAREHOUSE_IDS = [165, 328, 173, 157, 261, 20, 269, 219, 277, 195, 285, 217, 324, 184, 325];
 
 function getOdooMany2OneId(value) {
     return Array.isArray(value) ? value[0] : value;
@@ -271,23 +273,69 @@ async function fetchProductCompanyMap(productIds) {
     return companyByProduct;
 }
 
-async function enrichWithProductCompany(records) {
-    const productIds = records.map((record) => getOdooMany2OneId(record.product_id));
-    const companyByProduct = await fetchProductCompanyMap(productIds);
+function isOdooRateLimitError(error) {
+    const message = String(error?.message || error || "");
+    return /429|rate limit exceeded|unusually high number of requests/i.test(message);
+}
 
-    return records.map((record) => {
-        const productId = getOdooMany2OneId(record.product_id);
-        const company = companyByProduct.get(productId) || {
-            product_company_id: null,
-            product_company_name: "",
-        };
+/**
+ * Prefer stale cache on Odoo failures; otherwise map 429 correctly so clients stop retry storms.
+ */
+async function respondWithOdooError(req, res, error, logLabel) {
+    console.error(logLabel, error.message);
 
-        return {
-            ...record,
-            product_company_id: company.product_company_id,
-            product_company_name: company.product_company_name,
-        };
+    const sentStale = await trySendStaleCache(req, res);
+    if (sentStale) {
+        console.warn(`[Cache] Served STALE data for ${req.originalUrl || req.url} after Odoo error`);
+        return;
+    }
+
+    if (isOdooRateLimitError(error)) {
+        res.setHeader("Retry-After", "120");
+        return res.status(429).json({
+            success: false,
+            error: "Odoo đang giới hạn request (rate limit). Vui lòng đợi ~2 phút rồi thử lại.",
+            code: "ODOO_RATE_LIMIT",
+            retryAfter: 120,
+        });
+    }
+
+    return res.status(500).json({
+        success: false,
+        error: error.message,
     });
+}
+
+async function enrichWithProductCompany(records) {
+    try {
+        const productIds = records.map((record) => getOdooMany2OneId(record.product_id));
+        const companyByProduct = await fetchProductCompanyMap(productIds);
+
+        return records.map((record) => {
+            const productId = getOdooMany2OneId(record.product_id);
+            const company = companyByProduct.get(productId) || {
+                product_company_id: null,
+                product_company_name: "",
+            };
+
+            return {
+                ...record,
+                product_company_id: company.product_company_id,
+                product_company_name: company.product_company_name,
+            };
+        });
+    } catch (error) {
+        // Company enrichment is secondary — don't fail the whole stock payload on Odoo 429
+        console.warn(
+            "[Odoo] product company enrichment failed, returning records without company fields:",
+            error.message
+        );
+        return records.map((record) => ({
+            ...record,
+            product_company_id: record.product_company_id ?? null,
+            product_company_name: record.product_company_name ?? "",
+        }));
+    }
 }
 
 /**
@@ -375,17 +423,14 @@ app.get("/api/stock", cacheMiddleware(300), async (req, res) => {
             count: data.length,
         });
     } catch (error) {
-        console.error("Error fetching stock data:", error.message);
+        // Send alert for hard failures (skip rate-limit noise)
+        if (!isOdooRateLimitError(error)) {
+            alertApiError("/api/stock", error.message).catch(err => {
+                console.error("Failed to send alert:", err.message);
+            });
+        }
 
-        // Send alert for API errors
-        alertApiError("/api/stock", error.message).catch(err => {
-            console.error("Failed to send alert:", err.message);
-        });
-
-        res.status(500).json({
-            success: false,
-            error: error.message,
-        });
+        await respondWithOdooError(req, res, error, "Error fetching stock data:");
     }
 });
 
@@ -485,11 +530,7 @@ app.get("/api/incoming", cacheMiddleware(300), async (req, res) => {
             count: incomingData.length,
         });
     } catch (error) {
-        console.error("Error fetching incoming data:", error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-        });
+        await respondWithOdooError(req, res, error, "Error fetching incoming data:");
     }
 });
 
@@ -659,11 +700,7 @@ app.get("/api/discontinued-products", cacheMiddleware(300), async (req, res) => 
             count: productIds.length,
         });
     } catch (error) {
-        console.error("Error fetching discontinued products:", error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-        });
+        await respondWithOdooError(req, res, error, "Error fetching discontinued products:");
     }
 });
 
@@ -852,6 +889,7 @@ app.get("/api/archived-products-with-stock", async (req, res) => {
 // ============================================
 app.use('/api/auth', authRoutes);
 app.use('/api/stocktake', stocktakeRoutes);
+app.use('/api/arte', arteRoutes);
 
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
@@ -906,6 +944,7 @@ app.get("/api/health", async (req, res) => {
             database: ODOO_CONFIG.database,
             userId: ODOO_CONFIG.userId,
             hasApiKey: !!ODOO_CONFIG.apiKey,
+            arteConfigured: arteService.isConfigured(),
         },
 
     });
@@ -919,6 +958,7 @@ const server = app.listen(PORT, () => {
     console.log(`🧵 Fabric Products API: http://localhost:${PORT}/api/fabric-products`);
     console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth/login`);
     console.log(`🧾 Stocktake API: http://localhost:${PORT}/api/stocktake/sessions`);
+    console.log(`🏛️  ARTE API: http://localhost:${PORT}/api/arte/batches`);
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log(`🗄️  Redis Cache: ${redis.getStatus().enabled ? 'Enabled' : 'Disabled'}`);
     console.log(`🐘 Database: PostgreSQL`);

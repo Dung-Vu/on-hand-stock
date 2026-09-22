@@ -1,9 +1,16 @@
 # Dependencies
 node_modules/
 server/node_modules/
+mobile/node_modules/
+mobile/android/
+mobile/ios/
+
+# Mobile app (not used by web frontend image)
+mobile/
 
 # Build output
 dist/
+mobile/android/app/build/
 
 # Environment files
 .env
