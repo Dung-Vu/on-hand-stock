@@ -526,17 +526,20 @@ export class ArteService {
    * Fetch initial stock page and discover Livewire update URI, CSRF token, and stock form component snapshot.
    */
   async _getInitialStockPageState() {
-    await this._ensureAuthenticated();
-
+    // This protected-page request is itself the session check. Previously we called
+    // _ensureAuthenticated() first, which fetched and parsed the same page and then
+    // immediately discarded it, doubling the warm-path latency.
     const pageRes = await fetchWithCookies(this.fetchFn, this.cookieJar, this.stockPageUrl, {
       method: 'GET',
       timeoutMs: this.timeoutMs,
-      followRedirects: true,
+      followRedirects: false,
     });
 
     const html = await pageRes.text();
+    const redirectedToLogin = [301, 302, 303, 307, 308].includes(pageRes.status)
+      && pageRes.headers.get('location')?.includes('login');
 
-    if (this._isLoginPage(html)) {
+    if (redirectedToLogin || this._isLoginPage(html)) {
       // Session expired, reauth once
       await this._ensureAuthenticated(true);
       const retryRes = await fetchWithCookies(this.fetchFn, this.cookieJar, this.stockPageUrl, {

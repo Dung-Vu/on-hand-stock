@@ -237,6 +237,33 @@ test('ArteService parses initial Livewire state, token, and discovered update UR
   assert.ok(state.snapshot.includes('comp-stock-form'));
 });
 
+test('ArteService warm initial-state lookup fetches the protected stock page only once', async () => {
+  let stockPageRequests = 0;
+  const mockFetch = createMockFetch({
+    custom: async (url) => {
+      if (url.includes('/check-our-stock')) {
+        stockPageRequests++;
+        return new Response(FIXTURE_STOCK_PAGE_INITIAL, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        });
+      }
+      return null;
+    },
+  });
+
+  const service = new ArteService({
+    email: 'test@example.com',
+    password: 'secure-password',
+    fetchFn: mockFetch,
+    cookieJar: new CookieJar(),
+  });
+
+  const state = await service._getInitialStockPageState();
+  assert.equal(stockPageRequests, 1);
+  assert.equal(JSON.parse(state.snapshot).memo.id, 'comp-stock-form');
+});
+
 test('ArteService selects exact stock form component among multiple wire components and never selects first component', async () => {
   const service = new ArteService({
     email: 'test@example.com',

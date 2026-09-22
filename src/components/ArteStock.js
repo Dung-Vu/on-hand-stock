@@ -452,6 +452,8 @@ export default function ArteStock({ onToast }) {
                         amount: currentAmount,
                     });
                     checkResult = res;
+                    currentProductName = res.productName || currentProductName;
+                    currentImageUrl = res.imageUrl || currentImageUrl;
                     isCheckingStock = false;
                     render();
                 } catch (err) {
