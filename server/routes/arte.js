@@ -76,7 +76,7 @@ router.get('/batches', batchesLimiter, async (req, res) => {
 
 /**
  * POST /api/arte/check
- * Public endpoint to check stock availability for a reference, batch, and amount.
+ * Public endpoint to check stock availability for a reference, optional batch, and amount.
  */
 router.post('/check', checkLimiter, async (req, res) => {
   const { reference: rawReference, batch: rawBatch, amount: rawAmount } = req.body || {};
@@ -90,8 +90,8 @@ router.post('/check', checkLimiter, async (req, res) => {
     });
   }
 
-  const batch = validateBatch(rawBatch);
-  if (!batch) {
+  const batch = rawBatch === undefined || rawBatch === null || rawBatch === '' ? '' : validateBatch(rawBatch);
+  if (batch === null) {
     return res.status(400).json({
       success: false,
       error: 'Lô hàng không hợp lệ (chỉ chấp nhận chữ cái, số, dấu chấm, gạch ngang, gạch dưới, gạch chéo, tối đa 60 ký tự)',

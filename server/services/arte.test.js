@@ -431,6 +431,26 @@ test('ArteService chains snapshots code -> batch -> amount strictly and fresh pe
   assert.ok(payload3.components[0].snapshot.includes('after_batch'));
 });
 
+test('No batch checks the whole reference without sending a batch update', async () => {
+  const mockFetch = createMockFetch({ amountHtml: FIXTURE_EFFECTS_AMOUNT_AVAILABLE });
+  const service = new ArteService({
+    email: 'test@example.com',
+    password: 'secure-password',
+    fetchFn: mockFetch,
+    cookieJar: new CookieJar(),
+  });
+
+  const result = await service.checkStock('60741', '', 2);
+  assert.equal(result.available, true);
+  assert.equal(result.batch, '');
+  const updateCalls = mockFetch.calls.filter((c) => c.url.includes('/_livewire/livewire-dff0deec/update'));
+  assert.equal(updateCalls.length, 2);
+  const [code, amount] = updateCalls.map((c) => JSON.parse(c.options.body).components[0]);
+  assert.deepEqual(code.updates, { code: '60741' });
+  assert.deepEqual(amount.updates, { amount: 2 });
+  assert.ok(amount.snapshot.includes('after_code'));
+});
+
 test('Two concurrent cold checkStock calls complete without deadlock within short timeout', async () => {
   const mockFetch = createMockFetch();
   const service = new ArteService({

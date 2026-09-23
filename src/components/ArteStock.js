@@ -3,7 +3,7 @@ import { fetchArteBatches, checkArteStock } from '../services/arteApi.js';
 
 /**
  * ARTE Stock Check View Component
- * Vertical flow: Reference -> Batch -> Amount -> Availability Result
+ * Vertical flow: Reference -> optional Batch -> Amount -> Availability Result
  * Safe DOM rendering: All dynamic values are rendered via textContent (no innerHTML interpolation).
  */
 export default function ArteStock({ onToast }) {
@@ -174,9 +174,6 @@ export default function ArteStock({ onToast }) {
                 batchesList = data.batches || [];
                 currentProductName = data.productName || '';
                 currentImageUrl = data.imageUrl || '';
-                if (batchesList.length > 0) {
-                    selectedBatch = batchesList[0];
-                }
                 isLoadingBatches = false;
                 render();
             } catch (err) {
@@ -259,6 +256,9 @@ export default function ArteStock({ onToast }) {
                 font-family: inherit;
                 cursor: pointer;
             `;
+            const defaultOption = createElement('option', { value: '' });
+            defaultOption.textContent = 'Select (không chọn lô - kiểm tra toàn bộ)';
+            batchSelect.appendChild(defaultOption);
             batchesList.forEach((b) => {
                 const opt = createElement('option', { value: b });
                 opt.textContent = `Lô ${b}`;
@@ -323,7 +323,7 @@ export default function ArteStock({ onToast }) {
                 type: 'button',
                 'aria-label': 'Kiểm tra tồn kho',
             });
-            submitBtn.disabled = isCheckingStock || !selectedBatch || currentAmount <= 0;
+            submitBtn.disabled = isCheckingStock || currentAmount <= 0;
             submitBtn.style.cssText = `
                 width: 100%;
                 height: 44px;
@@ -358,7 +358,7 @@ export default function ArteStock({ onToast }) {
 
             const handleCheckStock = async () => {
                 const amountFromInput = Number(amountInput.value);
-                if (!selectedBatch || !Number.isFinite(amountFromInput) || amountFromInput <= 0 || amountFromInput > 100000) {
+                if (!Number.isFinite(amountFromInput) || amountFromInput <= 0 || amountFromInput > 100000) {
                     errorMessage = 'Vui lòng nhập số lượng lớn hơn 0 và không vượt quá 100.000';
                     render();
                     return;
@@ -484,7 +484,7 @@ export default function ArteStock({ onToast }) {
             const batchLbl = createElement('span', { style: 'color:#6b7280;' });
             batchLbl.textContent = 'Lô hàng: ';
             const batchVal = createElement('strong', { style: 'color:#111827;' });
-            batchVal.textContent = checkResult.batch;
+            batchVal.textContent = checkResult.batch || 'Toàn bộ (không chọn lô)';
             batchCol.appendChild(batchLbl);
             batchCol.appendChild(batchVal);
             detailsGrid.appendChild(batchCol);

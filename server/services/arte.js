@@ -931,8 +931,8 @@ export class ArteService {
   }
 
   /**
-   * Check stock availability for reference, batch, and amount.
-   * Runs a complete fresh Livewire chain per check (code -> batch -> amount) in one queued job.
+   * Check stock availability for reference, optional batch, and amount.
+   * Runs a fresh Livewire chain (code -> optional batch -> amount) in one queued job.
    * Does NOT enqueue recursively and does NOT share mutable Livewire snapshots.
    */
   async checkStock(rawReference, rawBatch, rawAmount, options = {}) {
@@ -940,8 +940,8 @@ export class ArteService {
     if (!reference) {
       throw new ArteError('Mã sản phẩm không hợp lệ', 'INVALID_REFERENCE', 400);
     }
-    const batch = validateBatch(rawBatch);
-    if (!batch) {
+    const batch = rawBatch === undefined || rawBatch === null || rawBatch === '' ? '' : validateBatch(rawBatch);
+    if (batch === null) {
       throw new ArteError('Lô hàng không hợp lệ', 'INVALID_BATCH', 400);
     }
     const amount = validateAmount(rawAmount);
@@ -975,9 +975,9 @@ export class ArteService {
           { code: reference }
         );
 
-        // Validate batch exists in returned batches
+        // Validate a selected batch against the current reference.
         const codeParsed = this._extractBatchesAndProduct(codeRes.html, reference);
-        if (!codeParsed.batches.includes(batch)) {
+        if (batch && !codeParsed.batches.includes(batch)) {
           throw new ArteError(
             `Lô hàng không hợp lệ cho mã sản phẩm đã chọn`,
             'INVALID_BATCH',
@@ -985,15 +985,15 @@ export class ArteService {
           );
         }
 
-        // Step 2: Update batch with code snapshot
-        const batchRes = await this._postLivewireUpdate(
+        // Keep the upstream batch unselected for a whole-reference check.
+        // Only update it when a specific batch is requested.
+        const batchRes = batch ? await this._postLivewireUpdate(
           initial.updateUrl,
           initial.token,
           codeRes.snapshot,
           { batch }
-        );
+        ) : codeRes;
 
-        // Step 3: Update amount with batch snapshot
         const amountRes = await this._postLivewireUpdate(
           initial.updateUrl,
           initial.token,
