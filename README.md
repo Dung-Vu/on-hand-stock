@@ -10,7 +10,6 @@ Web app quản lý tồn kho và kiểm kho cho Bonario.
 | API      | Express, PostgreSQL, JWT     |
 | Realtime | WebSocket                    |
 | Cache    | Redis tùy chọn               |
-| Mobile   | React Native trong `mobile/` |
 
 ## Chức năng
 
