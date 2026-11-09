@@ -25,16 +25,16 @@ export const toasts = signal([]);
 
 // Cache statistics
 export const cacheStats = signal({
-    size: 0,
-    hits: 0,
-    misses: 0
+  size: 0,
+  hits: 0,
+  misses: 0,
 });
 
 // Export progress
 export const exportProgress = signal({
-    active: false,
-    progress: 0,
-    type: null
+  active: false,
+  progress: 0,
+  type: null,
 });
 
 // ============================================
@@ -42,89 +42,89 @@ export const exportProgress = signal({
 // ============================================
 
 export function setLoading(value) {
-    isLoading.value = value;
+  isLoading.value = value;
 }
 
 export function setWsConnected(connected) {
-    wsConnected.value = connected;
+  wsConnected.value = connected;
 }
 
 export function openModal(modalId, data = null) {
-    activeModal.value = { id: modalId, data };
+  activeModal.value = { id: modalId, data };
 }
 
 export function closeModal() {
-    activeModal.value = null;
+  activeModal.value = null;
 }
 
 export function toggleSidebar() {
-    sidebarOpen.value = !sidebarOpen.value;
+  sidebarOpen.value = !sidebarOpen.value;
 }
 
 export function setSidebarOpen(open) {
-    sidebarOpen.value = open;
+  sidebarOpen.value = open;
 }
 
 export function addToast(toast) {
-    const newToasts = [...toasts.value];
-    const id = Date.now() + Math.random();
+  const newToasts = [...toasts.value];
+  const id = Date.now() + Math.random();
 
-    newToasts.push({
-        id,
-        message: toast.message,
-        type: toast.type || 'info',
-        duration: toast.duration || 3000,
-        timestamp: Date.now()
-    });
+  newToasts.push({
+    id,
+    message: toast.message,
+    type: toast.type || 'info',
+    duration: toast.duration || 3000,
+    timestamp: Date.now(),
+  });
 
-    toasts.value = newToasts;
+  toasts.value = newToasts;
 
-    // Auto remove after duration
-    setTimeout(() => {
-        removeToast(id);
-    }, toast.duration || 3000);
+  // Auto remove after duration
+  setTimeout(() => {
+    removeToast(id);
+  }, toast.duration || 3000);
 
-    return id;
+  return id;
 }
 
 export function removeToast(id) {
-    toasts.value = toasts.value.filter(t => t.id !== id);
+  toasts.value = toasts.value.filter(t => t.id !== id);
 }
 
 export function clearToasts() {
-    toasts.value = [];
+  toasts.value = [];
 }
 
 export function setCacheStats(stats) {
-    cacheStats.value = stats;
+  cacheStats.value = stats;
 }
 
 export function setExportProgress(progress) {
-    exportProgress.value = progress;
+  exportProgress.value = progress;
 }
 
 export function startExport(type) {
-    exportProgress.value = {
-        active: true,
-        progress: 0,
-        type
-    };
+  exportProgress.value = {
+    active: true,
+    progress: 0,
+    type,
+  };
 }
 
 export function updateExportProgress(progress) {
-    const current = exportProgress.value;
-    exportProgress.value = {
-        ...current,
-        progress
-    };
+  const current = exportProgress.value;
+  exportProgress.value = {
+    ...current,
+    progress,
+  };
 }
 
 export function completeExport() {
-    exportProgress.value = {
-        active: false,
-        progress: 100,
-        type: null
-    };
+  exportProgress.value = {
+    active: false,
+    progress: 100,
+    type: null,
+  };
 }
 
 // ============================================
@@ -133,35 +133,35 @@ export function completeExport() {
 
 // Is any modal open
 export const isModalOpen = computed(() => {
-    return activeModal.value !== null;
+  return activeModal.value !== null;
 });
 
 // Has active toasts
 export const hasToasts = computed(() => {
-    return toasts.value.length > 0;
+  return toasts.value.length > 0;
 });
 
 // Cache hit rate
 export const cacheHitRate = computed(() => {
-    const stats = cacheStats.value;
-    const total = stats.hits + stats.misses;
+  const stats = cacheStats.value;
+  const total = stats.hits + stats.misses;
 
-    if (total === 0) return 0;
+  if (total === 0) return 0;
 
-    return Math.round((stats.hits / total) * 100);
+  return Math.round((stats.hits / total) * 100);
 });
 
 // Is exporting
 export const isExporting = computed(() => {
-    return exportProgress.value.active;
+  return exportProgress.value.active;
 });
 
 // Export status text
 export const exportStatusText = computed(() => {
-    const { active, progress, type } = exportProgress.value;
+  const { active, progress, type } = exportProgress.value;
 
-    if (!active) return null;
+  if (!active) return null;
 
-    const typeLabel = type === 'excel' ? 'Excel' : 'PDF';
-    return `Exporting ${typeLabel}... ${progress}%`;
+  const typeLabel = type === 'excel' ? 'Excel' : 'PDF';
+  return `Exporting ${typeLabel}... ${progress}%`;
 });

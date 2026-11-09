@@ -14,43 +14,43 @@
  * @returns {Promise} - Result of the function
  */
 export async function retryWithBackoff(fn, options = {}) {
-    const {
-        maxRetries = 3,
-        baseDelay = 1000,
-        maxDelay = 10000,
-        onRetry = null,
-        shouldRetry = () => true
-    } = options;
+  const {
+    maxRetries = 3,
+    baseDelay = 1000,
+    maxDelay = 10000,
+    onRetry = null,
+    shouldRetry = () => true,
+  } = options;
 
-    let lastError;
+  let lastError;
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            return await fn();
-        } catch (error) {
-            lastError = error;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
 
-            // Check if we should retry
-            if (attempt >= maxRetries || !shouldRetry(error)) {
-                throw error;
-            }
+      // Check if we should retry
+      if (attempt >= maxRetries || !shouldRetry(error)) {
+        throw error;
+      }
 
-            // Calculate delay with exponential backoff + jitter
-            const exponentialDelay = baseDelay * Math.pow(2, attempt);
-            const jitter = Math.random() * 0.3 * exponentialDelay; // 0-30% jitter
-            const delay = Math.min(exponentialDelay + jitter, maxDelay);
+      // Calculate delay with exponential backoff + jitter
+      const exponentialDelay = baseDelay * Math.pow(2, attempt);
+      const jitter = Math.random() * 0.3 * exponentialDelay; // 0-30% jitter
+      const delay = Math.min(exponentialDelay + jitter, maxDelay);
 
-            // Call onRetry callback if provided
-            if (onRetry) {
-                onRetry(attempt + 1, error, delay);
-            }
+      // Call onRetry callback if provided
+      if (onRetry) {
+        onRetry(attempt + 1, error, delay);
+      }
 
-            // Wait before next attempt
-            await sleep(delay);
-        }
+      // Wait before next attempt
+      await sleep(delay);
     }
+  }
 
-    throw lastError;
+  throw lastError;
 }
 
 /**
@@ -59,7 +59,7 @@ export async function retryWithBackoff(fn, options = {}) {
  * @returns {Promise}
  */
 export function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -68,38 +68,38 @@ export function sleep(ms) {
  * @returns {boolean}
  */
 export function isRetryableError(error) {
-    const message = String(error?.message || "");
+  const message = String(error?.message || '');
 
-    // Never retry Odoo / API rate limits — retries make 429 worse
-    if (
-        message.includes("status: 429") ||
-        /rate limit|ODOO_RATE_LIMIT|unusually high number of requests/i.test(message)
-    ) {
-        return false;
-    }
+  // Never retry Odoo / API rate limits — retries make 429 worse
+  if (
+    message.includes('status: 429') ||
+    /rate limit|ODOO_RATE_LIMIT|unusually high number of requests/i.test(message)
+  ) {
+    return false;
+  }
 
-    // Network errors
-    if (
-        message.includes("Failed to fetch") ||
-        message.includes("NetworkError") ||
-        message.includes("ETIMEDOUT") ||
-        message.includes("ECONNREFUSED") ||
-        message.includes("ECONNRESET")
-    ) {
-        return true;
-    }
-
-    // HTTP 5xx errors (server errors) — but not 429 wrapped as message body only (handled above)
-    if (message.includes("status: 5")) {
-        return true;
-    }
-
-    // Don't retry other 4xx errors (client errors)
-    if (message.includes("status: 4")) {
-        return false;
-    }
-
+  // Network errors
+  if (
+    message.includes('Failed to fetch') ||
+    message.includes('NetworkError') ||
+    message.includes('ETIMEDOUT') ||
+    message.includes('ECONNREFUSED') ||
+    message.includes('ECONNRESET')
+  ) {
     return true;
+  }
+
+  // HTTP 5xx errors (server errors) — but not 429 wrapped as message body only (handled above)
+  if (message.includes('status: 5')) {
+    return true;
+  }
+
+  // Don't retry other 4xx errors (client errors)
+  if (message.includes('status: 4')) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -110,18 +110,18 @@ export function isRetryableError(error) {
  * @returns {Promise<Response>}
  */
 export async function fetchWithRetry(url, options = {}, retryOptions = {}) {
-    return retryWithBackoff(
-        async () => {
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-            return response;
-        },
-        {
-            shouldRetry: isRetryableError,
-            ...retryOptions
-        }
-    );
+  return retryWithBackoff(
+    async () => {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+      return response;
+    },
+    {
+      shouldRetry: isRetryableError,
+      ...retryOptions,
+    }
+  );
 }

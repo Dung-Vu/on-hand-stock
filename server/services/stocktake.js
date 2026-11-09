@@ -14,24 +14,24 @@ import { query, getClient } from '../db/index.js';
  * @returns {Promise<Object>} Created session
  */
 export async function createSession({ month, warehouse, createdBy }) {
-    try {
-        const result = await query(
-            `INSERT INTO stocktake_sessions (month, warehouse, created_by, status)
+  try {
+    const result = await query(
+      `INSERT INTO stocktake_sessions (month, warehouse, created_by, status)
              VALUES ($1, $2, $3, 'draft')
              ON CONFLICT (month, warehouse) DO NOTHING
              RETURNING *`,
-            [month, warehouse, createdBy]
-        );
+      [month, warehouse, createdBy]
+    );
 
-        if (result.rows[0]) {
-            return result.rows[0];
-        }
-
-        return getSessionByMonthWarehouse(month, warehouse);
-    } catch (error) {
-        console.error('[Stocktake] Create session error:', error.message);
-        throw error;
+    if (result.rows[0]) {
+      return result.rows[0];
     }
+
+    return getSessionByMonthWarehouse(month, warehouse);
+  } catch (error) {
+    console.error('[Stocktake] Create session error:', error.message);
+    throw error;
+  }
 }
 
 /**
@@ -40,8 +40,8 @@ export async function createSession({ month, warehouse, createdBy }) {
  * @returns {Promise<Object|null>}
  */
 export async function getSessionById(sessionId) {
-    const result = await query(
-        `SELECT s.*, 
+  const result = await query(
+    `SELECT s.*, 
                 u.username as created_by_username,
                 l.username as locked_by_username,
                 c.username as completed_by_username
@@ -50,10 +50,10 @@ export async function getSessionById(sessionId) {
          LEFT JOIN users l ON s.locked_by = l.id
          LEFT JOIN users c ON s.completed_by = c.id
          WHERE s.id = $1`,
-        [sessionId]
-    );
+    [sessionId]
+  );
 
-    return result.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 /**
@@ -63,8 +63,8 @@ export async function getSessionById(sessionId) {
  * @returns {Promise<Object|null>}
  */
 export async function getSessionByMonthWarehouse(month, warehouse) {
-    const result = await query(
-        `SELECT s.*, 
+  const result = await query(
+    `SELECT s.*, 
                 u.username as created_by_username,
                 l.username as locked_by_username,
                 c.username as completed_by_username
@@ -73,10 +73,10 @@ export async function getSessionByMonthWarehouse(month, warehouse) {
          LEFT JOIN users l ON s.locked_by = l.id
          LEFT JOIN users c ON s.completed_by = c.id
          WHERE s.month = $1 AND s.warehouse = $2`,
-        [month, warehouse]
-    );
+    [month, warehouse]
+  );
 
-    return result.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 /**
@@ -90,29 +90,29 @@ export async function getSessionByMonthWarehouse(month, warehouse) {
  * @returns {Promise<Array>}
  */
 export async function listSessions(filters = {}) {
-    const conditions = [];
-    const values = [];
-    let paramIndex = 1;
+  const conditions = [];
+  const values = [];
+  let paramIndex = 1;
 
-    if (filters.month) {
-        conditions.push(`s.month = $${paramIndex++}`);
-        values.push(filters.month);
-    }
+  if (filters.month) {
+    conditions.push(`s.month = $${paramIndex++}`);
+    values.push(filters.month);
+  }
 
-    if (filters.warehouse) {
-        conditions.push(`s.warehouse = $${paramIndex++}`);
-        values.push(filters.warehouse);
-    }
+  if (filters.warehouse) {
+    conditions.push(`s.warehouse = $${paramIndex++}`);
+    values.push(filters.warehouse);
+  }
 
-    if (filters.status) {
-        conditions.push(`s.status = $${paramIndex++}`);
-        values.push(filters.status);
-    }
+  if (filters.status) {
+    conditions.push(`s.status = $${paramIndex++}`);
+    values.push(filters.status);
+  }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const result = await query(
-        `SELECT s.*, 
+  const result = await query(
+    `SELECT s.*, 
                 u.username as created_by_username,
                 l.username as locked_by_username,
                 c.username as completed_by_username
@@ -123,10 +123,10 @@ export async function listSessions(filters = {}) {
          ${whereClause}
          ORDER BY s.month DESC, s.warehouse ASC
          LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-        [...values, filters.limit || 100, filters.offset || 0]
-    );
+    [...values, filters.limit || 100, filters.offset || 0]
+  );
 
-    return result.rows;
+  return result.rows;
 }
 
 /**
@@ -135,16 +135,16 @@ export async function listSessions(filters = {}) {
  * @returns {Promise<Array>}
  */
 export async function getSessionLines(sessionId) {
-    const result = await query(
-        `SELECT sl.*, u.username as counted_by_username
+  const result = await query(
+    `SELECT sl.*, u.username as counted_by_username
          FROM stocktake_lines sl
          LEFT JOIN users u ON sl.counted_by = u.id
          WHERE sl.session_id = $1
          ORDER BY sl.product_name ASC`,
-        [sessionId]
-    );
+    [sessionId]
+  );
 
-    return result.rows;
+  return result.rows;
 }
 
 /**
@@ -159,32 +159,40 @@ export async function getSessionLines(sessionId) {
  * @param {number} data.countedBy - User ID who counted
  * @returns {Promise<Object>} Created/updated line
  */
-export async function upsertLine({ sessionId, productId, productName, systemQty, countedQty, note, countedBy }) {
-    try {
-        const result = await query(
-            `INSERT INTO stocktake_lines (session_id, product_id, product_name, system_qty, counted_qty, note, counted_by)
+export async function upsertLine({
+  sessionId,
+  productId,
+  productName,
+  systemQty,
+  countedQty,
+  note,
+  countedBy,
+}) {
+  try {
+    const result = await query(
+      `INSERT INTO stocktake_lines (session_id, product_id, product_name, system_qty, counted_qty, note, counted_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              ON CONFLICT (session_id, product_id) DO UPDATE
                  SET product_name = $3, system_qty = $4,
                  counted_qty = $5, note = COALESCE($6, stocktake_lines.note),
                  counted_by = $7, counted_at = NOW(), updated_at = NOW()
              RETURNING *`,
-            [sessionId, productId, productName, systemQty, countedQty, note, countedBy]
-        );
+      [sessionId, productId, productName, systemQty, countedQty, note, countedBy]
+    );
 
-        // Update session status to in_progress if it's draft
-        await query(
-            `UPDATE stocktake_sessions 
+    // Update session status to in_progress if it's draft
+    await query(
+      `UPDATE stocktake_sessions 
              SET status = 'in_progress', updated_at = NOW() 
              WHERE id = $1 AND status = 'draft'`,
-            [sessionId]
-        );
+      [sessionId]
+    );
 
-        return result.rows[0];
-    } catch (error) {
-        console.error('[Stocktake] Upsert line error:', error.message);
-        throw error;
-    }
+    return result.rows[0];
+  } catch (error) {
+    console.error('[Stocktake] Upsert line error:', error.message);
+    throw error;
+  }
 }
 
 /**
@@ -195,44 +203,52 @@ export async function upsertLine({ sessionId, productId, productName, systemQty,
  * @returns {Promise<Array>}
  */
 export async function bulkUpsertLines(sessionId, lines, countedBy) {
-    const client = await getClient();
-    
-    try {
-        await client.query('BEGIN');
+  const client = await getClient();
 
-        const results = [];
-        
-        for (const line of lines) {
-            const result = await client.query(
-                `INSERT INTO stocktake_lines (session_id, product_id, product_name, system_qty, counted_qty, note, counted_by)
+  try {
+    await client.query('BEGIN');
+
+    const results = [];
+
+    for (const line of lines) {
+      const result = await client.query(
+        `INSERT INTO stocktake_lines (session_id, product_id, product_name, system_qty, counted_qty, note, counted_by)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT (session_id, product_id) DO UPDATE
                  SET product_name = $3, system_qty = $4,
                      counted_qty = $5, note = COALESCE($6, stocktake_lines.note),
                      counted_by = $7, counted_at = NOW(), updated_at = NOW()
                  RETURNING *`,
-                [sessionId, line.productId, line.productName, line.systemQty, line.countedQty, line.note, countedBy]
-            );
-            results.push(result.rows[0]);
-        }
+        [
+          sessionId,
+          line.productId,
+          line.productName,
+          line.systemQty,
+          line.countedQty,
+          line.note,
+          countedBy,
+        ]
+      );
+      results.push(result.rows[0]);
+    }
 
-        // Update session status to in_progress if it's draft
-        await client.query(
-            `UPDATE stocktake_sessions 
+    // Update session status to in_progress if it's draft
+    await client.query(
+      `UPDATE stocktake_sessions 
              SET status = 'in_progress', updated_at = NOW() 
              WHERE id = $1 AND status = 'draft'`,
-            [sessionId]
-        );
+      [sessionId]
+    );
 
-        await client.query('COMMIT');
-        return results;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('[Stocktake] Bulk upsert error:', error.message);
-        throw error;
-    } finally {
-        client.release();
-    }
+    await client.query('COMMIT');
+    return results;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[Stocktake] Bulk upsert error:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -242,15 +258,15 @@ export async function bulkUpsertLines(sessionId, lines, countedBy) {
  * @returns {Promise<Object>} Updated session
  */
 export async function lockSession(sessionId, lockedBy) {
-    const result = await query(
-        `UPDATE stocktake_sessions 
+  const result = await query(
+    `UPDATE stocktake_sessions 
          SET status = 'locked', locked_at = NOW(), locked_by = $1, updated_at = NOW()
          WHERE id = $2 AND status IN ('draft', 'in_progress')
          RETURNING *`,
-        [lockedBy, sessionId]
-    );
+    [lockedBy, sessionId]
+  );
 
-    return result.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 /**
@@ -259,15 +275,15 @@ export async function lockSession(sessionId, lockedBy) {
  * @returns {Promise<Object>} Updated session
  */
 export async function unlockSession(sessionId) {
-    const result = await query(
-        `UPDATE stocktake_sessions 
+  const result = await query(
+    `UPDATE stocktake_sessions 
          SET status = 'in_progress', locked_at = NULL, locked_by = NULL, updated_at = NOW()
          WHERE id = $1 AND status = 'locked'
          RETURNING *`,
-        [sessionId]
-    );
+    [sessionId]
+  );
 
-    return result.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 /**
@@ -277,15 +293,15 @@ export async function unlockSession(sessionId) {
  * @returns {Promise<Object>} Updated session
  */
 export async function completeSession(sessionId, completedBy) {
-    const result = await query(
-        `UPDATE stocktake_sessions 
+  const result = await query(
+    `UPDATE stocktake_sessions 
          SET status = 'completed', completed_at = NOW(), completed_by = $1, updated_at = NOW()
          WHERE id = $2 AND status != 'completed'
          RETURNING *`,
-        [completedBy, sessionId]
-    );
+    [completedBy, sessionId]
+  );
 
-    return result.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 /**
@@ -294,12 +310,11 @@ export async function completeSession(sessionId, completedBy) {
  * @returns {Promise<boolean>}
  */
 export async function deleteSession(sessionId) {
-    const result = await query(
-        `DELETE FROM stocktake_sessions WHERE id = $1 RETURNING id`,
-        [sessionId]
-    );
+  const result = await query(`DELETE FROM stocktake_sessions WHERE id = $1 RETURNING id`, [
+    sessionId,
+  ]);
 
-    return result.rows.length > 0;
+  return result.rows.length > 0;
 }
 
 /**
@@ -308,8 +323,8 @@ export async function deleteSession(sessionId) {
  * @returns {Promise<Object>}
  */
 export async function getSessionStats(sessionId) {
-    const result = await query(
-        `SELECT 
+  const result = await query(
+    `SELECT 
             COUNT(*) as total_products,
             COUNT(CASE WHEN counted_qty IS NOT NULL THEN 1 END) as counted_products,
             COUNT(CASE WHEN counted_qty IS NULL THEN 1 END) as pending_products,
@@ -319,23 +334,23 @@ export async function getSessionStats(sessionId) {
             COUNT(CASE WHEN counted_qty != system_qty AND counted_qty IS NOT NULL THEN 1 END) as variance_products
          FROM stocktake_lines
          WHERE session_id = $1`,
-        [sessionId]
-    );
+    [sessionId]
+  );
 
-    return result.rows[0];
+  return result.rows[0];
 }
 
 export default {
-    createSession,
-    getSessionById,
-    getSessionByMonthWarehouse,
-    listSessions,
-    getSessionLines,
-    upsertLine,
-    bulkUpsertLines,
-    lockSession,
-    unlockSession,
-    completeSession,
-    deleteSession,
-    getSessionStats,
+  createSession,
+  getSessionById,
+  getSessionByMonthWarehouse,
+  listSessions,
+  getSessionLines,
+  upsertLine,
+  bulkUpsertLines,
+  lockSession,
+  unlockSession,
+  completeSession,
+  deleteSession,
+  getSessionStats,
 };

@@ -8,11 +8,11 @@ import { auth } from '../services/apiClient.js';
 // Inject animation styles only once
 let _stylesInjected = false;
 function injectStyles() {
-    if (_stylesInjected) return;
-    _stylesInjected = true;
-    const style = document.createElement('style');
-    style.id = 'login-styles';
-    style.textContent = `
+  if (_stylesInjected) return;
+  _stylesInjected = true;
+  const style = document.createElement('style');
+  style.id = 'login-styles';
+  style.textContent = `
         @keyframes loginCardAppear {
             from { opacity: 0; transform: translateY(20px) scale(0.97); }
             to   { opacity: 1; transform: translateY(0)   scale(1);    }
@@ -137,21 +137,21 @@ function injectStyles() {
             text-transform: uppercase;
         }
     `;
-    document.head.appendChild(style);
+  document.head.appendChild(style);
 }
 
 export default function Login({ onLoginSuccess, onToast, onClose }) {
-    injectStyles();
+  injectStyles();
 
-    // ── Outer wrapper (takes full space of parent overlay)
-    const container = createElement('div', {
-        class: 'w-full flex items-center justify-center p-4',
-    });
-    container.style.minHeight = '100%';
+  // ── Outer wrapper (takes full space of parent overlay)
+  const container = createElement('div', {
+    class: 'w-full flex items-center justify-center p-4',
+  });
+  container.style.minHeight = '100%';
 
-    // ── Card
-    const card = createElement('div', { class: 'login-card' });
-    card.style.cssText = `
+  // ── Card
+  const card = createElement('div', { class: 'login-card' });
+  card.style.cssText = `
         position: relative;
         width: 100%;
         max-width: 380px;
@@ -162,16 +162,20 @@ export default function Login({ onLoginSuccess, onToast, onClose }) {
         border: 1.5px solid #e8ddd4;
     `;
 
-    // ── Close button
-    const closeBtn = createElement('button', { class: 'login-close-btn', title: 'Đóng (ESC)' });
-    closeBtn.innerHTML = '&times;';
-    closeBtn.addEventListener('click', (e) => { e.stopPropagation(); cleanup(); onClose?.(); });
-    card.appendChild(closeBtn);
+  // ── Close button
+  const closeBtn = createElement('button', { class: 'login-close-btn', title: 'Đóng (ESC)' });
+  closeBtn.innerHTML = '&times;';
+  closeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    cleanup();
+    onClose?.();
+  });
+  card.appendChild(closeBtn);
 
-    // ── Logo / Icon area
-    const logoArea = createElement('div', {});
-    logoArea.style.cssText = 'text-align: center; margin-bottom: 24px;';
-    logoArea.innerHTML = `
+  // ── Logo / Icon area
+  const logoArea = createElement('div', {});
+  logoArea.style.cssText = 'text-align: center; margin-bottom: 24px;';
+  logoArea.innerHTML = `
         <div style="
             width: 60px; height: 60px;
             border-radius: 16px;
@@ -185,188 +189,198 @@ export default function Login({ onLoginSuccess, onToast, onClose }) {
         <h1 style="font-size: 22px; font-weight: 800; color: #2a231f; margin: 0 0 4px 0; letter-spacing: -0.3px;">Bonario Stock</h1>
         <p style="font-size: 13px; color: #9d8875; margin: 0;">Đăng nhập để quản lý kho hàng</p>
     `;
-    card.appendChild(logoArea);
+  card.appendChild(logoArea);
 
-    // ── Form
-    const form = createElement('form', {});
-    form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+  // ── Form
+  const form = createElement('form', {});
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
 
-    // Username field
-    const usernameGroup = createElement('div', {});
-    const usernameLabel = createElement('label', { for: 'login-username', class: 'login-label' });
-    usernameLabel.textContent = 'Tên đăng nhập';
-    const usernameWrap = createElement('div', {});
-    usernameWrap.style.position = 'relative';
-    const usernameIconSpan = createElement('span', {});
-    usernameIconSpan.style.cssText = `
+  // Username field
+  const usernameGroup = createElement('div', {});
+  const usernameLabel = createElement('label', { for: 'login-username', class: 'login-label' });
+  usernameLabel.textContent = 'Tên đăng nhập';
+  const usernameWrap = createElement('div', {});
+  usernameWrap.style.position = 'relative';
+  const usernameIconSpan = createElement('span', {});
+  usernameIconSpan.style.cssText = `
         position: absolute; left: 12px; top: 50%;
         transform: translateY(-50%);
         font-size: 16px; pointer-events: none; line-height: 1;
     `;
-    usernameIconSpan.textContent = '👤';
-    const usernameInput = createElement('input', {
-        type: 'text',
-        id: 'login-username',
-        name: 'username',
-        required: 'true',
-        placeholder: 'Nhập tên đăng nhập',
-        autocomplete: 'username',
-        class: 'login-input',
-    });
-    usernameInput.style.paddingLeft = '42px';
-    usernameWrap.appendChild(usernameIconSpan);
-    usernameWrap.appendChild(usernameInput);
-    usernameGroup.appendChild(usernameLabel);
-    usernameGroup.appendChild(usernameWrap);
-    form.appendChild(usernameGroup);
+  usernameIconSpan.textContent = '👤';
+  const usernameInput = createElement('input', {
+    type: 'text',
+    id: 'login-username',
+    name: 'username',
+    required: 'true',
+    placeholder: 'Nhập tên đăng nhập',
+    autocomplete: 'username',
+    class: 'login-input',
+  });
+  usernameInput.style.paddingLeft = '42px';
+  usernameWrap.appendChild(usernameIconSpan);
+  usernameWrap.appendChild(usernameInput);
+  usernameGroup.appendChild(usernameLabel);
+  usernameGroup.appendChild(usernameWrap);
+  form.appendChild(usernameGroup);
 
-    // Password field
-    const passwordGroup = createElement('div', {});
-    const passwordLabel = createElement('label', { for: 'login-password', class: 'login-label' });
-    passwordLabel.textContent = 'Mật khẩu';
-    const passwordWrap = createElement('div', {});
-    passwordWrap.style.position = 'relative';
-    const passwordIconSpan = createElement('span', {});
-    passwordIconSpan.style.cssText = `
+  // Password field
+  const passwordGroup = createElement('div', {});
+  const passwordLabel = createElement('label', { for: 'login-password', class: 'login-label' });
+  passwordLabel.textContent = 'Mật khẩu';
+  const passwordWrap = createElement('div', {});
+  passwordWrap.style.position = 'relative';
+  const passwordIconSpan = createElement('span', {});
+  passwordIconSpan.style.cssText = `
         position: absolute; left: 12px; top: 50%;
         transform: translateY(-50%);
         font-size: 16px; pointer-events: none; line-height: 1;
     `;
-    passwordIconSpan.textContent = '🔒';
-    const passwordInput = createElement('input', {
-        type: 'password',
-        id: 'login-password',
-        name: 'password',
-        required: 'true',
-        placeholder: '••••••••',
-        autocomplete: 'current-password',
-        class: 'login-input',
-    });
-    passwordInput.style.paddingLeft = '42px';
+  passwordIconSpan.textContent = '🔒';
+  const passwordInput = createElement('input', {
+    type: 'password',
+    id: 'login-password',
+    name: 'password',
+    required: 'true',
+    placeholder: '••••••••',
+    autocomplete: 'current-password',
+    class: 'login-input',
+  });
+  passwordInput.style.paddingLeft = '42px';
 
-    // Toggle show/hide password
-    const togglePwBtn = createElement('button', { type: 'button', class: 'login-toggle-pw', title: 'Hiện/Ẩn mật khẩu' });
-    togglePwBtn.textContent = '👁';
-    let pwVisible = false;
-    togglePwBtn.addEventListener('click', () => {
-        pwVisible = !pwVisible;
-        passwordInput.type = pwVisible ? 'text' : 'password';
-        togglePwBtn.textContent = pwVisible ? '🙈' : '👁';
-    });
+  // Toggle show/hide password
+  const togglePwBtn = createElement('button', {
+    type: 'button',
+    class: 'login-toggle-pw',
+    title: 'Hiện/Ẩn mật khẩu',
+  });
+  togglePwBtn.textContent = '👁';
+  let pwVisible = false;
+  togglePwBtn.addEventListener('click', () => {
+    pwVisible = !pwVisible;
+    passwordInput.type = pwVisible ? 'text' : 'password';
+    togglePwBtn.textContent = pwVisible ? '🙈' : '👁';
+  });
 
-    passwordWrap.appendChild(passwordIconSpan);
-    passwordWrap.appendChild(passwordInput);
-    passwordWrap.appendChild(togglePwBtn);
-    passwordGroup.appendChild(passwordLabel);
-    passwordGroup.appendChild(passwordWrap);
-    form.appendChild(passwordGroup);
+  passwordWrap.appendChild(passwordIconSpan);
+  passwordWrap.appendChild(passwordInput);
+  passwordWrap.appendChild(togglePwBtn);
+  passwordGroup.appendChild(passwordLabel);
+  passwordGroup.appendChild(passwordWrap);
+  form.appendChild(passwordGroup);
 
-    // Error message (hidden by default)
-    const errorDiv = createElement('div', { class: 'login-error-msg' });
+  // Error message (hidden by default)
+  const errorDiv = createElement('div', { class: 'login-error-msg' });
+  errorDiv.style.display = 'none';
+  errorDiv.innerHTML = '<span>⚠️</span><span class="login-error-text"></span>';
+  form.appendChild(errorDiv);
+
+  // Submit button
+  const submitBtn = createElement('button', { type: 'submit', class: 'login-btn' });
+  submitBtn.style.marginTop = '4px';
+  submitBtn.textContent = 'Đăng Nhập';
+  form.appendChild(submitBtn);
+
+  card.appendChild(form);
+
+  // ── Footer hint
+  const footer = createElement('div', {});
+  footer.style.cssText = 'text-align: center; margin-top: 20px;';
+  footer.innerHTML = `<p style="font-size: 11px; color: #b89d7a; margin: 0;">Nhấn <kbd style="background:#f5f1ea;border:1px solid #d4c4b0;border-radius:4px;padding:1px 5px;font-size:10px;">ESC</kbd> để đóng</p>`;
+  card.appendChild(footer);
+
+  container.appendChild(card);
+
+  // ── Helper: show error
+  function showError(msg) {
+    const textEl = errorDiv.querySelector('.login-error-text');
+    if (textEl) textEl.textContent = msg;
+    errorDiv.style.display = 'flex';
+    usernameInput.classList.add('error');
+    passwordInput.classList.add('error');
+    // Shake animation
+    card.classList.remove('shake');
+    void card.offsetWidth; // reflow
+    card.classList.add('shake');
+    card.addEventListener('animationend', () => card.classList.remove('shake'), { once: true });
+  }
+
+  function hideError() {
     errorDiv.style.display = 'none';
-    errorDiv.innerHTML = '<span>⚠️</span><span class="login-error-text"></span>';
-    form.appendChild(errorDiv);
+    usernameInput.classList.remove('error');
+    passwordInput.classList.remove('error');
+  }
 
-    // Submit button
-    const submitBtn = createElement('button', { type: 'submit', class: 'login-btn' });
-    submitBtn.style.marginTop = '4px';
-    submitBtn.textContent = 'Đăng Nhập';
-    form.appendChild(submitBtn);
+  // Clear error on typing
+  usernameInput.addEventListener('input', hideError);
+  passwordInput.addEventListener('input', hideError);
 
-    card.appendChild(form);
+  // ── Form submit
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
 
-    // ── Footer hint
-    const footer = createElement('div', {});
-    footer.style.cssText = 'text-align: center; margin-top: 20px;';
-    footer.innerHTML = `<p style="font-size: 11px; color: #b89d7a; margin: 0;">Nhấn <kbd style="background:#f5f1ea;border:1px solid #d4c4b0;border-radius:4px;padding:1px 5px;font-size:10px;">ESC</kbd> để đóng</p>`;
-    card.appendChild(footer);
-
-    container.appendChild(card);
-
-    // ── Helper: show error
-    function showError(msg) {
-        const textEl = errorDiv.querySelector('.login-error-text');
-        if (textEl) textEl.textContent = msg;
-        errorDiv.style.display = 'flex';
-        usernameInput.classList.add('error');
-        passwordInput.classList.add('error');
-        // Shake animation
-        card.classList.remove('shake');
-        void card.offsetWidth; // reflow
-        card.classList.add('shake');
-        card.addEventListener('animationend', () => card.classList.remove('shake'), { once: true });
+    if (!username) {
+      showError('Vui lòng nhập tên đăng nhập');
+      usernameInput.focus();
+      return;
+    }
+    if (!password) {
+      showError('Vui lòng nhập mật khẩu');
+      passwordInput.focus();
+      return;
     }
 
-    function hideError() {
-        errorDiv.style.display = 'none';
-        usernameInput.classList.remove('error');
-        passwordInput.classList.remove('error');
+    hideError();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Đang xử lý…';
+
+    try {
+      const result = await auth.login(username, password);
+      if (result.success) {
+        cleanup();
+        onToast?.(`Chào mừng ${result.data.username}! 👋`, 'success', 2500);
+        onLoginSuccess?.(result.data);
+      } else {
+        throw new Error(result.error || 'Đăng nhập thất bại');
+      }
+    } catch (error) {
+      const msg = error.message || 'Sai tên đăng nhập hoặc mật khẩu';
+      showError(msg);
+      onToast?.(msg, 'error', 3000);
+      passwordInput.value = '';
+      passwordInput.focus();
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Đăng Nhập';
     }
+  });
 
-    // Clear error on typing
-    usernameInput.addEventListener('input', hideError);
-    passwordInput.addEventListener('input', hideError);
-
-    // ── Form submit
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = usernameInput.value.trim();
-        const password = passwordInput.value;
-
-        if (!username) {
-            showError('Vui lòng nhập tên đăng nhập');
-            usernameInput.focus();
-            return;
-        }
-        if (!password) {
-            showError('Vui lòng nhập mật khẩu');
-            passwordInput.focus();
-            return;
-        }
-
-        hideError();
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Đang xử lý…';
-
-        try {
-            const result = await auth.login(username, password);
-            if (result.success) {
-                cleanup();
-                onToast?.(`Chào mừng ${result.data.username}! 👋`, 'success', 2500);
-                onLoginSuccess?.(result.data);
-            } else {
-                throw new Error(result.error || 'Đăng nhập thất bại');
-            }
-        } catch (error) {
-            const msg = error.message || 'Sai tên đăng nhập hoặc mật khẩu';
-            showError(msg);
-            onToast?.(msg, 'error', 3000);
-            passwordInput.value = '';
-            passwordInput.focus();
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Đăng Nhập';
-        }
-    });
-
-    // ── ESC key handler
-    function handleEsc(e) {
-        if (e.key === 'Escape') { cleanup(); onClose?.(); }
+  // ── ESC key handler
+  function handleEsc(e) {
+    if (e.key === 'Escape') {
+      cleanup();
+      onClose?.();
     }
-    document.addEventListener('keydown', handleEsc);
+  }
+  document.addEventListener('keydown', handleEsc);
 
-    // ── Click outside card to close
-    container.addEventListener('click', (e) => {
-        if (e.target === container) { cleanup(); onClose?.(); }
-    });
-
-    // ── Cleanup: remove listeners
-    function cleanup() {
-        document.removeEventListener('keydown', handleEsc);
+  // ── Click outside card to close
+  container.addEventListener('click', e => {
+    if (e.target === container) {
+      cleanup();
+      onClose?.();
     }
+  });
 
-    // ── Auto-focus username on next tick
-    requestAnimationFrame(() => usernameInput.focus());
+  // ── Cleanup: remove listeners
+  function cleanup() {
+    document.removeEventListener('keydown', handleEsc);
+  }
 
-    return container;
+  // ── Auto-focus username on next tick
+  requestAnimationFrame(() => usernameInput.focus());
+
+  return container;
 }

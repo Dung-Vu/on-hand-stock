@@ -30,16 +30,16 @@ const cache = new Map();
  * @returns {any|null} - Cached data or null
  */
 function getFromCache(key) {
-    const entry = cache.get(key);
-    if (!entry) return null;
+  const entry = cache.get(key);
+  if (!entry) return null;
 
-    const now = Date.now();
-    if (now - entry.timestamp > CACHE_TTL) {
-        cache.delete(key);
-        return null;
-    }
+  const now = Date.now();
+  if (now - entry.timestamp > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
 
-    return entry.data;
+  return entry.data;
 }
 
 /**
@@ -48,11 +48,11 @@ function getFromCache(key) {
  * @param {any} data - Data to cache
  */
 function setCache(key, data) {
-    cache.set(key, {
-        data,
-        timestamp: Date.now(),
-        key
-    });
+  cache.set(key, {
+    data,
+    timestamp: Date.now(),
+    key,
+  });
 }
 
 /**
@@ -60,11 +60,11 @@ function setCache(key, data) {
  * @param {string|null} key - Cache key or null to clear all
  */
 export function clearCache(key = null) {
-    if (key) {
-        cache.delete(key);
-    } else {
-        cache.clear();
-    }
+  if (key) {
+    cache.delete(key);
+  } else {
+    cache.clear();
+  }
 }
 
 /**
@@ -72,24 +72,24 @@ export function clearCache(key = null) {
  * @returns {Object} - Cache statistics
  */
 export function getCacheStats() {
-    const now = Date.now();
-    let validEntries = 0;
-    let expiredEntries = 0;
+  const now = Date.now();
+  let validEntries = 0;
+  let expiredEntries = 0;
 
-    cache.forEach((entry) => {
-        if (now - entry.timestamp <= CACHE_TTL) {
-            validEntries++;
-        } else {
-            expiredEntries++;
-        }
-    });
+  cache.forEach(entry => {
+    if (now - entry.timestamp <= CACHE_TTL) {
+      validEntries++;
+    } else {
+      expiredEntries++;
+    }
+  });
 
-    return {
-        totalEntries: cache.size,
-        validEntries,
-        expiredEntries,
-        cacheTTL: CACHE_TTL
-    };
+  return {
+    totalEntries: cache.size,
+    validEntries,
+    expiredEntries,
+    cacheTTL: CACHE_TTL,
+  };
 }
 
 // ============================================
@@ -101,7 +101,7 @@ export function getCacheStats() {
  * @returns {Object|null}
  */
 function getConfig() {
-    return typeof window !== "undefined" ? window.ODOO_CONFIG : null;
+  return typeof window !== 'undefined' ? window.ODOO_CONFIG : null;
 }
 
 /**
@@ -109,10 +109,10 @@ function getConfig() {
  * @returns {boolean}
  */
 function isUsingSampleData() {
-    const config = getConfig();
-    // Default to strict REAL API usage if config is missing (Production/Docker)
-    if (!config) return false;
-    return config.useSampleData === true;
+  const config = getConfig();
+  // Default to strict REAL API usage if config is missing (Production/Docker)
+  if (!config) return false;
+  return config.useSampleData === true;
 }
 
 /**
@@ -120,38 +120,38 @@ function isUsingSampleData() {
  * @returns {string}
  */
 function getBaseUrl() {
-    const config = getConfig();
+  const config = getConfig();
 
-    // Auto-detect based on current hostname
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        const protocol = window.location.protocol;
-        const port = window.location.port;
+  // Auto-detect based on current hostname
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const port = window.location.port;
 
-        // If running on tunnel domain (stock.bonstu.site), use relative path
-        // This allows Nginx to proxy API requests, avoiding CORS issues
-        // Nginx is configured to proxy /api/ to backend:4001
-        if (hostname.includes('bonstu.site')) {
-            // Use relative path to avoid CORS - Nginx will proxy to backend
-            return '';
-        }
-
-        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && /^517\d$/.test(port)) {
-            return `${protocol}//${hostname}:4001`;
-        }
+    // If running on tunnel domain (stock.bonstu.site), use relative path
+    // This allows Nginx to proxy API requests, avoiding CORS issues
+    // Nginx is configured to proxy /api/ to backend:4001
+    if (hostname.includes('bonstu.site')) {
+      // Use relative path to avoid CORS - Nginx will proxy to backend
+      return '';
     }
 
-    if (!config || !config.apiEndpoint) {
-        // Default to relative path for Nginx/Proxy (Docker/Main setup)
-        return '';
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && /^517\d$/.test(port)) {
+      return `${protocol}//${hostname}:4001`;
     }
+  }
 
-    // Extract base URL from apiEndpoint
-    if (config.apiEndpoint.includes('/api/')) {
-        return config.apiEndpoint.split('/api/')[0];
-    }
-    // Local dev and Docker use 4001 by default
-    return config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4001';
+  if (!config || !config.apiEndpoint) {
+    // Default to relative path for Nginx/Proxy (Docker/Main setup)
+    return '';
+  }
+
+  // Extract base URL from apiEndpoint
+  if (config.apiEndpoint.includes('/api/')) {
+    return config.apiEndpoint.split('/api/')[0];
+  }
+  // Local dev and Docker use 4001 by default
+  return config.apiEndpoint.split('/xmlrpc')[0] || 'http://localhost:4001';
 }
 
 // ============================================
@@ -159,13 +159,13 @@ function getBaseUrl() {
 // ============================================
 
 const RETRY_OPTIONS = {
-    maxRetries: 2,
-    baseDelay: 1500,
-    maxDelay: 8000,
-    shouldRetry: isRetryableError,
-    onRetry: (attempt, error, delay) => {
-        console.warn(`[API] Retry attempt ${attempt} after ${Math.round(delay)}ms:`, error.message);
-    }
+  maxRetries: 2,
+  baseDelay: 1500,
+  maxDelay: 8000,
+  shouldRetry: isRetryableError,
+  onRetry: (attempt, error, delay) => {
+    console.warn(`[API] Retry attempt ${attempt} after ${Math.round(delay)}ms:`, error.message);
+  },
 };
 
 // ============================================
@@ -179,49 +179,49 @@ const RETRY_OPTIONS = {
  * @returns {Promise<Response>}
  */
 async function signedFetch(url, options = {}) {
-    const method = options.method || 'GET';
-    const startTime = performance.now();
-    let body = null;
+  const method = options.method || 'GET';
+  const startTime = performance.now();
+  let body = null;
 
-    // Parse body if present
-    if (options.body) {
-        try {
-            body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
-        } catch {
-            body = null;
-        }
+  // Parse body if present
+  if (options.body) {
+    try {
+      body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+    } catch {
+      body = null;
     }
+  }
 
-    // Get signature headers if HMAC is supported
-    let signatureHeaders = {};
-    if (isHmacSupported()) {
-        try {
-            signatureHeaders = await signRequest({ method, url, body });
-        } catch (err) {
-            console.warn('[API] Failed to sign request:', err.message);
-        }
+  // Get signature headers if HMAC is supported
+  let signatureHeaders = {};
+  if (isHmacSupported()) {
+    try {
+      signatureHeaders = await signRequest({ method, url, body });
+    } catch (err) {
+      console.warn('[API] Failed to sign request:', err.message);
     }
+  }
 
-    // Merge headers
-    const headers = {
-        ...options.headers,
-        ...signatureHeaders
-    };
+  // Merge headers
+  const headers = {
+    ...options.headers,
+    ...signatureHeaders,
+  };
 
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
 
-    const endTime = performance.now();
+  const endTime = performance.now();
 
-    // Add breadcrumb for Sentry tracking
-    addApiCallBreadcrumb(method, url, response.status);
+  // Add breadcrumb for Sentry tracking
+  addApiCallBreadcrumb(method, url, response.status);
 
-    // Track API response time
-    trackApiResponse(url, method, startTime, endTime, response.status);
+  // Track API response time
+  trackApiResponse(url, method, startTime, endTime, response.status);
 
-    return response;
+  return response;
 }
 
 // ============================================
@@ -236,97 +236,99 @@ async function signedFetch(url, options = {}) {
  * @returns {Promise<Array>} - Stock data
  */
 export async function fetchStock({ useCache = true, forceRefresh = false } = {}) {
-    const cacheKey = 'stock_data';
+  const cacheKey = 'stock_data';
 
-    // Check cache first
-    if (useCache && !forceRefresh) {
-        const cached = getFromCache(cacheKey);
-        if (cached) {
-            console.log('[API] Using cached stock data');
-            return cached;
-        }
+  // Check cache first
+  if (useCache && !forceRefresh) {
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      console.log('[API] Using cached stock data');
+      return cached;
     }
+  }
 
-    // If using sample data, return sample
-    if (isUsingSampleData()) {
-        const { SAMPLE_DATA } = await import('../store/sampleData.js').catch(() => ({ SAMPLE_DATA: [] }));
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-        return SAMPLE_DATA || [];
-    }
+  // If using sample data, return sample
+  if (isUsingSampleData()) {
+    const { SAMPLE_DATA } = await import('../store/sampleData.js').catch(() => ({
+      SAMPLE_DATA: [],
+    }));
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+    return SAMPLE_DATA || [];
+  }
 
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/stock${forceRefresh ? '?noCache=true' : ''}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/stock${forceRefresh ? '?noCache=true' : ''}`;
 
-    // Wrap API call with circuit breaker
-    const fetchWithCircuitBreaker = withCircuitBreaker(
-        async () => {
-            const data = await retryWithBackoff(async () => {
-                const response = await signedFetch(url, {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-                }
-
-                const result = await response.json();
-
-                if (!result.success) {
-                    throw new Error(result.error || "API call failed");
-                }
-
-                return result.data || [];
-            }, RETRY_OPTIONS);
-
-            // Cache the data
-            if (useCache) {
-                setCache(cacheKey, data);
-            }
-
-            return data;
-        },
-        {
-            breaker: defaultCircuitBreaker,
-            fallback: async () => {
-                // Try to return stale cache data on circuit open
-                const staleEntry = cache.get(cacheKey);
-                if (staleEntry) {
-                    console.warn('[API] Circuit breaker open, returning stale cache data');
-                    return staleEntry.data;
-                }
-
-                // Return empty array as last resort
-                console.warn('[API] Circuit breaker open, no cache available');
-                return [];
-            }
-        }
-    );
-
-    try {
-        return await fetchWithCircuitBreaker();
-    } catch (error) {
-        // Track error in Sentry
-        captureError(error, {
-            tags: { api: 'stock', endpoint: url },
-            extra: { cacheKey, useCache, forceRefresh }
+  // Wrap API call with circuit breaker
+  const fetchWithCircuitBreaker = withCircuitBreaker(
+    async () => {
+      const data = await retryWithBackoff(async () => {
+        const response = await signedFetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
 
-        // Provide helpful error message for network errors
-        if (
-            error.message.includes("Failed to fetch") ||
-            error.message.includes("CORS") ||
-            error.message.includes("NetworkError")
-        ) {
-            throw new Error(
-                "Không thể kết nối đến server. Vui lòng kiểm tra backend đã chạy chưa (pnpm start trong folder server)."
-            );
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
-        throw error;
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'API call failed');
+        }
+
+        return result.data || [];
+      }, RETRY_OPTIONS);
+
+      // Cache the data
+      if (useCache) {
+        setCache(cacheKey, data);
+      }
+
+      return data;
+    },
+    {
+      breaker: defaultCircuitBreaker,
+      fallback: async () => {
+        // Try to return stale cache data on circuit open
+        const staleEntry = cache.get(cacheKey);
+        if (staleEntry) {
+          console.warn('[API] Circuit breaker open, returning stale cache data');
+          return staleEntry.data;
+        }
+
+        // Return empty array as last resort
+        console.warn('[API] Circuit breaker open, no cache available');
+        return [];
+      },
     }
+  );
+
+  try {
+    return await fetchWithCircuitBreaker();
+  } catch (error) {
+    // Track error in Sentry
+    captureError(error, {
+      tags: { api: 'stock', endpoint: url },
+      extra: { cacheKey, useCache, forceRefresh },
+    });
+
+    // Provide helpful error message for network errors
+    if (
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('CORS') ||
+      error.message.includes('NetworkError')
+    ) {
+      throw new Error(
+        'Không thể kết nối đến server. Vui lòng kiểm tra backend đã chạy chưa (pnpm start trong folder server).'
+      );
+    }
+    throw error;
+  }
 }
 
 /**
@@ -337,81 +339,81 @@ export async function fetchStock({ useCache = true, forceRefresh = false } = {})
  * @returns {Promise<Array>} - Incoming data
  */
 export async function fetchIncoming({ useCache = true, forceRefresh = false } = {}) {
-    const cacheKey = 'incoming_data';
+  const cacheKey = 'incoming_data';
 
-    // Check cache first
-    if (useCache && !forceRefresh) {
-        const cached = getFromCache(cacheKey);
-        if (cached) {
-            console.log('[API] Using cached incoming data');
-            return cached;
-        }
+  // Check cache first
+  if (useCache && !forceRefresh) {
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      console.log('[API] Using cached incoming data');
+      return cached;
     }
+  }
 
-    // If using sample data, return empty
-    if (isUsingSampleData()) {
-        return [];
-    }
+  // If using sample data, return empty
+  if (isUsingSampleData()) {
+    return [];
+  }
 
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/incoming${forceRefresh ? '?noCache=true' : ''}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/incoming${forceRefresh ? '?noCache=true' : ''}`;
 
-    // Wrap API call with circuit breaker
-    const fetchWithCircuitBreaker = withCircuitBreaker(
-        async () => {
-            const data = await retryWithBackoff(async () => {
-                const response = await signedFetch(url, {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
+  // Wrap API call with circuit breaker
+  const fetchWithCircuitBreaker = withCircuitBreaker(
+    async () => {
+      const data = await retryWithBackoff(async () => {
+        const response = await signedFetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-                }
-
-                const result = await response.json();
-
-                if (!result.success) {
-                    throw new Error(result.error || "API call failed");
-                }
-
-                return result.data || [];
-            }, RETRY_OPTIONS);
-
-            // Cache the data
-            if (useCache) {
-                setCache(cacheKey, data);
-            }
-
-            return data;
-        },
-        {
-            breaker: defaultCircuitBreaker,
-            fallback: async () => {
-                // Try to return stale cache data on circuit open
-                const staleEntry = cache.get(cacheKey);
-                if (staleEntry) {
-                    console.warn('[API] Circuit breaker open, returning stale incoming cache data');
-                    return staleEntry.data;
-                }
-
-                // Return empty array for incoming (optional endpoint)
-                console.warn('[API] Circuit breaker open, no incoming cache available');
-                return [];
-            }
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
-    );
 
-    try {
-        return await fetchWithCircuitBreaker();
-    } catch (error) {
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'API call failed');
+        }
+
+        return result.data || [];
+      }, RETRY_OPTIONS);
+
+      // Cache the data
+      if (useCache) {
+        setCache(cacheKey, data);
+      }
+
+      return data;
+    },
+    {
+      breaker: defaultCircuitBreaker,
+      fallback: async () => {
+        // Try to return stale cache data on circuit open
+        const staleEntry = cache.get(cacheKey);
+        if (staleEntry) {
+          console.warn('[API] Circuit breaker open, returning stale incoming cache data');
+          return staleEntry.data;
+        }
+
         // Return empty array for incoming (optional endpoint)
-        console.warn('[API] Could not fetch incoming data:', error.message);
+        console.warn('[API] Circuit breaker open, no incoming cache available');
         return [];
+      },
     }
+  );
+
+  try {
+    return await fetchWithCircuitBreaker();
+  } catch (error) {
+    // Return empty array for incoming (optional endpoint)
+    console.warn('[API] Could not fetch incoming data:', error.message);
+    return [];
+  }
 }
 
 /**
@@ -422,66 +424,66 @@ export async function fetchIncoming({ useCache = true, forceRefresh = false } = 
  * @returns {Promise<Array>} - Fabric products
  */
 export async function fetchFabricProducts({ useCache = true, forceRefresh = false } = {}) {
-    const cacheKey = 'fabric_products';
+  const cacheKey = 'fabric_products';
 
-    // Check cache first
-    if (useCache && !forceRefresh) {
-        const cached = getFromCache(cacheKey);
-        if (cached) {
-            console.log('[API] Using cached fabric products');
-            return cached;
-        }
+  // Check cache first
+  if (useCache && !forceRefresh) {
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      console.log('[API] Using cached fabric products');
+      return cached;
+    }
+  }
+
+  // If using sample data, return empty
+  if (isUsingSampleData()) {
+    return [];
+  }
+
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/fabric-products`;
+
+  try {
+    const data = await retryWithBackoff(async () => {
+      const response = await signedFetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'API call failed');
+      }
+
+      return result.data || [];
+    }, RETRY_OPTIONS);
+
+    // Cache the data
+    if (useCache) {
+      setCache(cacheKey, data);
     }
 
-    // If using sample data, return empty
-    if (isUsingSampleData()) {
-        return [];
+    return data;
+  } catch (error) {
+    // Try to return stale cache data on error (graceful degradation)
+    const staleEntry = cache.get(cacheKey);
+    if (staleEntry) {
+      console.warn('[API] Returning stale fabric products cache due to error:', error.message);
+      return staleEntry.data;
     }
 
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/fabric-products`;
-
-    try {
-        const data = await retryWithBackoff(async () => {
-            const response = await signedFetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || "API call failed");
-            }
-
-            return result.data || [];
-        }, RETRY_OPTIONS);
-
-        // Cache the data
-        if (useCache) {
-            setCache(cacheKey, data);
-        }
-
-        return data;
-    } catch (error) {
-        // Try to return stale cache data on error (graceful degradation)
-        const staleEntry = cache.get(cacheKey);
-        if (staleEntry) {
-            console.warn('[API] Returning stale fabric products cache due to error:', error.message);
-            return staleEntry.data;
-        }
-
-        // Return empty array for fabric products (optional endpoint)
-        console.warn('[API] Could not fetch fabric products:', error.message);
-        return [];
-    }
+    // Return empty array for fabric products (optional endpoint)
+    console.warn('[API] Could not fetch fabric products:', error.message);
+    return [];
+  }
 }
 
 /**
@@ -492,59 +494,59 @@ export async function fetchFabricProducts({ useCache = true, forceRefresh = fals
  * @returns {Promise<Set<number>>} - Set of discontinued product IDs
  */
 export async function fetchDiscontinuedProducts({ useCache = true, forceRefresh = false } = {}) {
-    const cacheKey = 'discontinued_products';
+  const cacheKey = 'discontinued_products';
 
-    // Check cache first
-    if (useCache && !forceRefresh) {
-        const cached = getFromCache(cacheKey);
-        if (cached) {
-            console.log('[API] Using cached discontinued products');
-            return cached;
-        }
+  // Check cache first
+  if (useCache && !forceRefresh) {
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      console.log('[API] Using cached discontinued products');
+      return cached;
+    }
+  }
+
+  // If using sample data, return empty set
+  if (isUsingSampleData()) {
+    return new Set();
+  }
+
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/discontinued-products${forceRefresh ? '?noCache=true' : ''}`;
+
+  try {
+    const data = await retryWithBackoff(async () => {
+      const response = await signedFetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'API call failed');
+      }
+
+      return new Set(result.data || []);
+    }, RETRY_OPTIONS);
+
+    // Cache the data
+    if (useCache) {
+      setCache(cacheKey, data);
     }
 
-    // If using sample data, return empty set
-    if (isUsingSampleData()) {
-        return new Set();
-    }
-
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/discontinued-products${forceRefresh ? '?noCache=true' : ''}`;
-
-    try {
-        const data = await retryWithBackoff(async () => {
-            const response = await signedFetch(url, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || "API call failed");
-            }
-
-            return new Set(result.data || []);
-        }, RETRY_OPTIONS);
-
-        // Cache the data
-        if (useCache) {
-            setCache(cacheKey, data);
-        }
-
-        return data;
-    } catch (error) {
-        // Return empty set for discontinued products (optional endpoint)
-        console.warn('[API] Could not fetch discontinued products:', error.message);
-        return new Set();
-    }
+    return data;
+  } catch (error) {
+    // Return empty set for discontinued products (optional endpoint)
+    console.warn('[API] Could not fetch discontinued products:', error.message);
+    return new Set();
+  }
 }
 
 /**
@@ -555,13 +557,13 @@ export async function fetchDiscontinuedProducts({ useCache = true, forceRefresh 
  * @returns {Promise<{stock: Array, incoming: Array, fabricProducts: Array}>}
  */
 export async function fetchAllData({ useCache = true, forceRefresh = false } = {}) {
-    const [stock, incoming, fabricProducts] = await Promise.all([
-        fetchStock({ useCache, forceRefresh }),
-        fetchIncoming({ useCache, forceRefresh }),
-        fetchFabricProducts({ useCache, forceRefresh })
-    ]);
+  const [stock, incoming, fabricProducts] = await Promise.all([
+    fetchStock({ useCache, forceRefresh }),
+    fetchIncoming({ useCache, forceRefresh }),
+    fetchFabricProducts({ useCache, forceRefresh }),
+  ]);
 
-    return { stock, incoming, fabricProducts };
+  return { stock, incoming, fabricProducts };
 }
 
 // ============================================
@@ -577,7 +579,7 @@ const loadedWarehouses = new Set();
  * @returns {boolean}
  */
 export function isWarehouseLoaded(warehouseName) {
-    return loadedWarehouses.has(warehouseName);
+  return loadedWarehouses.has(warehouseName);
 }
 
 /**
@@ -585,14 +587,14 @@ export function isWarehouseLoaded(warehouseName) {
  * @param {string} warehouseName - Warehouse name
  */
 export function markWarehouseLoaded(warehouseName) {
-    loadedWarehouses.add(warehouseName);
+  loadedWarehouses.add(warehouseName);
 }
 
 /**
  * Clear loaded warehouses tracking
  */
 export function clearLoadedWarehouses() {
-    loadedWarehouses.clear();
+  loadedWarehouses.clear();
 }
 
 /**
@@ -600,7 +602,7 @@ export function clearLoadedWarehouses() {
  * @returns {Set<string>}
  */
 export function getLoadedWarehouses() {
-    return new Set(loadedWarehouses);
+  return new Set(loadedWarehouses);
 }
 
 // ============================================
@@ -608,15 +610,15 @@ export function getLoadedWarehouses() {
 // ============================================
 
 export default {
-    fetchStock,
-    fetchIncoming,
-    fetchFabricProducts,
-    fetchDiscontinuedProducts,
-    fetchAllData,
-    clearCache,
-    getCacheStats,
-    isWarehouseLoaded,
-    markWarehouseLoaded,
-    clearLoadedWarehouses,
-    getLoadedWarehouses
+  fetchStock,
+  fetchIncoming,
+  fetchFabricProducts,
+  fetchDiscontinuedProducts,
+  fetchAllData,
+  clearCache,
+  getCacheStats,
+  isWarehouseLoaded,
+  markWarehouseLoaded,
+  clearLoadedWarehouses,
+  getLoadedWarehouses,
 };

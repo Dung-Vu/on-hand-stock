@@ -4,13 +4,13 @@ Web app quản lý tồn kho và kiểm kho cho Bonario.
 
 ## Stack
 
-| Phần | Công nghệ |
-| --- | --- |
-| Web | Vite, JavaScript |
-| API | Express, PostgreSQL, JWT |
-| Realtime | WebSocket |
-| Cache | Redis tùy chọn |
-| Mobile | React Native trong `mobile/` |
+| Phần     | Công nghệ                    |
+| -------- | ---------------------------- |
+| Web      | Vite, JavaScript             |
+| API      | Express, PostgreSQL, JWT     |
+| Realtime | WebSocket                    |
+| Cache    | Redis tùy chọn               |
+| Mobile   | React Native trong `mobile/` |
 
 ## Chức năng
 
@@ -52,13 +52,13 @@ docker-compose up -d --build
 
 ## Ports
 
-| Dịch vụ | URL |
-| --- | --- |
-| Frontend dev | `http://localhost:5178` |
-| Backend API | `http://localhost:4001` |
-| WebSocket | `ws://localhost:4001/ws` |
-| Docker frontend | `http://localhost:8080` |
-| Health check | `http://localhost:4001/api/health` |
+| Dịch vụ         | URL                                |
+| --------------- | ---------------------------------- |
+| Frontend dev    | `http://localhost:5178`            |
+| Backend API     | `http://localhost:4001`            |
+| WebSocket       | `ws://localhost:4001/ws`           |
+| Docker frontend | `http://localhost:8080`            |
+| Health check    | `http://localhost:4001/api/health` |
 
 ## Tài liệu
 
@@ -77,6 +77,6 @@ pnpm audit --audit-level high
 
 ## Không commit
 
-- `.env`, `server/.env`, token, password, private key.
+- `.env`, `server/.env`, token, password, private key, file backup `.env*.bak*`.
 - `credentials.json` và credentials Cloudflare.
-- `node_modules/`, `dist/`, `.venv/`, log, file tạm.
+- `node_modules/`, `dist/`, `.venv/`, log, file tạm, file Excel export `ORDST_*.xlsx`.

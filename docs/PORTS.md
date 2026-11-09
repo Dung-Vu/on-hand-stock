@@ -1,12 +1,12 @@
 # Ports
 
-| Thành phần | Port/path |
-| --- | --- |
-| Frontend dev | `5178` |
-| Backend API | `4001` |
-| WebSocket | `4001/ws` |
-| Docker frontend | `8080` |
-| PostgreSQL | `5432` |
+| Thành phần      | Port/path |
+| --------------- | --------- |
+| Frontend dev    | `5178`    |
+| Backend API     | `4001`    |
+| WebSocket       | `4001/ws` |
+| Docker frontend | `8080`    |
+| PostgreSQL      | `5432`    |
 
 ## Kiểm tra
 

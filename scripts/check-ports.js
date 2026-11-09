@@ -23,30 +23,30 @@ async function checkPort(port) {
 
 async function checkAllPorts() {
   console.log('🔍 Checking port availability...\n');
-  
+
   const results = [];
-  
+
   for (const port of COMMON_PORTS) {
     const inUse = await checkPort(port);
     results.push({ port, inUse });
-    
+
     const status = inUse ? '❌ IN USE' : '✅ AVAILABLE';
     console.log(`Port ${port.toString().padEnd(5)}: ${status}`);
   }
-  
+
   console.log('\n📊 Summary:');
   const availablePorts = results.filter(r => !r.inUse).map(r => r.port);
   const usedPorts = results.filter(r => r.inUse).map(r => r.port);
-  
+
   if (availablePorts.length > 0) {
     console.log(`\n✅ Available ports: ${availablePorts.join(', ')}`);
     console.log(`💡 Recommended: Use port ${availablePorts[0]}`);
   }
-  
+
   if (usedPorts.length > 0) {
     console.log(`\n❌ Ports in use: ${usedPorts.join(', ')}`);
   }
-  
+
   return availablePorts;
 }
 

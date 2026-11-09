@@ -23,25 +23,26 @@ const clients = new Set();
  * @param {WebSocket|null} exclude - Client to exclude from broadcast
  */
 export function broadcast(message, exclude = null) {
-    const data = JSON.stringify(message);
-    let successCount = 0;
-    let failCount = 0;
+  const data = JSON.stringify(message);
+  let successCount = 0;
+  let failCount = 0;
 
-    clients.forEach((client) => {
-        if (client !== exclude && client.readyState === 1) { // 1 = OPEN
-            try {
-                client.send(data);
-                successCount++;
-            } catch (error) {
-                console.error('[WebSocket] Failed to send to client:', error.message);
-                failCount++;
-            }
-        }
-    });
-
-    if (successCount > 0 || failCount > 0) {
-        console.log(`[WebSocket] Broadcast: ${successCount} sent, ${failCount} failed`);
+  clients.forEach(client => {
+    if (client !== exclude && client.readyState === 1) {
+      // 1 = OPEN
+      try {
+        client.send(data);
+        successCount++;
+      } catch (error) {
+        console.error('[WebSocket] Failed to send to client:', error.message);
+        failCount++;
+      }
     }
+  });
+
+  if (successCount > 0 || failCount > 0) {
+    console.log(`[WebSocket] Broadcast: ${successCount} sent, ${failCount} failed`);
+  }
 }
 
 /**
@@ -50,13 +51,13 @@ export function broadcast(message, exclude = null) {
  * @param {Object} message - Message to send
  */
 export function sendToClient(client, message) {
-    if (client.readyState === 1) {
-        try {
-            client.send(JSON.stringify(message));
-        } catch (error) {
-            console.error('[WebSocket] Failed to send to client:', error.message);
-        }
+  if (client.readyState === 1) {
+    try {
+      client.send(JSON.stringify(message));
+    } catch (error) {
+      console.error('[WebSocket] Failed to send to client:', error.message);
     }
+  }
 }
 
 /**
@@ -64,7 +65,7 @@ export function sendToClient(client, message) {
  * @returns {number}
  */
 export function getClientCount() {
-    return clients.size;
+  return clients.size;
 }
 
 // ============================================
@@ -77,35 +78,35 @@ export function getClientCount() {
  * @param {string} data - Message data
  */
 function handleMessage(ws, data) {
-    try {
-        const message = JSON.parse(data);
+  try {
+    const message = JSON.parse(data);
 
-        switch (message.type) {
-            case 'ping':
-                sendToClient(ws, { type: 'pong', timestamp: Date.now() });
-                break;
+    switch (message.type) {
+      case 'ping':
+        sendToClient(ws, { type: 'pong', timestamp: Date.now() });
+        break;
 
-            case 'subscribe':
-                // Client subscribes to specific warehouse updates
-                ws.subscriptions = message.warehouses || [];
-                sendToClient(ws, {
-                    type: 'subscribed',
-                    warehouses: ws.subscriptions,
-                });
-                console.log(`[WebSocket] Client subscribed to: ${ws.subscriptions.join(', ')}`);
-                break;
+      case 'subscribe':
+        // Client subscribes to specific warehouse updates
+        ws.subscriptions = message.warehouses || [];
+        sendToClient(ws, {
+          type: 'subscribed',
+          warehouses: ws.subscriptions,
+        });
+        console.log(`[WebSocket] Client subscribed to: ${ws.subscriptions.join(', ')}`);
+        break;
 
-            case 'unsubscribe':
-                ws.subscriptions = [];
-                sendToClient(ws, { type: 'unsubscribed' });
-                break;
+      case 'unsubscribe':
+        ws.subscriptions = [];
+        sendToClient(ws, { type: 'unsubscribed' });
+        break;
 
-            default:
-                console.warn(`[WebSocket] Unknown message type: ${message.type}`);
-        }
-    } catch (error) {
-        console.error('[WebSocket] Error handling message:', error.message);
+      default:
+        console.warn(`[WebSocket] Unknown message type: ${message.type}`);
     }
+  } catch (error) {
+    console.error('[WebSocket] Error handling message:', error.message);
+  }
 }
 
 // ============================================
@@ -118,46 +119,48 @@ function handleMessage(ws, data) {
  * @param {Object} req - HTTP request
  */
 function handleConnection(ws, req) {
-    // Check if request is for WebSocket path (optional, for logging)
-    const url = req.url || '/';
-    const clientId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
-    console.log(`[WebSocket] Client connected: ${clientId} (path: ${url})`);
+  // Check if request is for WebSocket path (optional, for logging)
+  const url = req.url || '/';
+  const clientId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
+  console.log(`[WebSocket] Client connected: ${clientId} (path: ${url})`);
 
-    // Add to clients set
-    clients.add(ws);
+  // Add to clients set
+  clients.add(ws);
 
-    // Initialize client properties
-    ws.subscriptions = [];
-    ws.clientId = clientId;
+  // Initialize client properties
+  ws.subscriptions = [];
+  ws.clientId = clientId;
 
-    // Send welcome message
-    sendToClient(ws, {
-        type: 'connected',
-        clientId,
-        timestamp: Date.now(),
-        message: 'Connected to Bonario Stock WebSocket Server',
-    });
+  // Send welcome message
+  sendToClient(ws, {
+    type: 'connected',
+    clientId,
+    timestamp: Date.now(),
+    message: 'Connected to Bonario Stock WebSocket Server',
+  });
 
-    // Handle messages
-    ws.on('message', (data) => {
-        handleMessage(ws, data.toString());
-    });
+  // Handle messages
+  ws.on('message', data => {
+    handleMessage(ws, data.toString());
+  });
 
-    // Handle ping/pong for keepalive
-    ws.on('pong', () => {
-        ws.isAlive = true;
-    });
+  // Handle ping/pong for keepalive
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
 
-    // Handle connection close
-    ws.on('close', (code, reason) => {
-        clients.delete(ws);
-        console.log(`[WebSocket] Client disconnected: ${clientId} (code: ${code}, reason: ${reason || 'none'})`);
-    });
+  // Handle connection close
+  ws.on('close', (code, reason) => {
+    clients.delete(ws);
+    console.log(
+      `[WebSocket] Client disconnected: ${clientId} (code: ${code}, reason: ${reason || 'none'})`
+    );
+  });
 
-    // Handle errors
-    ws.on('error', (error) => {
-        console.error(`[WebSocket] Client error (${clientId}):`, error.message);
-    });
+  // Handle errors
+  ws.on('error', error => {
+    console.error(`[WebSocket] Client error (${clientId}):`, error.message);
+  });
 }
 
 // ============================================
@@ -173,71 +176,71 @@ let heartbeatInterval = null;
  * @returns {WebSocketServer}
  */
 export function startWebSocketServer(httpServer = null) {
-    if (wss) {
-        console.warn('[WebSocket] Server already running');
-        return wss;
-    }
-
-    // Create WebSocket server
-    const options = httpServer
-        ? { server: httpServer } // Attach to existing HTTP server
-        : { port: WS_PORT }; // Standalone server
-
-    wss = new WebSocketServer(options);
-
-    wss.on('connection', handleConnection);
-
-    wss.on('error', (error) => {
-        console.error('[WebSocket] Server error:', error.message);
-    });
-
-    // Heartbeat to detect broken connections
-    heartbeatInterval = setInterval(() => {
-        wss.clients.forEach((ws) => {
-            if (ws.isAlive === false) {
-                console.log(`[WebSocket] Terminating inactive client: ${ws.clientId}`);
-                return ws.terminate();
-            }
-
-            ws.isAlive = false;
-            ws.ping();
-        });
-    }, 30000); // Every 30 seconds
-
-    const endpoint = httpServer ? 'ws://localhost:4001/ws' : `ws://localhost:${WS_PORT}`;
-    const port = httpServer ? 'attached to HTTP server' : WS_PORT;
-    console.log(`[WebSocket] Server started on port ${port}`);
-    console.log(`[WebSocket] Clients can connect to: ${endpoint}`);
-
+  if (wss) {
+    console.warn('[WebSocket] Server already running');
     return wss;
+  }
+
+  // Create WebSocket server
+  const options = httpServer
+    ? { server: httpServer } // Attach to existing HTTP server
+    : { port: WS_PORT }; // Standalone server
+
+  wss = new WebSocketServer(options);
+
+  wss.on('connection', handleConnection);
+
+  wss.on('error', error => {
+    console.error('[WebSocket] Server error:', error.message);
+  });
+
+  // Heartbeat to detect broken connections
+  heartbeatInterval = setInterval(() => {
+    wss.clients.forEach(ws => {
+      if (ws.isAlive === false) {
+        console.log(`[WebSocket] Terminating inactive client: ${ws.clientId}`);
+        return ws.terminate();
+      }
+
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000); // Every 30 seconds
+
+  const endpoint = httpServer ? 'ws://localhost:4001/ws' : `ws://localhost:${WS_PORT}`;
+  const port = httpServer ? 'attached to HTTP server' : WS_PORT;
+  console.log(`[WebSocket] Server started on port ${port}`);
+  console.log(`[WebSocket] Clients can connect to: ${endpoint}`);
+
+  return wss;
 }
 
 /**
  * Stop WebSocket server
  */
 export function stopWebSocketServer() {
-    if (!wss) {
-        return;
-    }
+  if (!wss) {
+    return;
+  }
 
-    // Clear heartbeat interval
-    if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
-    }
+  // Clear heartbeat interval
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
 
-    // Close all connections
-    wss.clients.forEach((client) => {
-        client.close(1000, 'Server shutting down');
-    });
+  // Close all connections
+  wss.clients.forEach(client => {
+    client.close(1000, 'Server shutting down');
+  });
 
-    // Close server
-    wss.close(() => {
-        console.log('[WebSocket] Server stopped');
-    });
+  // Close server
+  wss.close(() => {
+    console.log('[WebSocket] Server stopped');
+  });
 
-    wss = null;
-    clients.clear();
+  wss = null;
+  clients.clear();
 }
 
 // ============================================
@@ -249,26 +252,23 @@ export function stopWebSocketServer() {
  * @param {Object} update - Stock update data
  */
 export function broadcastStockUpdate(update) {
-    const message = {
-        type: 'stock_update',
-        data: update,
-        timestamp: Date.now(),
-    };
+  const message = {
+    type: 'stock_update',
+    data: update,
+    timestamp: Date.now(),
+  };
 
-    // If update has warehouse info, only send to subscribed clients
-    if (update.warehouse) {
-        clients.forEach((client) => {
-            if (
-                client.subscriptions.length === 0 ||
-                client.subscriptions.includes(update.warehouse)
-            ) {
-                sendToClient(client, message);
-            }
-        });
-    } else {
-        // Broadcast to all
-        broadcast(message);
-    }
+  // If update has warehouse info, only send to subscribed clients
+  if (update.warehouse) {
+    clients.forEach(client => {
+      if (client.subscriptions.length === 0 || client.subscriptions.includes(update.warehouse)) {
+        sendToClient(client, message);
+      }
+    });
+  } else {
+    // Broadcast to all
+    broadcast(message);
+  }
 }
 
 /**
@@ -276,14 +276,14 @@ export function broadcastStockUpdate(update) {
  * @param {Array} updates - Array of stock updates
  */
 export function broadcastStockUpdates(updates) {
-    const message = {
-        type: 'stock_updates',
-        data: updates,
-        count: updates.length,
-        timestamp: Date.now(),
-    };
+  const message = {
+    type: 'stock_updates',
+    data: updates,
+    count: updates.length,
+    timestamp: Date.now(),
+  };
 
-    broadcast(message);
+  broadcast(message);
 }
 
 // ============================================
@@ -291,11 +291,11 @@ export function broadcastStockUpdates(updates) {
 // ============================================
 
 export default {
-    startWebSocketServer,
-    stopWebSocketServer,
-    broadcast,
-    sendToClient,
-    broadcastStockUpdate,
-    broadcastStockUpdates,
-    getClientCount,
+  startWebSocketServer,
+  stopWebSocketServer,
+  broadcast,
+  sendToClient,
+  broadcastStockUpdate,
+  broadcastStockUpdates,
+  getClientCount,
 };

@@ -13,12 +13,12 @@
  * For internal apps, can use a shared secret
  */
 function getApiSecret() {
-    // Try to get from window config first
-    if (typeof window !== 'undefined' && window.ODOO_CONFIG?.apiSecret) {
-        return window.ODOO_CONFIG.apiSecret;
-    }
-    // Fallback for development
-    return 'dev-secret-change-in-production';
+  // Try to get from window config first
+  if (typeof window !== 'undefined' && window.ODOO_CONFIG?.apiSecret) {
+    return window.ODOO_CONFIG.apiSecret;
+  }
+  // Fallback for development
+  return 'dev-secret-change-in-production';
 }
 
 // ============================================
@@ -31,8 +31,8 @@ function getApiSecret() {
  * @returns {ArrayBuffer}
  */
 function stringToArrayBuffer(str) {
-    const encoder = new TextEncoder();
-    return encoder.encode(str);
+  const encoder = new TextEncoder();
+  return encoder.encode(str);
 }
 
 /**
@@ -41,10 +41,10 @@ function stringToArrayBuffer(str) {
  * @returns {string} - Hex string
  */
 function arrayBufferToHex(buffer) {
-    const bytes = new Uint8Array(buffer);
-    return Array.from(bytes)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+  const bytes = new Uint8Array(buffer);
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
@@ -53,9 +53,9 @@ function arrayBufferToHex(buffer) {
  * @returns {Promise<string>} - Hex-encoded hash
  */
 async function sha256(message) {
-    const msgBuffer = stringToArrayBuffer(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    return arrayBufferToHex(hashBuffer);
+  const msgBuffer = stringToArrayBuffer(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  return arrayBufferToHex(hashBuffer);
 }
 
 /**
@@ -65,21 +65,21 @@ async function sha256(message) {
  * @returns {Promise<string>} - Hex-encoded signature
  */
 async function hmacSha256(message, secret) {
-    const keyData = stringToArrayBuffer(secret);
-    const msgData = stringToArrayBuffer(message);
+  const keyData = stringToArrayBuffer(secret);
+  const msgData = stringToArrayBuffer(message);
 
-    // Import the secret as a CryptoKey
-    const key = await crypto.subtle.importKey(
-        'raw',
-        keyData,
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-    );
+  // Import the secret as a CryptoKey
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
 
-    // Sign the message
-    const signature = await crypto.subtle.sign('HMAC', key, msgData);
-    return arrayBufferToHex(signature);
+  // Sign the message
+  const signature = await crypto.subtle.sign('HMAC', key, msgData);
+  return arrayBufferToHex(signature);
 }
 
 // ============================================
@@ -96,14 +96,14 @@ async function hmacSha256(message, secret) {
  * @returns {Promise<string>} - Payload string for signing
  */
 async function createSigningPayload({ timestamp, method, path, body }) {
-    let bodyPart = '';
+  let bodyPart = '';
 
-    if (body && Object.keys(body).length > 0) {
-        const bodyStr = JSON.stringify(body);
-        bodyPart = await sha256(bodyStr);
-    }
+  if (body && Object.keys(body).length > 0) {
+    const bodyStr = JSON.stringify(body);
+    bodyPart = await sha256(bodyStr);
+  }
 
-    return `${timestamp}:${method.toUpperCase()}:${path}:${bodyPart}`;
+  return `${timestamp}:${method.toUpperCase()}:${path}:${bodyPart}`;
 }
 
 /**
@@ -115,27 +115,27 @@ async function createSigningPayload({ timestamp, method, path, body }) {
  * @returns {Promise<Object>} - Headers to add to the request
  */
 export async function signRequest({ method, url, body = null }) {
-    const secret = getApiSecret();
-    const timestamp = Date.now();
+  const secret = getApiSecret();
+  const timestamp = Date.now();
 
-    // Extract path from URL (remove origin)
-    let path;
-    try {
-        const urlObj = new URL(url);
-        path = urlObj.pathname + urlObj.search;
-    } catch {
-        // If URL parsing fails, use as-is
-        path = url;
-    }
+  // Extract path from URL (remove origin)
+  let path;
+  try {
+    const urlObj = new URL(url);
+    path = urlObj.pathname + urlObj.search;
+  } catch {
+    // If URL parsing fails, use as-is
+    path = url;
+  }
 
-    // Create payload and sign
-    const payload = await createSigningPayload({ timestamp, method, path, body });
-    const signature = await hmacSha256(payload, secret);
+  // Create payload and sign
+  const payload = await createSigningPayload({ timestamp, method, path, body });
+  const signature = await hmacSha256(payload, secret);
 
-    return {
-        'X-Timestamp': timestamp.toString(),
-        'X-Signature': signature
-    };
+  return {
+    'X-Timestamp': timestamp.toString(),
+    'X-Signature': signature,
+  };
 }
 
 /**
@@ -145,22 +145,22 @@ export async function signRequest({ method, url, body = null }) {
  * @returns {Promise<Response>} - Fetch response
  */
 export async function signedFetch(url, options = {}) {
-    const method = options.method || 'GET';
-    const body = options.body ? JSON.parse(options.body) : null;
+  const method = options.method || 'GET';
+  const body = options.body ? JSON.parse(options.body) : null;
 
-    // Generate signature headers
-    const signatureHeaders = await signRequest({ method, url, body });
+  // Generate signature headers
+  const signatureHeaders = await signRequest({ method, url, body });
 
-    // Merge with existing headers
-    const headers = {
-        ...options.headers,
-        ...signatureHeaders
-    };
+  // Merge with existing headers
+  const headers = {
+    ...options.headers,
+    ...signatureHeaders,
+  };
 
-    return fetch(url, {
-        ...options,
-        headers
-    });
+  return fetch(url, {
+    ...options,
+    headers,
+  });
 }
 
 /**
@@ -168,13 +168,15 @@ export async function signedFetch(url, options = {}) {
  * @returns {boolean}
  */
 export function isHmacSupported() {
-    return typeof crypto !== 'undefined' &&
-           typeof crypto.subtle !== 'undefined' &&
-           typeof crypto.subtle.importKey === 'function';
+  return (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.subtle !== 'undefined' &&
+    typeof crypto.subtle.importKey === 'function'
+  );
 }
 
 export default {
-    signRequest,
-    signedFetch,
-    isHmacSupported
+  signRequest,
+  signedFetch,
+  isHmacSupported,
 };

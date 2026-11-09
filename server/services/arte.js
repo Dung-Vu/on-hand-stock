@@ -19,10 +19,12 @@ export class ArteError extends Error {
 }
 
 function isRetryableSessionError(err) {
-  return err?.status === 419
-    || err?.code === 'SESSION_EXPIRED'
-    || err?.code === 'UPSTREAM_NETWORK_ERROR'
-    || err?.code === 'TIMEOUT';
+  return (
+    err?.status === 419 ||
+    err?.code === 'SESSION_EXPIRED' ||
+    err?.code === 'UPSTREAM_NETWORK_ERROR' ||
+    err?.code === 'TIMEOUT'
+  );
 }
 
 /**
@@ -155,9 +157,7 @@ export class ConcurrencyQueue {
 
     const signal = options.signal;
     if (signal?.aborted) {
-      return Promise.reject(
-        new ArteError('Yêu cầu đã bị hủy', 'CLIENT_ABORTED', 499)
-      );
+      return Promise.reject(new ArteError('Yêu cầu đã bị hủy', 'CLIENT_ABORTED', 499));
     }
 
     return new Promise((resolve, reject) => {
@@ -235,7 +235,8 @@ export class ConcurrencyQueue {
     item.cleanup();
     this.running++;
 
-    item.fn()
+    item
+      .fn()
       .then(item.resolve, item.reject)
       .finally(() => {
         this.running--;
@@ -273,7 +274,11 @@ export async function fetchWithCookies(fetchFn, cookieJar, url, options = {}, ma
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        throw new ArteError('Yêu cầu tới hệ thống ARTE đã quá thời gian phản hồi (timeout)', 'TIMEOUT', 504);
+        throw new ArteError(
+          'Yêu cầu tới hệ thống ARTE đã quá thời gian phản hồi (timeout)',
+          'TIMEOUT',
+          504
+        );
       }
       throw new ArteError('Không thể kết nối tới hệ thống ARTE', 'UPSTREAM_NETWORK_ERROR', 503);
     } finally {
@@ -299,12 +304,19 @@ export async function fetchWithCookies(fetchFn, cookieJar, url, options = {}, ma
 
     const isRedirect = [301, 302, 303, 307, 308].includes(response.status);
     const location = response.headers?.get?.('location');
-    if (isRedirect && location && (options.followRedirects !== false)) {
+    if (isRedirect && location && options.followRedirects !== false) {
       if (redirectCount >= maxRedirects) {
-        throw new ArteError('Quá nhiều lượt chuyển hướng từ hệ thống ARTE', 'TOO_MANY_REDIRECTS', 502);
+        throw new ArteError(
+          'Quá nhiều lượt chuyển hướng từ hệ thống ARTE',
+          'TOO_MANY_REDIRECTS',
+          502
+        );
       }
       currentUrl = new URL(location, currentUrl).href;
-      if (response.status === 303 || (response.status === 302 && currentOptions.method === 'POST')) {
+      if (
+        response.status === 303 ||
+        (response.status === 302 && currentOptions.method === 'POST')
+      ) {
         currentOptions = {
           ...currentOptions,
           method: 'GET',
@@ -342,8 +354,11 @@ export class ArteService {
     this.batchesCache = new BoundedCache(300, 10 * 60 * 1000); // 10 minutes
     this.stockCheckCache = new BoundedCache(500, 2 * 60 * 1000); // 2 minutes
 
-    this.stockPageUrl = options.stockPageUrl ?? 'https://www.arte-international.com/en/professional-area/check-our-stock';
-    this.loginPageUrl = options.loginPageUrl ?? 'https://account.arte-international.com/en/login?service=front';
+    this.stockPageUrl =
+      options.stockPageUrl ??
+      'https://www.arte-international.com/en/professional-area/check-our-stock';
+    this.loginPageUrl =
+      options.loginPageUrl ?? 'https://account.arte-international.com/en/login?service=front';
     this.loginPostUrl = options.loginPostUrl ?? 'https://account.arte-international.com/en/login';
   }
 
@@ -374,8 +389,10 @@ export class ArteService {
     if (!html || typeof html !== 'string') return false;
     const $ = cheerio.load(html);
     const hasPasswordInput = $('input[type="password"], input[name="password"]').length > 0;
-    const hasEmailOrUserInput = $('input[name="email"], input[type="email"], input[name="username"]').length > 0;
-    const hasLoginForm = $('form[action*="/login"], form[action*="account.arte-international.com"]').length > 0;
+    const hasEmailOrUserInput =
+      $('input[name="email"], input[type="email"], input[name="username"]').length > 0;
+    const hasLoginForm =
+      $('form[action*="/login"], form[action*="account.arte-international.com"]').length > 0;
     return hasPasswordInput && (hasEmailOrUserInput || hasLoginForm);
   }
 
@@ -397,7 +414,8 @@ export class ArteService {
             followRedirects: false,
           });
 
-          const isRedirectToLogin = [301, 302, 303, 307, 308].includes(checkRes.status) &&
+          const isRedirectToLogin =
+            [301, 302, 303, 307, 308].includes(checkRes.status) &&
             checkRes.headers.get('location')?.includes('login');
 
           if (checkRes.status === 200 && !isRedirectToLogin) {
@@ -439,15 +457,24 @@ export class ArteService {
     });
 
     if (!loginPageRes.ok) {
-      throw new ArteError('Không thể truy cập trang đăng nhập ARTE', 'UPSTREAM_LOGIN_UNAVAILABLE', 503);
+      throw new ArteError(
+        'Không thể truy cập trang đăng nhập ARTE',
+        'UPSTREAM_LOGIN_UNAVAILABLE',
+        503
+      );
     }
 
     const loginHtml = await loginPageRes.text();
     const $ = cheerio.load(loginHtml);
-    const csrfToken = $('input[name="_token"]').val() || $('meta[name="csrf-token"]').attr('content');
+    const csrfToken =
+      $('input[name="_token"]').val() || $('meta[name="csrf-token"]').attr('content');
 
     if (!csrfToken) {
-      throw new ArteError('Không tìm thấy CSRF token trên trang đăng nhập ARTE', 'UPSTREAM_TOKEN_MISSING', 502);
+      throw new ArteError(
+        'Không tìm thấy CSRF token trên trang đăng nhập ARTE',
+        'UPSTREAM_TOKEN_MISSING',
+        502
+      );
     }
 
     // Step 2: POST credentials with redirects disabled to capture cookies at this hop
@@ -536,8 +563,9 @@ export class ArteService {
     });
 
     const html = await pageRes.text();
-    const redirectedToLogin = [301, 302, 303, 307, 308].includes(pageRes.status)
-      && pageRes.headers.get('location')?.includes('login');
+    const redirectedToLogin =
+      [301, 302, 303, 307, 308].includes(pageRes.status) &&
+      pageRes.headers.get('location')?.includes('login');
 
     if (redirectedToLogin || this._isLoginPage(html)) {
       // Session expired, reauth once
@@ -571,14 +599,17 @@ export class ArteService {
     if (compByName.length > 0) {
       let snapshot = compByName.attr('wire:snapshot');
       if (!snapshot) {
-        snapshot = compByName.closest('[wire\\:snapshot]').attr('wire:snapshot') ||
+        snapshot =
+          compByName.closest('[wire\\:snapshot]').attr('wire:snapshot') ||
           compByName.find('[wire\\:snapshot]').attr('wire:snapshot');
       }
       if (snapshot) return snapshot;
     }
 
     // 2. Fallback: closest ancestor with wire:snapshot around input[name=code]
-    const codeInput = $('input[name="code"], input[wire\\:model="code"], input[wire\\:model\\.live="code"]').first();
+    const codeInput = $(
+      'input[name="code"], input[wire\\:model="code"], input[wire\\:model\\.live="code"]'
+    ).first();
     if (codeInput.length > 0) {
       const snap = codeInput.closest('[wire\\:snapshot]').attr('wire:snapshot');
       if (snap) return snap;
@@ -621,8 +652,7 @@ export class ArteService {
     }
 
     if (!token) {
-      token = $('meta[name="csrf-token"]').attr('content') ||
-        $('input[name="_token"]').val();
+      token = $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val();
     }
 
     if (!rawUpdateUri) {
@@ -638,18 +668,14 @@ export class ArteService {
     try {
       parsedUrl = new URL(rawUpdateUri, this.stockPageUrl);
     } catch {
-      throw new ArteError(
-        'Endpoint Livewire không hợp lệ',
-        'UPSTREAM_ENDPOINT_MISSING',
-        502
-      );
+      throw new ArteError('Endpoint Livewire không hợp lệ', 'UPSTREAM_ENDPOINT_MISSING', 502);
     }
 
-    const allowedHosts = [
-      'arte-international.com',
-      'www.arte-international.com',
-    ];
-    if (parsedUrl.protocol !== 'https:' || !allowedHosts.includes(parsedUrl.hostname.toLowerCase())) {
+    const allowedHosts = ['arte-international.com', 'www.arte-international.com'];
+    if (
+      parsedUrl.protocol !== 'https:' ||
+      !allowedHosts.includes(parsedUrl.hostname.toLowerCase())
+    ) {
       throw new ArteError(
         'Endpoint Livewire không thuộc tên miền được phép của ARTE',
         'UPSTREAM_ENDPOINT_MISSING',
@@ -720,13 +746,21 @@ export class ArteService {
     }
 
     if (!res.ok) {
-      throw new ArteError(`Lỗi cập nhật Livewire từ ARTE: HTTP ${res.status}`, 'UPSTREAM_UPDATE_ERROR', 503);
+      throw new ArteError(
+        `Lỗi cập nhật Livewire từ ARTE: HTTP ${res.status}`,
+        'UPSTREAM_UPDATE_ERROR',
+        503
+      );
     }
 
     const data = await res.json();
     const component = data?.components?.[0];
     if (!component || !component.snapshot) {
-      throw new ArteError('Phản hồi Livewire không hợp lệ từ ARTE', 'INVALID_UPSTREAM_RESPONSE', 502);
+      throw new ArteError(
+        'Phản hồi Livewire không hợp lệ từ ARTE',
+        'INVALID_UPSTREAM_RESPONSE',
+        502
+      );
     }
 
     return {
@@ -744,13 +778,18 @@ export class ArteService {
     const batches = [];
 
     // Look for select with batch options
-    const batchSelect = $('select[name="batch"], select[wire\\:model="batch"], select[wire\\:model\\.live="batch"]');
-    const selectToUse = batchSelect.length > 0 ? batchSelect : $('select').filter((_, el) => $(el).find('option').length > 1);
+    const batchSelect = $(
+      'select[name="batch"], select[wire\\:model="batch"], select[wire\\:model\\.live="batch"]'
+    );
+    const selectToUse =
+      batchSelect.length > 0
+        ? batchSelect
+        : $('select').filter((_, el) => $(el).find('option').length > 1);
 
     selectToUse.find('option').each((_, opt) => {
       const val = $(opt).attr('value');
       const text = $(opt).text().trim();
-      const candidate = (val !== undefined && val !== null ? String(val).trim() : text);
+      const candidate = val !== undefined && val !== null ? String(val).trim() : text;
       if (
         candidate &&
         !/^choose|^select|^--|^placeholder/i.test(candidate) &&
@@ -798,10 +837,10 @@ export class ArteService {
       'recherche',
     ];
 
-    const isGeneric = (str) => {
+    const isGeneric = str => {
       if (!str) return true;
       const lower = str.trim().toLowerCase();
-      return genericHeaders.some((h) => lower === h || lower.startsWith(h + ' '));
+      return genericHeaders.some(h => lower === h || lower.startsWith(h + ' '));
     };
 
     // 1. Explicit classes if not generic
@@ -844,7 +883,9 @@ export class ArteService {
     }
 
     // 3. Image alt fallback if non-generic
-    const imgAlt = $('img').map((_, el) => $(el).attr('alt')).get();
+    const imgAlt = $('img')
+      .map((_, el) => $(el).attr('alt'))
+      .get();
     for (const alt of imgAlt) {
       if (alt && !isGeneric(alt) && !/^arte|logo|icon|image$/i.test(alt.trim())) {
         if (reference && !alt.includes(reference)) {
@@ -940,13 +981,18 @@ export class ArteService {
     if (!reference) {
       throw new ArteError('Mã sản phẩm không hợp lệ', 'INVALID_REFERENCE', 400);
     }
-    const batch = rawBatch === undefined || rawBatch === null || rawBatch === '' ? '' : validateBatch(rawBatch);
+    const batch =
+      rawBatch === undefined || rawBatch === null || rawBatch === '' ? '' : validateBatch(rawBatch);
     if (batch === null) {
       throw new ArteError('Lô hàng không hợp lệ', 'INVALID_BATCH', 400);
     }
     const amount = validateAmount(rawAmount);
     if (amount === null) {
-      throw new ArteError('Số lượng phải là số lớn hơn 0 và nhỏ hơn hoặc bằng 100,000', 'INVALID_AMOUNT', 400);
+      throw new ArteError(
+        'Số lượng phải là số lớn hơn 0 và nhỏ hơn hoặc bằng 100,000',
+        'INVALID_AMOUNT',
+        400
+      );
     }
 
     const cacheKey = `${reference}:${batch}:${amount}`;
@@ -978,21 +1024,16 @@ export class ArteService {
         // Validate a selected batch against the current reference.
         const codeParsed = this._extractBatchesAndProduct(codeRes.html, reference);
         if (batch && !codeParsed.batches.includes(batch)) {
-          throw new ArteError(
-            `Lô hàng không hợp lệ cho mã sản phẩm đã chọn`,
-            'INVALID_BATCH',
-            400
-          );
+          throw new ArteError(`Lô hàng không hợp lệ cho mã sản phẩm đã chọn`, 'INVALID_BATCH', 400);
         }
 
         // Keep the upstream batch unselected for a whole-reference check.
         // Only update it when a specific batch is requested.
-        const batchRes = batch ? await this._postLivewireUpdate(
-          initial.updateUrl,
-          initial.token,
-          codeRes.snapshot,
-          { batch }
-        ) : codeRes;
+        const batchRes = batch
+          ? await this._postLivewireUpdate(initial.updateUrl, initial.token, codeRes.snapshot, {
+              batch,
+            })
+          : codeRes;
 
         const amountRes = await this._postLivewireUpdate(
           initial.updateUrl,
@@ -1009,16 +1050,26 @@ export class ArteService {
         let available = null;
         let message = '';
 
-        if (/The required quantity is not available/i.test(text) || /La quantité requise n'est pas disponible/i.test(text)) {
+        if (
+          /The required quantity is not available/i.test(text) ||
+          /La quantité requise n'est pas disponible/i.test(text)
+        ) {
           available = false;
           message = 'The required quantity is not available.';
-        } else if (/The required quantity is available/i.test(text) || /La quantité requise est disponible/i.test(text)) {
+        } else if (
+          /The required quantity is available/i.test(text) ||
+          /La quantité requise est disponible/i.test(text)
+        ) {
           available = true;
           message = 'The required quantity is available.';
         }
 
         if (available === null) {
-          throw new ArteError('Không thể xác định trạng thái tồn kho từ ARTE', 'UPSTREAM_UNCLASSIFIED', 502);
+          throw new ArteError(
+            'Không thể xác định trạng thái tồn kho từ ARTE',
+            'UPSTREAM_UNCLASSIFIED',
+            502
+          );
         }
 
         const finalParsed = this._extractBatchesAndProduct(finalHtml, reference);

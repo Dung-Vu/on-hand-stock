@@ -1,18 +1,18 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite';
 
-const backendProxyTarget = process.env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:4001'
+const backendProxyTarget = process.env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:4001';
 const allowedHosts = [
   'onhand-stock.nport.link',
   '.nport.link',
   'stock.bonstu.site',
-  '.bonstu.site'
-]
+  '.bonstu.site',
+];
 const proxy = {
   // Proxy Odoo API requests to bypass CORS
   '/api/odoo': {
     target: 'https://bonario-vietnam.odoo.com',
     changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/api\/odoo/, '/jsonrpc'),
+    rewrite: path => path.replace(/^\/api\/odoo/, '/jsonrpc'),
     secure: true,
     configure: (proxy, _options) => {
       proxy.on('error', (err, _req, _res) => {
@@ -35,8 +35,8 @@ const proxy = {
     target: backendProxyTarget,
     ws: true,
     changeOrigin: true,
-  }
-}
+  },
+};
 
 export default defineConfig({
   server: {
@@ -45,14 +45,14 @@ export default defineConfig({
     open: process.env.VITE_OPEN !== 'false',
     host: true, // Allow access from network
     allowedHosts,
-    proxy
+    proxy,
   },
   preview: {
     port: 5178,
     strictPort: false,
     host: true,
     allowedHosts,
-    proxy
+    proxy,
   },
   build: {
     // Code splitting for better caching
@@ -60,16 +60,16 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           // Split large libraries into separate chunks
-          if (!id.includes('node_modules')) return undefined
-          if (id.includes('exceljs')) return 'exceljs'
-          if (id.includes('jspdf')) return 'jspdf'
-          if (id.includes('html2canvas')) return 'html2canvas'
-          if (id.includes('dompurify')) return 'dompurify'
-          return undefined
-        }
-      }
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('exceljs')) return 'exceljs';
+          if (id.includes('jspdf')) return 'jspdf';
+          if (id.includes('html2canvas')) return 'html2canvas';
+          if (id.includes('dompurify')) return 'dompurify';
+          return undefined;
+        },
+      },
     },
     // Increase warning limit (optional)
-    chunkSizeWarningLimit: 600
-  }
-})
+    chunkSizeWarningLimit: 600,
+  },
+});

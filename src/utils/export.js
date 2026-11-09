@@ -11,63 +11,63 @@ import { saveAs } from 'file-saver';
 // ============================================
 
 const STYLES = {
-    // Header style
-    header: {
-        font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B5A45' } },
-        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-        border: {
-            top: { style: 'thin', color: { argb: 'FF5D5044' } },
-            bottom: { style: 'thin', color: { argb: 'FF5D5044' } },
-            left: { style: 'thin', color: { argb: 'FF5D5044' } },
-            right: { style: 'thin', color: { argb: 'FF5D5044' } }
-        }
+  // Header style
+  header: {
+    font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B5A45' } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { argb: 'FF5D5044' } },
+      bottom: { style: 'thin', color: { argb: 'FF5D5044' } },
+      left: { style: 'thin', color: { argb: 'FF5D5044' } },
+      right: { style: 'thin', color: { argb: 'FF5D5044' } },
     },
-    // Title style
-    title: {
-        font: { bold: true, size: 16, color: { argb: 'FF2A231F' } },
-        alignment: { horizontal: 'center', vertical: 'middle' }
+  },
+  // Title style
+  title: {
+    font: { bold: true, size: 16, color: { argb: 'FF2A231F' } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  },
+  // Subtitle style
+  subtitle: {
+    font: { size: 11, color: { argb: 'FF5D5044' } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  },
+  // Data cell style
+  dataCell: {
+    alignment: { vertical: 'middle', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { argb: 'FFE8DDD4' } },
+      bottom: { style: 'thin', color: { argb: 'FFE8DDD4' } },
+      left: { style: 'thin', color: { argb: 'FFE8DDD4' } },
+      right: { style: 'thin', color: { argb: 'FFE8DDD4' } },
     },
-    // Subtitle style
-    subtitle: {
-        font: { size: 11, color: { argb: 'FF5D5044' } },
-        alignment: { horizontal: 'center', vertical: 'middle' }
-    },
-    // Data cell style
-    dataCell: {
-        alignment: { vertical: 'middle', wrapText: true },
-        border: {
-            top: { style: 'thin', color: { argb: 'FFE8DDD4' } },
-            bottom: { style: 'thin', color: { argb: 'FFE8DDD4' } },
-            left: { style: 'thin', color: { argb: 'FFE8DDD4' } },
-            right: { style: 'thin', color: { argb: 'FFE8DDD4' } }
-        }
-    },
-    // Number cell style
-    numberCell: {
-        alignment: { horizontal: 'right', vertical: 'middle' },
-        numFmt: '#,##0'
-    },
-    // Low stock highlight
-    lowStock: {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3CD' } },
-        font: { color: { argb: 'FF856404' } }
-    },
-    // Out of stock highlight
-    outOfStock: {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } },
-        font: { color: { argb: 'FF721C24' } }
-    },
-    // Good stock highlight
-    goodStock: {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } },
-        font: { color: { argb: 'FF155724' } }
-    },
-    // Category row style
-    categoryRow: {
-        font: { bold: true, size: 11, color: { argb: 'FF3F3630' } },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F0EB' } }
-    }
+  },
+  // Number cell style
+  numberCell: {
+    alignment: { horizontal: 'right', vertical: 'middle' },
+    numFmt: '#,##0',
+  },
+  // Low stock highlight
+  lowStock: {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3CD' } },
+    font: { color: { argb: 'FF856404' } },
+  },
+  // Out of stock highlight
+  outOfStock: {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } },
+    font: { color: { argb: 'FF721C24' } },
+  },
+  // Good stock highlight
+  goodStock: {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } },
+    font: { color: { argb: 'FF155724' } },
+  },
+  // Category row style
+  categoryRow: {
+    font: { bold: true, size: 11, color: { argb: 'FF3F3630' } },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F0EB' } },
+  },
 };
 
 // ============================================
@@ -80,11 +80,11 @@ const STYLES = {
  * @param {Object} style
  */
 function applyStyle(cell, style) {
-    if (style.font) cell.font = style.font;
-    if (style.fill) cell.fill = style.fill;
-    if (style.alignment) cell.alignment = style.alignment;
-    if (style.border) cell.border = style.border;
-    if (style.numFmt) cell.numFmt = style.numFmt;
+  if (style.font) cell.font = style.font;
+  if (style.fill) cell.fill = style.fill;
+  if (style.alignment) cell.alignment = style.alignment;
+  if (style.border) cell.border = style.border;
+  if (style.numFmt) cell.numFmt = style.numFmt;
 }
 
 /**
@@ -94,9 +94,9 @@ function applyStyle(cell, style) {
  * @returns {string}
  */
 function getStockStatus(quantity, availableQty) {
-    if (quantity <= 0) return 'outOfStock';
-    if (availableQty < quantity * 0.2) return 'lowStock';
-    return 'goodStock';
+  if (quantity <= 0) return 'outOfStock';
+  if (availableQty < quantity * 0.2) return 'lowStock';
+  return 'goodStock';
 }
 
 /**
@@ -105,72 +105,68 @@ function getStockStatus(quantity, availableQty) {
  * @returns {string}
  */
 function formatDate(date) {
-    return date.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+  return date.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const HIDDEN_CATEGORIES = new Set(['BON', 'REM', 'PHUKIEN']);
-const VISIBLE_CATEGORY_ALLOWLIST = new Set([
-    'BON / NVL / VAISOFA',
-]);
+const VISIBLE_CATEGORY_ALLOWLIST = new Set(['BON / NVL / VAISOFA']);
 
 function shouldHideCategory(categoryName = '') {
-    const normalizedCategoryName = categoryName
-        .split('/')
-        .map((segment) => segment.trim().toUpperCase())
-        .join(' / ');
+  const normalizedCategoryName = categoryName
+    .split('/')
+    .map(segment => segment.trim().toUpperCase())
+    .join(' / ');
 
-    if (VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)) {
-        return false;
-    }
+  if (VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)) {
+    return false;
+  }
 
-    return normalizedCategoryName
-        .split(' / ')
-        .some((segment) => HIDDEN_CATEGORIES.has(segment));
+  return normalizedCategoryName.split(' / ').some(segment => HIDDEN_CATEGORIES.has(segment));
 }
 
 function sanitizeGroupedData(groupedData) {
-    if (!groupedData || Object.keys(groupedData).length === 0) {
-        return {};
-    }
+  if (!groupedData || Object.keys(groupedData).length === 0) {
+    return {};
+  }
 
-    return Object.fromEntries(
-        Object.entries(groupedData).flatMap(([warehouseName, warehouseData]) => {
-            if (!warehouseData) {
-                return [];
-            }
+  return Object.fromEntries(
+    Object.entries(groupedData).flatMap(([warehouseName, warehouseData]) => {
+      if (!warehouseData) {
+        return [];
+      }
 
-            const categories = warehouseData.categories || warehouseData;
-            const filteredCategories = Object.fromEntries(
-                Object.entries(categories || {}).filter(
-                    ([categoryName]) => !shouldHideCategory(categoryName)
-                )
-            );
+      const categories = warehouseData.categories || warehouseData;
+      const filteredCategories = Object.fromEntries(
+        Object.entries(categories || {}).filter(
+          ([categoryName]) => !shouldHideCategory(categoryName)
+        )
+      );
 
-            if (Object.keys(filteredCategories).length === 0) {
-                return [];
-            }
+      if (Object.keys(filteredCategories).length === 0) {
+        return [];
+      }
 
-            if (warehouseData.categories) {
-                return [[warehouseName, { ...warehouseData, categories: filteredCategories }]];
-            }
+      if (warehouseData.categories) {
+        return [[warehouseName, { ...warehouseData, categories: filteredCategories }]];
+      }
 
-            return [[warehouseName, filteredCategories]];
-        })
-    );
+      return [[warehouseName, filteredCategories]];
+    })
+  );
 }
 
 function sanitizeStocktakeRows(rows) {
-    if (!Array.isArray(rows)) {
-        return [];
-    }
+  if (!Array.isArray(rows)) {
+    return [];
+  }
 
-    return rows.filter((row) => !shouldHideCategory(row.categoryName || row.category || ''));
+  return rows.filter(row => !shouldHideCategory(row.categoryName || row.category || ''));
 }
 
 // ============================================
@@ -184,46 +180,46 @@ function sanitizeStocktakeRows(rows) {
  * @returns {Promise<void>}
  */
 export async function exportToExcel(groupedData, options = {}) {
-    const {
-        filename = `stock_data_${new Date().toISOString().split('T')[0]}`,
-        includeStats = true,
-        includeSummary = true,
-        warehouseFilter = null // null = all, or specific warehouse name
-    } = options;
+  const {
+    filename = `stock_data_${new Date().toISOString().split('T')[0]}`,
+    includeStats = true,
+    includeSummary = true,
+    warehouseFilter = null, // null = all, or specific warehouse name
+  } = options;
 
-    const sanitizedData = sanitizeGroupedData(groupedData);
+  const sanitizedData = sanitizeGroupedData(groupedData);
 
-    if (Object.keys(sanitizedData).length === 0) {
-        throw new Error('Không có dữ liệu để xuất');
-    }
+  if (Object.keys(sanitizedData).length === 0) {
+    throw new Error('Không có dữ liệu để xuất');
+  }
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Bonario Stock System';
-    workbook.created = new Date();
-    workbook.modified = new Date();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Bonario Stock System';
+  workbook.created = new Date();
+  workbook.modified = new Date();
 
-    // Filter warehouses if needed
-    const warehouses = warehouseFilter
-        ? { [warehouseFilter]: sanitizedData[warehouseFilter] }
-        : sanitizedData;
+  // Filter warehouses if needed
+  const warehouses = warehouseFilter
+    ? { [warehouseFilter]: sanitizedData[warehouseFilter] }
+    : sanitizedData;
 
-    // Create summary sheet first (if enabled)
-    if (includeSummary) {
-        createSummarySheet(workbook, sanitizedData);
-    }
+  // Create summary sheet first (if enabled)
+  if (includeSummary) {
+    createSummarySheet(workbook, sanitizedData);
+  }
 
-    // Create a sheet for each warehouse
-    for (const [warehouseName, warehouseData] of Object.entries(warehouses)) {
-        if (!warehouseData) continue;
-        createWarehouseSheet(workbook, warehouseName, warehouseData, includeStats);
-    }
+  // Create a sheet for each warehouse
+  for (const [warehouseName, warehouseData] of Object.entries(warehouses)) {
+    if (!warehouseData) continue;
+    createWarehouseSheet(workbook, warehouseName, warehouseData, includeStats);
+  }
 
-    // Generate and download
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-    saveAs(blob, `${filename}.xlsx`);
+  // Generate and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  saveAs(blob, `${filename}.xlsx`);
 }
 
 /**
@@ -232,104 +228,112 @@ export async function exportToExcel(groupedData, options = {}) {
  * @param {Object} groupedData
  */
 function createSummarySheet(workbook, groupedData) {
-    const sheet = workbook.addWorksheet('Tổng quan', {
-        properties: { tabColor: { argb: 'FF6B5A45' } }
+  const sheet = workbook.addWorksheet('Tổng quan', {
+    properties: { tabColor: { argb: 'FF6B5A45' } },
+  });
+
+  // Set column widths
+  sheet.columns = [
+    { width: 5 }, // #
+    { width: 25 }, // Warehouse
+    { width: 15 }, // Products
+    { width: 15 }, // Total Qty
+    { width: 15 }, // Available
+    { width: 15 }, // Incoming
+    { width: 15 }, // Categories
+  ];
+
+  // Title
+  sheet.mergeCells('A1:G1');
+  const titleCell = sheet.getCell('A1');
+  titleCell.value = '📦 BÁO CÁO TỒN KHO TỔNG HỢP';
+  applyStyle(titleCell, STYLES.title);
+  sheet.getRow(1).height = 30;
+
+  // Subtitle with date
+  sheet.mergeCells('A2:G2');
+  const subtitleCell = sheet.getCell('A2');
+  subtitleCell.value = `Ngày xuất: ${formatDate(new Date())}`;
+  applyStyle(subtitleCell, STYLES.subtitle);
+  sheet.getRow(2).height = 20;
+
+  // Empty row
+  sheet.getRow(3).height = 10;
+
+  // Headers
+  const headers = ['#', 'Kho', 'Số SP', 'Tổng tồn', 'Khả dụng', 'Đang đến', 'Nhóm SP'];
+  const headerRow = sheet.getRow(4);
+  headers.forEach((header, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = header;
+    applyStyle(cell, STYLES.header);
+  });
+  headerRow.height = 25;
+
+  // Data rows
+  let rowIndex = 5;
+  let totalProducts = 0;
+  let totalQuantity = 0;
+  let totalAvailable = 0;
+  let totalIncoming = 0;
+
+  Object.entries(groupedData).forEach(([warehouseName, warehouseData], idx) => {
+    const categories = warehouseData.categories || {};
+    let warehouseProducts = 0;
+    let warehouseQty = 0;
+    let warehouseAvailable = 0;
+    let warehouseIncoming = 0;
+
+    Object.values(categories).forEach(category => {
+      const products = Object.values(category.products || {});
+      warehouseProducts += products.length;
+      products.forEach(product => {
+        warehouseQty += product.quantity || 0;
+        warehouseAvailable += product.available_quantity || 0;
+        warehouseIncoming += product.incoming_qty || 0;
+      });
     });
 
-    // Set column widths
-    sheet.columns = [
-        { width: 5 },   // #
-        { width: 25 },  // Warehouse
-        { width: 15 },  // Products
-        { width: 15 },  // Total Qty
-        { width: 15 },  // Available
-        { width: 15 },  // Incoming
-        { width: 15 }   // Categories
+    const row = sheet.getRow(rowIndex);
+    row.values = [
+      idx + 1,
+      warehouseName,
+      warehouseProducts,
+      warehouseQty,
+      warehouseAvailable,
+      warehouseIncoming,
+      Object.keys(categories).length,
     ];
 
-    // Title
-    sheet.mergeCells('A1:G1');
-    const titleCell = sheet.getCell('A1');
-    titleCell.value = '📦 BÁO CÁO TỒN KHO TỔNG HỢP';
-    applyStyle(titleCell, STYLES.title);
-    sheet.getRow(1).height = 30;
-
-    // Subtitle with date
-    sheet.mergeCells('A2:G2');
-    const subtitleCell = sheet.getCell('A2');
-    subtitleCell.value = `Ngày xuất: ${formatDate(new Date())}`;
-    applyStyle(subtitleCell, STYLES.subtitle);
-    sheet.getRow(2).height = 20;
-
-    // Empty row
-    sheet.getRow(3).height = 10;
-
-    // Headers
-    const headers = ['#', 'Kho', 'Số SP', 'Tổng tồn', 'Khả dụng', 'Đang đến', 'Nhóm SP'];
-    const headerRow = sheet.getRow(4);
-    headers.forEach((header, index) => {
-        const cell = headerRow.getCell(index + 1);
-        cell.value = header;
-        applyStyle(cell, STYLES.header);
-    });
-    headerRow.height = 25;
-
-    // Data rows
-    let rowIndex = 5;
-    let totalProducts = 0;
-    let totalQuantity = 0;
-    let totalAvailable = 0;
-    let totalIncoming = 0;
-
-    Object.entries(groupedData).forEach(([warehouseName, warehouseData], idx) => {
-        const categories = warehouseData.categories || {};
-        let warehouseProducts = 0;
-        let warehouseQty = 0;
-        let warehouseAvailable = 0;
-        let warehouseIncoming = 0;
-
-        Object.values(categories).forEach(category => {
-            const products = Object.values(category.products || {});
-            warehouseProducts += products.length;
-            products.forEach(product => {
-                warehouseQty += product.quantity || 0;
-                warehouseAvailable += product.available_quantity || 0;
-                warehouseIncoming += product.incoming_qty || 0;
-            });
-        });
-
-        const row = sheet.getRow(rowIndex);
-        row.values = [
-            idx + 1,
-            warehouseName,
-            warehouseProducts,
-            warehouseQty,
-            warehouseAvailable,
-            warehouseIncoming,
-            Object.keys(categories).length
-        ];
-
-        // Apply styles to data cells
-        for (let i = 1; i <= 7; i++) {
-            applyStyle(row.getCell(i), STYLES.dataCell);
-            if (i >= 3) applyStyle(row.getCell(i), STYLES.numberCell);
-        }
-
-        totalProducts += warehouseProducts;
-        totalQuantity += warehouseQty;
-        totalAvailable += warehouseAvailable;
-        totalIncoming += warehouseIncoming;
-        rowIndex++;
-    });
-
-    // Total row
-    const totalRow = sheet.getRow(rowIndex);
-    totalRow.values = ['', 'TỔNG CỘNG', totalProducts, totalQuantity, totalAvailable, totalIncoming, ''];
-    totalRow.font = { bold: true };
+    // Apply styles to data cells
     for (let i = 1; i <= 7; i++) {
-        applyStyle(totalRow.getCell(i), STYLES.header);
-        if (i >= 3 && i <= 6) applyStyle(totalRow.getCell(i), STYLES.numberCell);
+      applyStyle(row.getCell(i), STYLES.dataCell);
+      if (i >= 3) applyStyle(row.getCell(i), STYLES.numberCell);
     }
+
+    totalProducts += warehouseProducts;
+    totalQuantity += warehouseQty;
+    totalAvailable += warehouseAvailable;
+    totalIncoming += warehouseIncoming;
+    rowIndex++;
+  });
+
+  // Total row
+  const totalRow = sheet.getRow(rowIndex);
+  totalRow.values = [
+    '',
+    'TỔNG CỘNG',
+    totalProducts,
+    totalQuantity,
+    totalAvailable,
+    totalIncoming,
+    '',
+  ];
+  totalRow.font = { bold: true };
+  for (let i = 1; i <= 7; i++) {
+    applyStyle(totalRow.getCell(i), STYLES.header);
+    if (i >= 3 && i <= 6) applyStyle(totalRow.getCell(i), STYLES.numberCell);
+  }
 }
 
 /**
@@ -340,163 +344,174 @@ function createSummarySheet(workbook, groupedData) {
  * @param {boolean} includeStats
  */
 function createWarehouseSheet(workbook, warehouseName, warehouseData, includeStats) {
-    // Sanitize sheet name (max 31 chars, no special chars)
-    const sheetName = warehouseName
-        .replace(/[\/\\?*\[\]]/g, '-')
-        .substring(0, 31);
+  // Sanitize sheet name (max 31 chars, no special chars)
+  const sheetName = warehouseName.replace(/[\/\\?*\[\]]/g, '-').substring(0, 31);
 
-    const sheet = workbook.addWorksheet(sheetName, {
-        properties: { tabColor: { argb: 'FF8B7355' } }
+  const sheet = workbook.addWorksheet(sheetName, {
+    properties: { tabColor: { argb: 'FF8B7355' } },
+  });
+
+  // Set column widths
+  sheet.columns = [
+    { width: 5 }, // #
+    { width: 40 }, // Product name
+    { width: 20 }, // Category
+    { width: 12 }, // Quantity
+    { width: 12 }, // Available
+    { width: 12 }, // Incoming
+    { width: 15 }, // Incoming Date
+    { width: 25 }, // Lot IDs
+    { width: 10 }, // Unit
+  ];
+
+  // Title
+  sheet.mergeCells('A1:I1');
+  const titleCell = sheet.getCell('A1');
+  titleCell.value = `📦 ${warehouseName}`;
+  applyStyle(titleCell, STYLES.title);
+  sheet.getRow(1).height = 30;
+
+  // Subtitle
+  sheet.mergeCells('A2:I2');
+  const subtitleCell = sheet.getCell('A2');
+  subtitleCell.value = `Ngày xuất: ${formatDate(new Date())}`;
+  applyStyle(subtitleCell, STYLES.subtitle);
+
+  // Empty row
+  sheet.getRow(3).height = 10;
+
+  // Headers
+  const headers = [
+    '#',
+    'Sản phẩm',
+    'Nhóm',
+    'Tồn kho',
+    'Khả dụng',
+    'Đang đến',
+    'Ngày đến',
+    'Số lô',
+    'ĐVT',
+  ];
+  const headerRow = sheet.getRow(4);
+  headers.forEach((header, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = header;
+    applyStyle(cell, STYLES.header);
+  });
+  headerRow.height = 25;
+
+  // Freeze header
+  sheet.views = [{ state: 'frozen', ySplit: 4 }];
+
+  // Collect all products
+  const allProducts = [];
+  const categories = warehouseData.categories || {};
+
+  Object.entries(categories).forEach(([categoryName, categoryData]) => {
+    const products = Object.values(categoryData.products || {});
+    products.forEach(product => {
+      allProducts.push({
+        ...product,
+        categoryName,
+      });
     });
+  });
 
-    // Set column widths
-    sheet.columns = [
-        { width: 5 },   // #
-        { width: 40 },  // Product name
-        { width: 20 },  // Category
-        { width: 12 },  // Quantity
-        { width: 12 },  // Available
-        { width: 12 },  // Incoming
-        { width: 15 },  // Incoming Date
-        { width: 25 },  // Lot IDs
-        { width: 10 }   // Unit
-    ];
+  // Sort by category then by name
+  allProducts.sort((a, b) => {
+    const catCompare = a.categoryName.localeCompare(b.categoryName, 'vi');
+    if (catCompare !== 0) return catCompare;
+    return (a.product_name || '').localeCompare(b.product_name || '', 'vi');
+  });
 
-    // Title
-    sheet.mergeCells('A1:I1');
-    const titleCell = sheet.getCell('A1');
-    titleCell.value = `📦 ${warehouseName}`;
-    applyStyle(titleCell, STYLES.title);
-    sheet.getRow(1).height = 30;
+  // Data rows
+  let rowIndex = 5;
+  let currentCategory = '';
 
-    // Subtitle
-    sheet.mergeCells('A2:I2');
-    const subtitleCell = sheet.getCell('A2');
-    subtitleCell.value = `Ngày xuất: ${formatDate(new Date())}`;
-    applyStyle(subtitleCell, STYLES.subtitle);
-
-    // Empty row
-    sheet.getRow(3).height = 10;
-
-    // Headers
-    const headers = ['#', 'Sản phẩm', 'Nhóm', 'Tồn kho', 'Khả dụng', 'Đang đến', 'Ngày đến', 'Số lô', 'ĐVT'];
-    const headerRow = sheet.getRow(4);
-    headers.forEach((header, index) => {
-        const cell = headerRow.getCell(index + 1);
-        cell.value = header;
-        applyStyle(cell, STYLES.header);
-    });
-    headerRow.height = 25;
-
-    // Freeze header
-    sheet.views = [{ state: 'frozen', ySplit: 4 }];
-
-    // Collect all products
-    const allProducts = [];
-    const categories = warehouseData.categories || {};
-
-    Object.entries(categories).forEach(([categoryName, categoryData]) => {
-        const products = Object.values(categoryData.products || {});
-        products.forEach(product => {
-            allProducts.push({
-                ...product,
-                categoryName
-            });
-        });
-    });
-
-    // Sort by category then by name
-    allProducts.sort((a, b) => {
-        const catCompare = a.categoryName.localeCompare(b.categoryName, 'vi');
-        if (catCompare !== 0) return catCompare;
-        return (a.product_name || '').localeCompare(b.product_name || '', 'vi');
-    });
-
-    // Data rows
-    let rowIndex = 5;
-    let currentCategory = '';
-
-    allProducts.forEach((product, idx) => {
-        // Add category separator row
-        if (product.categoryName !== currentCategory) {
-            currentCategory = product.categoryName;
-            const categoryRow = sheet.getRow(rowIndex);
-            sheet.mergeCells(`A${rowIndex}:I${rowIndex}`);
-            categoryRow.getCell(1).value = `📁 ${currentCategory}`;
-            applyStyle(categoryRow.getCell(1), STYLES.categoryRow);
-            categoryRow.height = 22;
-            rowIndex++;
-        }
-
-        const row = sheet.getRow(rowIndex);
-        const lotIds = product.lot_ids && product.lot_ids.length > 0
-            ? product.lot_ids.join(', ')
-            : '-';
-        const incomingDate = product.incoming_date
-            ? new Date(product.incoming_date).toLocaleDateString('vi-VN')
-            : '-';
-        const unit = product.uom_id && product.uom_id[1] ? product.uom_id[1] : '';
-
-        row.values = [
-            idx + 1,
-            product.product_name || `SP ID: ${product.product_id[0]}`,
-            product.categoryName,
-            product.quantity || 0,
-            product.available_quantity || 0,
-            product.incoming_qty || 0,
-            incomingDate,
-            lotIds,
-            unit
-        ];
-
-        // Apply base styles
-        for (let i = 1; i <= 9; i++) {
-            applyStyle(row.getCell(i), STYLES.dataCell);
-        }
-        // Number formatting
-        applyStyle(row.getCell(4), STYLES.numberCell);
-        applyStyle(row.getCell(5), STYLES.numberCell);
-        applyStyle(row.getCell(6), STYLES.numberCell);
-
-        // Stock status highlighting
-        const status = getStockStatus(product.quantity, product.available_quantity);
-        if (status === 'lowStock') {
-            for (let i = 4; i <= 6; i++) {
-                applyStyle(row.getCell(i), STYLES.lowStock);
-            }
-        } else if (status === 'outOfStock') {
-            for (let i = 4; i <= 6; i++) {
-                applyStyle(row.getCell(i), STYLES.outOfStock);
-            }
-        }
-
-        rowIndex++;
-    });
-
-    // Stats at the bottom if enabled
-    if (includeStats) {
-        rowIndex++; // Empty row
-        const statsRow = sheet.getRow(rowIndex);
-        statsRow.values = ['', '', 'TỔNG:',
-            allProducts.reduce((sum, p) => sum + (p.quantity || 0), 0),
-            allProducts.reduce((sum, p) => sum + (p.available_quantity || 0), 0),
-            allProducts.reduce((sum, p) => sum + (p.incoming_qty || 0), 0),
-            '', '', ''
-        ];
-        statsRow.font = { bold: true };
-        for (let i = 3; i <= 6; i++) {
-            applyStyle(statsRow.getCell(i), STYLES.header);
-        }
-        applyStyle(statsRow.getCell(4), STYLES.numberCell);
-        applyStyle(statsRow.getCell(5), STYLES.numberCell);
-        applyStyle(statsRow.getCell(6), STYLES.numberCell);
+  allProducts.forEach((product, idx) => {
+    // Add category separator row
+    if (product.categoryName !== currentCategory) {
+      currentCategory = product.categoryName;
+      const categoryRow = sheet.getRow(rowIndex);
+      sheet.mergeCells(`A${rowIndex}:I${rowIndex}`);
+      categoryRow.getCell(1).value = `📁 ${currentCategory}`;
+      applyStyle(categoryRow.getCell(1), STYLES.categoryRow);
+      categoryRow.height = 22;
+      rowIndex++;
     }
 
-    // Auto-filter
-    sheet.autoFilter = {
-        from: 'A4',
-        to: `I${rowIndex - 1}`
-    };
+    const row = sheet.getRow(rowIndex);
+    const lotIds = product.lot_ids && product.lot_ids.length > 0 ? product.lot_ids.join(', ') : '-';
+    const incomingDate = product.incoming_date
+      ? new Date(product.incoming_date).toLocaleDateString('vi-VN')
+      : '-';
+    const unit = product.uom_id && product.uom_id[1] ? product.uom_id[1] : '';
+
+    row.values = [
+      idx + 1,
+      product.product_name || `SP ID: ${product.product_id[0]}`,
+      product.categoryName,
+      product.quantity || 0,
+      product.available_quantity || 0,
+      product.incoming_qty || 0,
+      incomingDate,
+      lotIds,
+      unit,
+    ];
+
+    // Apply base styles
+    for (let i = 1; i <= 9; i++) {
+      applyStyle(row.getCell(i), STYLES.dataCell);
+    }
+    // Number formatting
+    applyStyle(row.getCell(4), STYLES.numberCell);
+    applyStyle(row.getCell(5), STYLES.numberCell);
+    applyStyle(row.getCell(6), STYLES.numberCell);
+
+    // Stock status highlighting
+    const status = getStockStatus(product.quantity, product.available_quantity);
+    if (status === 'lowStock') {
+      for (let i = 4; i <= 6; i++) {
+        applyStyle(row.getCell(i), STYLES.lowStock);
+      }
+    } else if (status === 'outOfStock') {
+      for (let i = 4; i <= 6; i++) {
+        applyStyle(row.getCell(i), STYLES.outOfStock);
+      }
+    }
+
+    rowIndex++;
+  });
+
+  // Stats at the bottom if enabled
+  if (includeStats) {
+    rowIndex++; // Empty row
+    const statsRow = sheet.getRow(rowIndex);
+    statsRow.values = [
+      '',
+      '',
+      'TỔNG:',
+      allProducts.reduce((sum, p) => sum + (p.quantity || 0), 0),
+      allProducts.reduce((sum, p) => sum + (p.available_quantity || 0), 0),
+      allProducts.reduce((sum, p) => sum + (p.incoming_qty || 0), 0),
+      '',
+      '',
+      '',
+    ];
+    statsRow.font = { bold: true };
+    for (let i = 3; i <= 6; i++) {
+      applyStyle(statsRow.getCell(i), STYLES.header);
+    }
+    applyStyle(statsRow.getCell(4), STYLES.numberCell);
+    applyStyle(statsRow.getCell(5), STYLES.numberCell);
+    applyStyle(statsRow.getCell(6), STYLES.numberCell);
+  }
+
+  // Auto-filter
+  sheet.autoFilter = {
+    from: 'A4',
+    to: `I${rowIndex - 1}`,
+  };
 }
 
 /**
@@ -505,11 +520,11 @@ function createWarehouseSheet(workbook, warehouseName, warehouseData, includeSta
  * @param {string} warehouseName
  */
 export async function exportWarehouseToExcel(groupedData, warehouseName) {
-    return exportToExcel(groupedData, {
-        filename: `stock_${warehouseName.replace(/\//g, '_')}_${new Date().toISOString().split('T')[0]}`,
-        warehouseFilter: warehouseName,
-        includeSummary: false
-    });
+  return exportToExcel(groupedData, {
+    filename: `stock_${warehouseName.replace(/\//g, '_')}_${new Date().toISOString().split('T')[0]}`,
+    warehouseFilter: warehouseName,
+    includeSummary: false,
+  });
 }
 
 /**
@@ -517,10 +532,10 @@ export async function exportWarehouseToExcel(groupedData, warehouseName) {
  * @param {Object} groupedData
  */
 export async function quickExportToExcel(groupedData) {
-    return exportToExcel(groupedData, {
-        includeStats: false,
-        includeSummary: false
-    });
+  return exportToExcel(groupedData, {
+    includeStats: false,
+    includeSummary: false,
+  });
 }
 
 // ============================================
@@ -535,154 +550,154 @@ export async function quickExportToExcel(groupedData) {
  * @returns {Promise<void>}
  */
 export async function exportStocktakeToExcel(stocktake, rows, options = {}) {
-    const {
-        filename = `kiem_kho_${(stocktake?.warehouse || "kho").replace(/[\/\\?*\[\]]/g, "_")}_${stocktake?.month || new Date().toISOString().slice(0, 7)}`,
-        createdBy = "Bonario Stock System"
-    } = options;
+  const {
+    filename = `kiem_kho_${(stocktake?.warehouse || 'kho').replace(/[\/\\?*\[\]]/g, '_')}_${stocktake?.month || new Date().toISOString().slice(0, 7)}`,
+    createdBy = 'Bonario Stock System',
+  } = options;
 
-    if (!stocktake) throw new Error("Thiếu dữ liệu phiếu kiểm kho");
-    if (!Array.isArray(rows)) throw new Error("Dữ liệu dòng kiểm kho không hợp lệ");
+  if (!stocktake) throw new Error('Thiếu dữ liệu phiếu kiểm kho');
+  if (!Array.isArray(rows)) throw new Error('Dữ liệu dòng kiểm kho không hợp lệ');
 
-    const sanitizedRows = sanitizeStocktakeRows(rows);
+  const sanitizedRows = sanitizeStocktakeRows(rows);
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = createdBy;
-    workbook.created = new Date();
-    workbook.modified = new Date();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = createdBy;
+  workbook.created = new Date();
+  workbook.modified = new Date();
 
-    const sheet = workbook.addWorksheet("Phiếu kiểm kho", {
-        properties: { tabColor: { argb: "FF4F46E5" } },
-        pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1 }
-    });
+  const sheet = workbook.addWorksheet('Phiếu kiểm kho', {
+    properties: { tabColor: { argb: 'FF4F46E5' } },
+    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+  });
 
-    // Columns
-    sheet.columns = [
-        { width: 6 },   // #
-        { width: 12 },  // Product ID
-        { width: 50 },  // Product name
-        { width: 14 },  // System
-        { width: 14 },  // Counted
-        { width: 14 },  // Variance
-        { width: 30 }   // Note
+  // Columns
+  sheet.columns = [
+    { width: 6 }, // #
+    { width: 12 }, // Product ID
+    { width: 50 }, // Product name
+    { width: 14 }, // System
+    { width: 14 }, // Counted
+    { width: 14 }, // Variance
+    { width: 30 }, // Note
+  ];
+
+  // Title block
+  sheet.mergeCells('A1:G1');
+  const t1 = sheet.getCell('A1');
+  t1.value = '🧾 PHIẾU KIỂM KHO HÀNG THÁNG';
+  applyStyle(t1, STYLES.title);
+  sheet.getRow(1).height = 30;
+
+  sheet.mergeCells('A2:G2');
+  const t2 = sheet.getCell('A2');
+  t2.value = `Kho: ${stocktake.warehouse}   •   Tháng: ${stocktake.month}   •   Trạng thái: ${stocktake.status === 'locked' ? 'ĐÃ CHỐT' : 'NHÁP'}`;
+  applyStyle(t2, STYLES.subtitle);
+  sheet.getRow(2).height = 20;
+
+  sheet.mergeCells('A3:G3');
+  const t3 = sheet.getCell('A3');
+  t3.value = `Cập nhật: ${formatDate(new Date(stocktake.updatedAt || Date.now()))}`;
+  applyStyle(t3, STYLES.subtitle);
+  sheet.getRow(3).height = 18;
+
+  sheet.getRow(4).height = 8;
+
+  // Header row
+  const headerRowIndex = 5;
+  const headers = ['#', 'Mã SP', 'Sản phẩm', 'Tồn hệ thống', 'Thực tế', 'Chênh lệch', 'Ghi chú'];
+  const headerRow = sheet.getRow(headerRowIndex);
+  headers.forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = h;
+    applyStyle(cell, STYLES.header);
+  });
+  headerRow.height = 26;
+
+  // Freeze panes
+  sheet.views = [{ state: 'frozen', ySplit: headerRowIndex }];
+
+  const safeNum = v => (v === null || v === undefined || v === '' ? null : Number(v));
+
+  // Data rows
+  let rIdx = headerRowIndex + 1;
+  let totalSystem = 0;
+  let totalCounted = 0;
+  let totalVariance = 0;
+
+  sanitizedRows.forEach((r, i) => {
+    const row = sheet.getRow(rIdx);
+    const systemQty = safeNum(r.systemQty) || 0;
+    const countedQty = safeNum(r.counted);
+    const variance = countedQty === null ? null : countedQty - systemQty;
+
+    row.values = [
+      i + 1,
+      r.productId ?? '',
+      r.name ?? '',
+      systemQty,
+      countedQty ?? '',
+      variance ?? '',
+      r.note ?? '',
     ];
 
-    // Title block
-    sheet.mergeCells("A1:G1");
-    const t1 = sheet.getCell("A1");
-    t1.value = "🧾 PHIẾU KIỂM KHO HÀNG THÁNG";
-    applyStyle(t1, STYLES.title);
-    sheet.getRow(1).height = 30;
-
-    sheet.mergeCells("A2:G2");
-    const t2 = sheet.getCell("A2");
-    t2.value = `Kho: ${stocktake.warehouse}   •   Tháng: ${stocktake.month}   •   Trạng thái: ${stocktake.status === "locked" ? "ĐÃ CHỐT" : "NHÁP"}`;
-    applyStyle(t2, STYLES.subtitle);
-    sheet.getRow(2).height = 20;
-
-    sheet.mergeCells("A3:G3");
-    const t3 = sheet.getCell("A3");
-    t3.value = `Cập nhật: ${formatDate(new Date(stocktake.updatedAt || Date.now()))}`;
-    applyStyle(t3, STYLES.subtitle);
-    sheet.getRow(3).height = 18;
-
-    sheet.getRow(4).height = 8;
-
-    // Header row
-    const headerRowIndex = 5;
-    const headers = ["#", "Mã SP", "Sản phẩm", "Tồn hệ thống", "Thực tế", "Chênh lệch", "Ghi chú"];
-    const headerRow = sheet.getRow(headerRowIndex);
-    headers.forEach((h, i) => {
-        const cell = headerRow.getCell(i + 1);
-        cell.value = h;
-        applyStyle(cell, STYLES.header);
-    });
-    headerRow.height = 26;
-
-    // Freeze panes
-    sheet.views = [{ state: "frozen", ySplit: headerRowIndex }];
-
-    const safeNum = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
-
-    // Data rows
-    let rIdx = headerRowIndex + 1;
-    let totalSystem = 0;
-    let totalCounted = 0;
-    let totalVariance = 0;
-
-    sanitizedRows.forEach((r, i) => {
-        const row = sheet.getRow(rIdx);
-        const systemQty = safeNum(r.systemQty) || 0;
-        const countedQty = safeNum(r.counted);
-        const variance = countedQty === null ? null : countedQty - systemQty;
-
-        row.values = [
-            i + 1,
-            r.productId ?? "",
-            r.name ?? "",
-            systemQty,
-            countedQty ?? "",
-            variance ?? "",
-            r.note ?? ""
-        ];
-
-        // Base style
-        for (let c = 1; c <= 7; c++) {
-            applyStyle(row.getCell(c), STYLES.dataCell);
-        }
-        // Number formatting
-        applyStyle(row.getCell(4), STYLES.numberCell);
-        applyStyle(row.getCell(5), STYLES.numberCell);
-        applyStyle(row.getCell(6), STYLES.numberCell);
-
-        // Alignment for name/note
-        row.getCell(3).alignment = { vertical: "middle", wrapText: true };
-        row.getCell(7).alignment = { vertical: "middle", wrapText: true };
-
-        // Variance coloring
-        const varCell = row.getCell(6);
-        if (variance === null) {
-            varCell.font = { color: { argb: "FF7D6D5A" } };
-        } else if (variance === 0) {
-            applyStyle(varCell, STYLES.goodStock);
-        } else if (variance > 0) {
-            applyStyle(varCell, STYLES.goodStock);
-        } else {
-            applyStyle(varCell, STYLES.outOfStock);
-        }
-
-        // Totals
-        totalSystem += systemQty;
-        if (countedQty !== null) totalCounted += countedQty;
-        if (variance !== null) totalVariance += variance;
-
-        rIdx++;
-    });
-
-    // Total row
-    rIdx += 1;
-    const totalRow = sheet.getRow(rIdx);
-    totalRow.values = ["", "", "TỔNG", totalSystem, totalCounted, totalVariance, ""];
-    totalRow.height = 22;
-    totalRow.font = { bold: true };
+    // Base style
     for (let c = 1; c <= 7; c++) {
-        applyStyle(totalRow.getCell(c), STYLES.header);
+      applyStyle(row.getCell(c), STYLES.dataCell);
     }
-    applyStyle(totalRow.getCell(4), STYLES.numberCell);
-    applyStyle(totalRow.getCell(5), STYLES.numberCell);
-    applyStyle(totalRow.getCell(6), STYLES.numberCell);
+    // Number formatting
+    applyStyle(row.getCell(4), STYLES.numberCell);
+    applyStyle(row.getCell(5), STYLES.numberCell);
+    applyStyle(row.getCell(6), STYLES.numberCell);
 
-    // Auto filter on header
-    sheet.autoFilter = {
-        from: { row: headerRowIndex, column: 1 },
-        to: { row: headerRowIndex, column: 7 }
-    };
+    // Alignment for name/note
+    row.getCell(3).alignment = { vertical: 'middle', wrapText: true };
+    row.getCell(7).alignment = { vertical: 'middle', wrapText: true };
 
-    // Generate and download
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-    saveAs(blob, `${filename}.xlsx`);
+    // Variance coloring
+    const varCell = row.getCell(6);
+    if (variance === null) {
+      varCell.font = { color: { argb: 'FF7D6D5A' } };
+    } else if (variance === 0) {
+      applyStyle(varCell, STYLES.goodStock);
+    } else if (variance > 0) {
+      applyStyle(varCell, STYLES.goodStock);
+    } else {
+      applyStyle(varCell, STYLES.outOfStock);
+    }
+
+    // Totals
+    totalSystem += systemQty;
+    if (countedQty !== null) totalCounted += countedQty;
+    if (variance !== null) totalVariance += variance;
+
+    rIdx++;
+  });
+
+  // Total row
+  rIdx += 1;
+  const totalRow = sheet.getRow(rIdx);
+  totalRow.values = ['', '', 'TỔNG', totalSystem, totalCounted, totalVariance, ''];
+  totalRow.height = 22;
+  totalRow.font = { bold: true };
+  for (let c = 1; c <= 7; c++) {
+    applyStyle(totalRow.getCell(c), STYLES.header);
+  }
+  applyStyle(totalRow.getCell(4), STYLES.numberCell);
+  applyStyle(totalRow.getCell(5), STYLES.numberCell);
+  applyStyle(totalRow.getCell(6), STYLES.numberCell);
+
+  // Auto filter on header
+  sheet.autoFilter = {
+    from: { row: headerRowIndex, column: 1 },
+    to: { row: headerRowIndex, column: 7 },
+  };
+
+  // Generate and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  saveAs(blob, `${filename}.xlsx`);
 }
 
 // ============================================
@@ -699,31 +714,31 @@ import html2canvas from 'html2canvas';
  * @param {Object} options - Export options
  */
 export async function exportToPDF(groupedData, options = {}) {
-    const {
-        filename = `stock_report_${new Date().toISOString().split('T')[0]}`,
-        warehouseFilter = null,
-        includeSummary = true
-    } = options;
+  const {
+    filename = `stock_report_${new Date().toISOString().split('T')[0]}`,
+    warehouseFilter = null,
+    includeSummary = true,
+  } = options;
 
-    try {
-        const sanitizedData = sanitizeGroupedData(groupedData);
+  try {
+    const sanitizedData = sanitizeGroupedData(groupedData);
 
-        // Collect warehouses and data
-        const warehouses = warehouseFilter
-            ? [warehouseFilter]
-            : Object.keys(sanitizedData).filter(w => w !== 'Tất cả kho');
+    // Collect warehouses and data
+    const warehouses = warehouseFilter
+      ? [warehouseFilter]
+      : Object.keys(sanitizedData).filter(w => w !== 'Tất cả kho');
 
-        // Calculate totals
-        let totalProducts = 0;
-        let totalQuantity = 0;
-        let totalAvailable = 0;
-        let totalIncoming = 0;
-        let outOfStockCount = 0;
-        let lowStockCount = 0;
+    // Calculate totals
+    let totalProducts = 0;
+    let totalQuantity = 0;
+    let totalAvailable = 0;
+    let totalIncoming = 0;
+    let outOfStockCount = 0;
+    let lowStockCount = 0;
 
-        // Create hidden container for HTML rendering
-        const container = document.createElement('div');
-        container.style.cssText = `
+    // Create hidden container for HTML rendering
+    const container = document.createElement('div');
+    container.style.cssText = `
             position: absolute;
             left: -9999px;
             top: 0;
@@ -732,10 +747,10 @@ export async function exportToPDF(groupedData, options = {}) {
             font-family: 'Inter', Arial, sans-serif;
             padding: 20px;
         `;
-        document.body.appendChild(container);
+    document.body.appendChild(container);
 
-        // Build HTML content
-        let htmlContent = `
+    // Build HTML content
+    let htmlContent = `
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="color: #6b5a45; font-size: 24px; margin: 0;">BÁO CÁO TỒN KHO - BONARIO</h1>
                 <p style="color: #5d5044; font-size: 12px; margin: 5px 0;">
@@ -744,12 +759,12 @@ export async function exportToPDF(groupedData, options = {}) {
             </div>
         `;
 
-        // Process each warehouse
-        warehouses.forEach(warehouseName => {
-            const warehouseData = sanitizedData[warehouseName];
-            if (!warehouseData) return;
+    // Process each warehouse
+    warehouses.forEach(warehouseName => {
+      const warehouseData = sanitizedData[warehouseName];
+      if (!warehouseData) return;
 
-            htmlContent += `
+      htmlContent += `
                 <div style="margin-bottom: 20px;">
                     <h2 style="color: #6b5a45; font-size: 16px; margin: 10px 0; padding: 8px; background: #f5f0eb; border-radius: 4px;">
                         📦 ${warehouseName}
@@ -769,41 +784,41 @@ export async function exportToPDF(groupedData, options = {}) {
                         <tbody>
             `;
 
-            const categories = warehouseData.categories || warehouseData;
-            let rowIndex = 0;
+      const categories = warehouseData.categories || warehouseData;
+      let rowIndex = 0;
 
-            Object.entries(categories).forEach(([category, categoryData]) => {
-                const products = categoryData.products || categoryData;
-                const productList = Array.isArray(products) ? products : Object.values(products);
+      Object.entries(categories).forEach(([category, categoryData]) => {
+        const products = categoryData.products || categoryData;
+        const productList = Array.isArray(products) ? products : Object.values(products);
 
-                productList.forEach(product => {
-                    const qty = product.quantity || 0;
-                    const available = product.available_quantity || 0;
-                    const incoming = product.incoming_qty || 0;
+        productList.forEach(product => {
+          const qty = product.quantity || 0;
+          const available = product.available_quantity || 0;
+          const incoming = product.incoming_qty || 0;
 
-                    totalProducts++;
-                    totalQuantity += qty;
-                    totalAvailable += available;
-                    totalIncoming += incoming;
+          totalProducts++;
+          totalQuantity += qty;
+          totalAvailable += available;
+          totalIncoming += incoming;
 
-                    if (qty <= 0) outOfStockCount++;
-                    else if (available < qty * 0.2) lowStockCount++;
+          if (qty <= 0) outOfStockCount++;
+          else if (available < qty * 0.2) lowStockCount++;
 
-                    // Status
-                    let status = '✓ OK';
-                    let statusColor = '#28a745';
-                    if (qty <= 0) {
-                        status = '⚠ Hết';
-                        statusColor = '#dc3545';
-                    } else if (available < qty * 0.2) {
-                        status = '⚡ Thấp';
-                        statusColor = '#856404';
-                    }
+          // Status
+          let status = '✓ OK';
+          let statusColor = '#28a745';
+          if (qty <= 0) {
+            status = '⚠ Hết';
+            statusColor = '#dc3545';
+          } else if (available < qty * 0.2) {
+            status = '⚡ Thấp';
+            statusColor = '#856404';
+          }
 
-                    const bgColor = rowIndex % 2 === 0 ? '#ffffff' : '#f5f0eb';
-                    const qtyColor = qty <= 0 ? '#dc3545' : '#2a231f';
+          const bgColor = rowIndex % 2 === 0 ? '#ffffff' : '#f5f0eb';
+          const qtyColor = qty <= 0 ? '#dc3545' : '#2a231f';
 
-                    htmlContent += `
+          htmlContent += `
                         <tr style="background: ${bgColor};">
                             <td style="padding: 6px 8px; border: 1px solid #e8ddd4;">${category}</td>
                             <td style="padding: 6px 8px; border: 1px solid #e8ddd4;">${product.product_name || product.name || 'N/A'}</td>
@@ -814,20 +829,20 @@ export async function exportToPDF(groupedData, options = {}) {
                             <td style="padding: 6px 8px; border: 1px solid #e8ddd4; text-align: center; color: ${statusColor}; font-weight: bold;">${status}</td>
                         </tr>
                     `;
-                    rowIndex++;
-                });
-            });
+          rowIndex++;
+        });
+      });
 
-            htmlContent += `
+      htmlContent += `
                         </tbody>
                     </table>
                 </div>
             `;
-        });
+    });
 
-        // Summary section
-        if (includeSummary && !warehouseFilter) {
-            htmlContent += `
+    // Summary section
+    if (includeSummary && !warehouseFilter) {
+      htmlContent += `
                 <div style="margin-top: 20px; padding: 15px; background: #f5f0eb; border-radius: 8px;">
                     <h3 style="color: #6b5a45; margin: 0 0 10px 0;">📊 TỔNG KẾT</h3>
                     <table style="font-size: 12px;">
@@ -840,134 +855,125 @@ export async function exportToPDF(groupedData, options = {}) {
                     </table>
                 </div>
             `;
-        }
+    }
 
-        // Footer
-        htmlContent += `
+    // Footer
+    htmlContent += `
             <div style="text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #e8ddd4; color: #999; font-size: 10px;">
                 Bonario Stock Management System
             </div>
         `;
 
-        container.innerHTML = htmlContent;
+    container.innerHTML = htmlContent;
 
-        // Convert to canvas
-        const canvas = await html2canvas(container, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff'
-        });
+    // Convert to canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    });
 
-        // Remove temp container
-        document.body.removeChild(container);
+    // Remove temp container
+    document.body.removeChild(container);
 
-        // Create PDF
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
+    // Create PDF
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
 
-        // Calculate PDF dimensions (A4 landscape)
-        const pdfWidth = 297; // A4 landscape width in mm
-        const pdfHeight = 210; // A4 landscape height in mm
-        const margin = 10;
-        const contentWidth = pdfWidth - (margin * 2);
+    // Calculate PDF dimensions (A4 landscape)
+    const pdfWidth = 297; // A4 landscape width in mm
+    const pdfHeight = 210; // A4 landscape height in mm
+    const margin = 10;
+    const contentWidth = pdfWidth - margin * 2;
 
-        // Scale factor
-        const scale = contentWidth / (imgWidth / 2); // /2 because we used scale: 2
-        const scaledHeight = (imgHeight / 2) * scale;
+    // Scale factor
+    const scale = contentWidth / (imgWidth / 2); // /2 because we used scale: 2
+    const scaledHeight = (imgHeight / 2) * scale;
 
-        const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4'
-        });
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
 
-        // Calculate pages needed
-        const pageContentHeight = pdfHeight - (margin * 2);
-        const totalPages = Math.ceil(scaledHeight / pageContentHeight);
+    // Calculate pages needed
+    const pageContentHeight = pdfHeight - margin * 2;
+    const totalPages = Math.ceil(scaledHeight / pageContentHeight);
 
-        for (let page = 0; page < totalPages; page++) {
-            if (page > 0) {
-                doc.addPage();
-            }
+    for (let page = 0; page < totalPages; page++) {
+      if (page > 0) {
+        doc.addPage();
+      }
 
-            // Calculate source coordinates
-            const sourceY = (page * pageContentHeight / scale) * 2; // *2 because of scale
-            const sourceHeight = Math.min((pageContentHeight / scale) * 2, imgHeight - sourceY);
+      // Calculate source coordinates
+      const sourceY = ((page * pageContentHeight) / scale) * 2; // *2 because of scale
+      const sourceHeight = Math.min((pageContentHeight / scale) * 2, imgHeight - sourceY);
 
-            // Create temporary canvas for this page
-            const pageCanvas = document.createElement('canvas');
-            pageCanvas.width = imgWidth;
-            pageCanvas.height = sourceHeight;
-            const ctx = pageCanvas.getContext('2d');
+      // Create temporary canvas for this page
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = imgWidth;
+      pageCanvas.height = sourceHeight;
+      const ctx = pageCanvas.getContext('2d');
 
-            ctx.drawImage(
-                canvas,
-                0, sourceY, imgWidth, sourceHeight,
-                0, 0, imgWidth, sourceHeight
-            );
+      ctx.drawImage(canvas, 0, sourceY, imgWidth, sourceHeight, 0, 0, imgWidth, sourceHeight);
 
-            const pageImgData = pageCanvas.toDataURL('image/png');
-            const pageScaledHeight = (sourceHeight / 2) * scale;
+      const pageImgData = pageCanvas.toDataURL('image/png');
+      const pageScaledHeight = (sourceHeight / 2) * scale;
 
-            doc.addImage(pageImgData, 'PNG', margin, margin, contentWidth, pageScaledHeight);
+      doc.addImage(pageImgData, 'PNG', margin, margin, contentWidth, pageScaledHeight);
 
-            // Page number
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text(
-                `Trang ${page + 1}/${totalPages}`,
-                pdfWidth / 2,
-                pdfHeight - 5,
-                { align: 'center' }
-            );
-        }
-
-        // Save PDF
-        doc.save(`${filename}.pdf`);
-
-        return { success: true, filename: `${filename}.pdf` };
-    } catch (error) {
-        console.error('PDF export error:', error);
-        throw error;
+      // Page number
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Trang ${page + 1}/${totalPages}`, pdfWidth / 2, pdfHeight - 5, { align: 'center' });
     }
+
+    // Save PDF
+    doc.save(`${filename}.pdf`);
+
+    return { success: true, filename: `${filename}.pdf` };
+  } catch (error) {
+    console.error('PDF export error:', error);
+    throw error;
+  }
 }
 
 /**
  * Format number with Vietnamese locale
  */
 function formatNumber(num) {
-    if (num === null || num === undefined) return '0';
-    return Math.round(num).toLocaleString('vi-VN');
+  if (num === null || num === undefined) return '0';
+  return Math.round(num).toLocaleString('vi-VN');
 }
 
 /**
  * Export current warehouse only to PDF
  */
 export async function exportWarehouseToPDF(groupedData, warehouseName) {
-    return exportToPDF(groupedData, {
-        filename: `stock_${warehouseName.replace(/\//g, '_')}_${new Date().toISOString().split('T')[0]}`,
-        warehouseFilter: warehouseName,
-        includeSummary: false
-    });
+  return exportToPDF(groupedData, {
+    filename: `stock_${warehouseName.replace(/\//g, '_')}_${new Date().toISOString().split('T')[0]}`,
+    warehouseFilter: warehouseName,
+    includeSummary: false,
+  });
 }
 
 /**
  * Quick PDF export - compact version
  */
 export async function quickExportToPDF(groupedData) {
-    return exportToPDF(groupedData, {
-        includeSummary: false
-    });
+  return exportToPDF(groupedData, {
+    includeSummary: false,
+  });
 }
 
 export default {
-    exportToExcel,
-    exportWarehouseToExcel,
-    quickExportToExcel,
-    exportStocktakeToExcel,
-    exportToPDF,
-    exportWarehouseToPDF,
-    quickExportToPDF
+  exportToExcel,
+  exportWarehouseToExcel,
+  quickExportToExcel,
+  exportStocktakeToExcel,
+  exportToPDF,
+  exportWarehouseToPDF,
+  quickExportToPDF,
 };

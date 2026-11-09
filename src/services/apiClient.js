@@ -4,27 +4,27 @@
 // ============================================
 
 function getApiBase() {
-    if (typeof window === 'undefined') return 'http://localhost:4001';
+  if (typeof window === 'undefined') return 'http://localhost:4001';
 
-    if (window.API_BASE_URL) return window.API_BASE_URL;
+  if (window.API_BASE_URL) return window.API_BASE_URL;
 
-    const { hostname, protocol, port } = window.location;
+  const { hostname, protocol, port } = window.location;
 
-    // Production/proxy deployment: nginx handles /api routing on the same origin.
-    if (hostname.includes('bonstu.site')) return '';
+  // Production/proxy deployment: nginx handles /api routing on the same origin.
+  if (hostname.includes('bonstu.site')) return '';
 
-    // Local Vite development on the same machine.
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return 'http://localhost:4001';
-    }
+  // Local Vite development on the same machine.
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:4001';
+  }
 
-    // LAN Vite access, e.g. http://192.168.1.178:5178.
-    if (/^517\d$/.test(port)) {
-        return `${protocol}//${hostname}:4001`;
-    }
+  // LAN Vite access, e.g. http://192.168.1.178:5178.
+  if (/^517\d$/.test(port)) {
+    return `${protocol}//${hostname}:4001`;
+  }
 
-    // Docker/nginx or any non-dev host should use same-origin /api.
-    return '';
+  // Docker/nginx or any non-dev host should use same-origin /api.
+  return '';
 }
 
 const API_BASE = getApiBase();
@@ -33,86 +33,107 @@ const API_BASE = getApiBase();
  * Get auth token from localStorage
  */
 function getToken() {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('auth_token');
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem('auth_token');
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()) return token;
+  } catch {
+    // Invalid or unreadable token must not keep the UI authenticated.
+  }
+  removeToken();
+  return null;
 }
 
 /**
  * Set auth token in localStorage
  */
 function setToken(token) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('auth_token', token);
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('auth_token', token);
 }
 
 /**
  * Remove auth token from localStorage
  */
 function removeToken() {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
 }
 
 /**
  * Get current user from localStorage
  */
 function getCurrentUser() {
-    if (typeof window === 'undefined') return null;
-    const userStr = localStorage.getItem('auth_user');
-    if (!userStr) return null;
-    try {
-        return JSON.parse(userStr);
-    } catch {
-        removeToken();
-        return null;
-    }
+  if (typeof window === 'undefined') return null;
+  const userStr = localStorage.getItem('auth_user');
+  if (!userStr) return null;
+  try {
+    return JSON.parse(userStr);
+  } catch {
+    removeToken();
+    return null;
+  }
 }
 
 /**
  * Set current user in localStorage
  */
 function setCurrentUser(user) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('auth_user', JSON.stringify(user));
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('auth_user', JSON.stringify(user));
 }
 
 /**
  * Make API request with auth token
  */
 async function request(endpoint, options = {}) {
-    const token = getToken();
-    
-    const config = {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            ...options.headers,
-        },
-    };
-    
-    const url = `${API_BASE}${endpoint}`;
-    
-    const response = await fetch(url, config);
-    const text = await response.text();
-    let data = {};
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = { success: false, error: text };
-        }
-    }
+  const token = getToken();
 
-    if (!response.ok) {
-        const error = new Error(data.error || 'API request failed');
-        error.code = data.code;
-        error.status = response.status;
-        throw error;
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  };
+
+  const url = `${API_BASE}${endpoint}`;
+
+  const response = await fetch(url, config);
+  const text = await response.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { success: false, error: text };
     }
-    
-    return data;
+  }
+
+  if (!response.ok) {
+    // A rejected authenticated request can also mean a server-side revocation.
+    // Never clear a newer session if an older request finishes after re-login.
+    if (
+      response.status === 401 &&
+      token &&
+      token === localStorage.getItem('auth_token') &&
+      endpoint !== '/api/auth/login' &&
+      endpoint !== '/api/auth/logout'
+    ) {
+      removeToken();
+      window.dispatchEvent(new Event('stock-auth-expired'));
+    }
+    const error = new Error(data.error || 'API request failed');
+    error.code = data.code;
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
 }
 
 // ============================================
@@ -120,94 +141,94 @@ async function request(endpoint, options = {}) {
 // ============================================
 
 export const auth = {
-    /**
-     * Login
-     */
-    async login(username, password) {
-        const data = await request('/api/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ username, password }),
-        });
-        
-        if (data.success) {
-            setToken(data.data.token);
-            setCurrentUser({
-                id: data.data.id,
-                username: data.data.username,
-                role: data.data.role,
-            });
-        }
-        
-        return data;
-    },
-    
-    /**
-     * Logout
-     */
-    async logout() {
-        try {
-            await request('/api/auth/logout', { method: 'POST' });
-        } finally {
-            removeToken();
-        }
-    },
-    
-    /**
-     * Get current user
-     */
-    async me() {
-        return request('/api/auth/me');
-    },
-    
-    /**
-     * Check if user is authenticated
-     */
-    isAuthenticated() {
-        return !!getToken();
-    },
-    
-    /**
-     * Get current user (from localStorage, no API call)
-     */
-    getCurrentUser() {
-        return getCurrentUser();
-    },
-    
-    /**
-     * List all users (admin only)
-     */
-    async listUsers() {
-        return request('/api/auth/users');
-    },
-    
-    /**
-     * Create user (admin only)
-     */
-    async createUser(username, password, role = 'counter') {
-        return request('/api/auth/users', {
-            method: 'POST',
-            body: JSON.stringify({ username, password, role }),
-        });
-    },
-    
-    /**
-     * Update user (admin only)
-     */
-    async updateUser(userId, updates) {
-        return request(`/api/auth/users/${userId}`, {
-            method: 'PUT',
-            body: JSON.stringify(updates),
-        });
-    },
-    
-    /**
-     * Delete user (admin only)
-     */
-    async deleteUser(userId) {
-        return request(`/api/auth/users/${userId}`, {
-            method: 'DELETE',
-        });
-    },
+  /**
+   * Login
+   */
+  async login(username, password) {
+    const data = await request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (data.success) {
+      setToken(data.data.token);
+      setCurrentUser({
+        id: data.data.id,
+        username: data.data.username,
+        role: data.data.role,
+      });
+    }
+
+    return data;
+  },
+
+  /**
+   * Logout
+   */
+  async logout() {
+    try {
+      await request('/api/auth/logout', { method: 'POST' });
+    } finally {
+      removeToken();
+    }
+  },
+
+  /**
+   * Get current user
+   */
+  async me() {
+    return request('/api/auth/me');
+  },
+
+  /**
+   * Check if user is authenticated
+   */
+  isAuthenticated() {
+    return !!getToken();
+  },
+
+  /**
+   * Get current user (from localStorage, no API call)
+   */
+  getCurrentUser() {
+    return getCurrentUser();
+  },
+
+  /**
+   * List all users (admin only)
+   */
+  async listUsers() {
+    return request('/api/auth/users');
+  },
+
+  /**
+   * Create user (admin only)
+   */
+  async createUser(username, password, role = 'counter') {
+    return request('/api/auth/users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, role }),
+    });
+  },
+
+  /**
+   * Update user (admin only)
+   */
+  async updateUser(userId, updates) {
+    return request(`/api/auth/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  /**
+   * Delete user (admin only)
+   */
+  async deleteUser(userId) {
+    return request(`/api/auth/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ============================================
@@ -215,107 +236,109 @@ export const auth = {
 // ============================================
 
 export const stocktake = {
-    /**
-     * List sessions
-     */
-    async listSessions(filters = {}) {
-        const params = new URLSearchParams();
-        if (filters.month) params.append('month', filters.month);
-        if (filters.warehouse) params.append('warehouse', filters.warehouse);
-        if (filters.status) params.append('status', filters.status);
-        if (filters.limit) params.append('limit', filters.limit);
-        if (filters.offset) params.append('offset', filters.offset);
-        
-        const queryString = params.toString();
-        return request(`/api/stocktake/sessions${queryString ? `?${queryString}` : ''}`);
-    },
-    
-    /**
-     * Get session by ID
-     */
-    async getSession(sessionId) {
-        return request(`/api/stocktake/sessions/${sessionId}`);
-    },
-    
-    /**
-     * Get session by month and warehouse
-     */
-    async getSessionByMonthWarehouse(month, warehouse) {
-        return request(`/api/stocktake/sessions/by-month-warehouse?month=${month}&warehouse=${encodeURIComponent(warehouse)}`);
-    },
-    
-    /**
-     * Create session
-     */
-    async createSession(month, warehouse) {
-        return request('/api/stocktake/sessions', {
-            method: 'POST',
-            body: JSON.stringify({ month, warehouse }),
-        });
-    },
-    
-    /**
-     * Update lines (bulk)
-     */
-    async updateLines(sessionId, lines) {
-        return request(`/api/stocktake/sessions/${sessionId}/lines`, {
-            method: 'PUT',
-            body: JSON.stringify({ lines }),
-        });
-    },
-    
-    /**
-     * Update single line
-     */
-    async updateLine(sessionId, lineData) {
-        return request(`/api/stocktake/sessions/${sessionId}/line`, {
-            method: 'POST',
-            body: JSON.stringify(lineData),
-        });
-    },
-    
-    /**
-     * Lock session
-     */
-    async lockSession(sessionId) {
-        return request(`/api/stocktake/sessions/${sessionId}/lock`, {
-            method: 'POST',
-        });
-    },
-    
-    /**
-     * Unlock session
-     */
-    async unlockSession(sessionId) {
-        return request(`/api/stocktake/sessions/${sessionId}/unlock`, {
-            method: 'POST',
-        });
-    },
-    
-    /**
-     * Complete session
-     */
-    async completeSession(sessionId) {
-        return request(`/api/stocktake/sessions/${sessionId}/complete`, {
-            method: 'POST',
-        });
-    },
-    
-    /**
-     * Delete session
-     */
-    async deleteSession(sessionId) {
-        return request(`/api/stocktake/sessions/${sessionId}`, {
-            method: 'DELETE',
-        });
-    },
-    
-    /**
-     * Get session stats
-     */
-    async getSessionStats(sessionId) {
-        return request(`/api/stocktake/sessions/${sessionId}/stats`);
-    },
+  /**
+   * List sessions
+   */
+  async listSessions(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.month) params.append('month', filters.month);
+    if (filters.warehouse) params.append('warehouse', filters.warehouse);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.limit) params.append('limit', filters.limit);
+    if (filters.offset) params.append('offset', filters.offset);
+
+    const queryString = params.toString();
+    return request(`/api/stocktake/sessions${queryString ? `?${queryString}` : ''}`);
+  },
+
+  /**
+   * Get session by ID
+   */
+  async getSession(sessionId) {
+    return request(`/api/stocktake/sessions/${sessionId}`);
+  },
+
+  /**
+   * Get session by month and warehouse
+   */
+  async getSessionByMonthWarehouse(month, warehouse) {
+    return request(
+      `/api/stocktake/sessions/by-month-warehouse?month=${month}&warehouse=${encodeURIComponent(warehouse)}`
+    );
+  },
+
+  /**
+   * Create session
+   */
+  async createSession(month, warehouse) {
+    return request('/api/stocktake/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ month, warehouse }),
+    });
+  },
+
+  /**
+   * Update lines (bulk)
+   */
+  async updateLines(sessionId, lines) {
+    return request(`/api/stocktake/sessions/${sessionId}/lines`, {
+      method: 'PUT',
+      body: JSON.stringify({ lines }),
+    });
+  },
+
+  /**
+   * Update single line
+   */
+  async updateLine(sessionId, lineData) {
+    return request(`/api/stocktake/sessions/${sessionId}/line`, {
+      method: 'POST',
+      body: JSON.stringify(lineData),
+    });
+  },
+
+  /**
+   * Lock session
+   */
+  async lockSession(sessionId) {
+    return request(`/api/stocktake/sessions/${sessionId}/lock`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Unlock session
+   */
+  async unlockSession(sessionId) {
+    return request(`/api/stocktake/sessions/${sessionId}/unlock`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Complete session
+   */
+  async completeSession(sessionId) {
+    return request(`/api/stocktake/sessions/${sessionId}/complete`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Delete session
+   */
+  async deleteSession(sessionId) {
+    return request(`/api/stocktake/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get session stats
+   */
+  async getSessionStats(sessionId) {
+    return request(`/api/stocktake/sessions/${sessionId}/stats`);
+  },
 };
 
 // ============================================
@@ -323,11 +346,11 @@ export const stocktake = {
 // ============================================
 
 export default {
-    auth,
-    stocktake,
-    getToken,
-    setToken,
-    removeToken,
-    getCurrentUser,
-    isAuthenticated: () => !!getToken(),
+  auth,
+  stocktake,
+  getToken,
+  setToken,
+  removeToken,
+  getCurrentUser,
+  isAuthenticated: () => !!getToken(),
 };

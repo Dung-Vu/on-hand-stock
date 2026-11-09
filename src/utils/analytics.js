@@ -14,14 +14,14 @@ const DEBUG = false; // Set to true for console logging
  * @returns {Object}
  */
 function getConfig() {
-    if (typeof window !== 'undefined' && window.ANALYTICS_CONFIG) {
-        return window.ANALYTICS_CONFIG;
-    }
-    return {
-        enabled: true,
-        endpoint: null, // Set to send metrics to a backend
-        sampleRate: 1.0, // 100% sampling by default
-    };
+  if (typeof window !== 'undefined' && window.ANALYTICS_CONFIG) {
+    return window.ANALYTICS_CONFIG;
+  }
+  return {
+    enabled: true,
+    endpoint: null, // Set to send metrics to a backend
+    sampleRate: 1.0, // 100% sampling by default
+  };
 }
 
 // ============================================
@@ -29,11 +29,11 @@ function getConfig() {
 // ============================================
 
 const metrics = {
-    navigation: {},
-    resources: [],
-    api: [],
-    webVitals: {},
-    custom: {},
+  navigation: {},
+  resources: [],
+  api: [],
+  webVitals: {},
+  custom: {},
 };
 
 // ============================================
@@ -44,118 +44,118 @@ const metrics = {
  * Track Largest Contentful Paint (LCP)
  */
 function trackLCP() {
-    if (!('PerformanceObserver' in window)) return;
+  if (!('PerformanceObserver' in window)) return;
 
-    try {
-        const observer = new PerformanceObserver((list) => {
-            const entries = list.getEntries();
-            const lastEntry = entries[entries.length - 1];
+  try {
+    const observer = new PerformanceObserver(list => {
+      const entries = list.getEntries();
+      const lastEntry = entries[entries.length - 1];
 
-            metrics.webVitals.lcp = {
-                value: lastEntry.startTime,
-                element: lastEntry.element?.tagName || 'unknown',
-                timestamp: Date.now(),
-            };
+      metrics.webVitals.lcp = {
+        value: lastEntry.startTime,
+        element: lastEntry.element?.tagName || 'unknown',
+        timestamp: Date.now(),
+      };
 
-            if (DEBUG) {
-                console.log('[Analytics] LCP:', metrics.webVitals.lcp.value.toFixed(2), 'ms');
-            }
-        });
+      if (DEBUG) {
+        console.log('[Analytics] LCP:', metrics.webVitals.lcp.value.toFixed(2), 'ms');
+      }
+    });
 
-        observer.observe({ type: 'largest-contentful-paint', buffered: true });
-    } catch (e) {
-        // LCP not supported
-    }
+    observer.observe({ type: 'largest-contentful-paint', buffered: true });
+  } catch (e) {
+    // LCP not supported
+  }
 }
 
 /**
  * Track First Input Delay (FID)
  */
 function trackFID() {
-    if (!('PerformanceObserver' in window)) return;
+  if (!('PerformanceObserver' in window)) return;
 
-    try {
-        const observer = new PerformanceObserver((list) => {
-            const entries = list.getEntries();
-            const firstEntry = entries[0];
+  try {
+    const observer = new PerformanceObserver(list => {
+      const entries = list.getEntries();
+      const firstEntry = entries[0];
 
-            metrics.webVitals.fid = {
-                value: firstEntry.processingStart - firstEntry.startTime,
-                eventType: firstEntry.name,
-                timestamp: Date.now(),
-            };
+      metrics.webVitals.fid = {
+        value: firstEntry.processingStart - firstEntry.startTime,
+        eventType: firstEntry.name,
+        timestamp: Date.now(),
+      };
 
-            if (DEBUG) {
-                console.log('[Analytics] FID:', metrics.webVitals.fid.value.toFixed(2), 'ms');
-            }
-        });
+      if (DEBUG) {
+        console.log('[Analytics] FID:', metrics.webVitals.fid.value.toFixed(2), 'ms');
+      }
+    });
 
-        observer.observe({ type: 'first-input', buffered: true });
-    } catch (e) {
-        // FID not supported
-    }
+    observer.observe({ type: 'first-input', buffered: true });
+  } catch (e) {
+    // FID not supported
+  }
 }
 
 /**
  * Track Cumulative Layout Shift (CLS)
  */
 function trackCLS() {
-    if (!('PerformanceObserver' in window)) return;
+  if (!('PerformanceObserver' in window)) return;
 
-    let clsValue = 0;
-    let clsEntries = [];
+  let clsValue = 0;
+  let clsEntries = [];
 
-    try {
-        const observer = new PerformanceObserver((list) => {
-            for (const entry of list.getEntries()) {
-                if (!entry.hadRecentInput) {
-                    clsValue += entry.value;
-                    clsEntries.push(entry);
-                }
-            }
+  try {
+    const observer = new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        if (!entry.hadRecentInput) {
+          clsValue += entry.value;
+          clsEntries.push(entry);
+        }
+      }
 
-            metrics.webVitals.cls = {
-                value: clsValue,
-                entries: clsEntries.length,
-                timestamp: Date.now(),
-            };
+      metrics.webVitals.cls = {
+        value: clsValue,
+        entries: clsEntries.length,
+        timestamp: Date.now(),
+      };
 
-            if (DEBUG) {
-                console.log('[Analytics] CLS:', clsValue.toFixed(4));
-            }
-        });
+      if (DEBUG) {
+        console.log('[Analytics] CLS:', clsValue.toFixed(4));
+      }
+    });
 
-        observer.observe({ type: 'layout-shift', buffered: true });
-    } catch (e) {
-        // CLS not supported
-    }
+    observer.observe({ type: 'layout-shift', buffered: true });
+  } catch (e) {
+    // CLS not supported
+  }
 }
 
 /**
  * Track Time to First Byte (TTFB)
  */
 function trackTTFB() {
-    if (!('PerformanceObserver' in window)) return;
+  if (!('PerformanceObserver' in window)) return;
 
-    try {
-        const observer = new PerformanceObserver((list) => {
-            const entries = list.getEntries();
-            const navigationEntry = entries[0];
+  try {
+    const observer = new PerformanceObserver(list => {
+      const entries = list.getEntries();
+      const navigationEntry = entries[0];
 
-            metrics.webVitals.ttfb = {
-                value: navigationEntry.responseStart - navigationEntry.requestStart,
-                timestamp: Date.now(),
-            };
+      metrics.webVitals.ttfb = {
+        value: navigationEntry.responseStart - navigationEntry.requestStart,
+        timestamp: Date.now(),
+      };
 
-            if (DEBUG) {
-                console.log('[Analytics] TTFB:', metrics.webVitals.ttfb.value.toFixed(2), 'ms');
-            }
-        });
+      if (DEBUG) {
+        console.log('[Analytics] TTFB:', metrics.webVitals.ttfb.value.toFixed(2), 'ms');
+      }
+    });
 
-        observer.observe({ type: 'navigation', buffered: true });
-    } catch (e) {
-        // TTFB not supported
-    }
+    observer.observe({ type: 'navigation', buffered: true });
+  } catch (e) {
+    // TTFB not supported
+  }
 }
 
 // ============================================
@@ -166,42 +166,42 @@ function trackTTFB() {
  * Track navigation timing metrics
  */
 function trackNavigationTiming() {
-    if (!window.performance || !window.performance.timing) return;
+  if (!window.performance || !window.performance.timing) return;
 
-    // Wait for load event
-    window.addEventListener('load', () => {
-        // Use setTimeout to ensure all metrics are available
-        setTimeout(() => {
-            const timing = window.performance.timing;
-            const navigationStart = timing.navigationStart;
+  // Wait for load event
+  window.addEventListener('load', () => {
+    // Use setTimeout to ensure all metrics are available
+    setTimeout(() => {
+      const timing = window.performance.timing;
+      const navigationStart = timing.navigationStart;
 
-            metrics.navigation = {
-                // DNS lookup
-                dns: timing.domainLookupEnd - timing.domainLookupStart,
-                // TCP connection
-                tcp: timing.connectEnd - timing.connectStart,
-                // Time to first byte
-                ttfb: timing.responseStart - navigationStart,
-                // Response download
-                download: timing.responseEnd - timing.responseStart,
-                // DOM parsing
-                domParsing: timing.domInteractive - timing.responseEnd,
-                // DOM content loaded
-                domContentLoaded: timing.domContentLoadedEventEnd - navigationStart,
-                // Page load complete
-                loadComplete: timing.loadEventEnd - navigationStart,
-                // First paint (if available)
-                firstPaint: getFirstPaint(),
-                // First contentful paint
-                firstContentfulPaint: getFirstContentfulPaint(),
-                timestamp: Date.now(),
-            };
+      metrics.navigation = {
+        // DNS lookup
+        dns: timing.domainLookupEnd - timing.domainLookupStart,
+        // TCP connection
+        tcp: timing.connectEnd - timing.connectStart,
+        // Time to first byte
+        ttfb: timing.responseStart - navigationStart,
+        // Response download
+        download: timing.responseEnd - timing.responseStart,
+        // DOM parsing
+        domParsing: timing.domInteractive - timing.responseEnd,
+        // DOM content loaded
+        domContentLoaded: timing.domContentLoadedEventEnd - navigationStart,
+        // Page load complete
+        loadComplete: timing.loadEventEnd - navigationStart,
+        // First paint (if available)
+        firstPaint: getFirstPaint(),
+        // First contentful paint
+        firstContentfulPaint: getFirstContentfulPaint(),
+        timestamp: Date.now(),
+      };
 
-            if (DEBUG) {
-                console.log('[Analytics] Navigation Timing:', metrics.navigation);
-            }
-        }, 0);
-    });
+      if (DEBUG) {
+        console.log('[Analytics] Navigation Timing:', metrics.navigation);
+      }
+    }, 0);
+  });
 }
 
 /**
@@ -209,9 +209,9 @@ function trackNavigationTiming() {
  * @returns {number|null}
  */
 function getFirstPaint() {
-    const entries = performance.getEntriesByType('paint');
-    const fp = entries.find(e => e.name === 'first-paint');
-    return fp ? fp.startTime : null;
+  const entries = performance.getEntriesByType('paint');
+  const fp = entries.find(e => e.name === 'first-paint');
+  return fp ? fp.startTime : null;
 }
 
 /**
@@ -219,9 +219,9 @@ function getFirstPaint() {
  * @returns {number|null}
  */
 function getFirstContentfulPaint() {
-    const entries = performance.getEntriesByType('paint');
-    const fcp = entries.find(e => e.name === 'first-contentful-paint');
-    return fcp ? fcp.startTime : null;
+  const entries = performance.getEntriesByType('paint');
+  const fcp = entries.find(e => e.name === 'first-contentful-paint');
+  return fcp ? fcp.startTime : null;
 }
 
 // ============================================
@@ -238,29 +238,29 @@ function getFirstContentfulPaint() {
  * @param {boolean} cached - Whether response was from cache
  */
 export function trackApiResponse(url, method, startTime, endTime, status, cached = false) {
-    const duration = endTime - startTime;
+  const duration = endTime - startTime;
 
-    const entry = {
-        url: sanitizeUrl(url),
-        method,
-        duration,
-        status,
-        cached,
-        timestamp: Date.now(),
-    };
+  const entry = {
+    url: sanitizeUrl(url),
+    method,
+    duration,
+    status,
+    cached,
+    timestamp: Date.now(),
+  };
 
-    metrics.api.push(entry);
+  metrics.api.push(entry);
 
-    // Keep only last 100 API calls
-    if (metrics.api.length > 100) {
-        metrics.api.shift();
-    }
+  // Keep only last 100 API calls
+  if (metrics.api.length > 100) {
+    metrics.api.shift();
+  }
 
-    if (DEBUG) {
-        console.log(`[Analytics] API ${method} ${entry.url}: ${duration.toFixed(0)}ms (${status})`);
-    }
+  if (DEBUG) {
+    console.log(`[Analytics] API ${method} ${entry.url}: ${duration.toFixed(0)}ms (${status})`);
+  }
 
-    return entry;
+  return entry;
 }
 
 /**
@@ -270,21 +270,21 @@ export function trackApiResponse(url, method, startTime, endTime, status, cached
  * @returns {Promise<Response>}
  */
 export async function trackedFetch(url, options = {}) {
-    const startTime = performance.now();
-    const method = options.method || 'GET';
+  const startTime = performance.now();
+  const method = options.method || 'GET';
 
-    try {
-        const response = await fetch(url, options);
-        const endTime = performance.now();
+  try {
+    const response = await fetch(url, options);
+    const endTime = performance.now();
 
-        trackApiResponse(url, method, startTime, endTime, response.status);
+    trackApiResponse(url, method, startTime, endTime, response.status);
 
-        return response;
-    } catch (error) {
-        const endTime = performance.now();
-        trackApiResponse(url, method, startTime, endTime, 0); // 0 = network error
-        throw error;
-    }
+    return response;
+  } catch (error) {
+    const endTime = performance.now();
+    trackApiResponse(url, method, startTime, endTime, 0); // 0 = network error
+    throw error;
+  }
 }
 
 /**
@@ -293,16 +293,16 @@ export async function trackedFetch(url, options = {}) {
  * @returns {string}
  */
 function sanitizeUrl(url) {
-    try {
-        const urlObj = new URL(url);
-        // Remove sensitive params
-        urlObj.searchParams.delete('api_key');
-        urlObj.searchParams.delete('token');
-        urlObj.searchParams.delete('password');
-        return urlObj.pathname + urlObj.search;
-    } catch {
-        return url;
-    }
+  try {
+    const urlObj = new URL(url);
+    // Remove sensitive params
+    urlObj.searchParams.delete('api_key');
+    urlObj.searchParams.delete('token');
+    urlObj.searchParams.delete('password');
+    return urlObj.pathname + urlObj.search;
+  } catch {
+    return url;
+  }
 }
 
 // ============================================
@@ -316,28 +316,28 @@ function sanitizeUrl(url) {
  * @param {Object} tags - Additional tags
  */
 export function trackMetric(name, value, tags = {}) {
-    if (!metrics.custom[name]) {
-        metrics.custom[name] = [];
-    }
+  if (!metrics.custom[name]) {
+    metrics.custom[name] = [];
+  }
 
-    const entry = {
-        value,
-        tags,
-        timestamp: Date.now(),
-    };
+  const entry = {
+    value,
+    tags,
+    timestamp: Date.now(),
+  };
 
-    metrics.custom[name].push(entry);
+  metrics.custom[name].push(entry);
 
-    // Keep only last 50 entries per metric
-    if (metrics.custom[name].length > 50) {
-        metrics.custom[name].shift();
-    }
+  // Keep only last 50 entries per metric
+  if (metrics.custom[name].length > 50) {
+    metrics.custom[name].shift();
+  }
 
-    if (DEBUG) {
-        console.log(`[Analytics] Custom metric "${name}":`, value, tags);
-    }
+  if (DEBUG) {
+    console.log(`[Analytics] Custom metric "${name}":`, value, tags);
+  }
 
-    return entry;
+  return entry;
 }
 
 /**
@@ -347,15 +347,15 @@ export function trackMetric(name, value, tags = {}) {
  * @returns {any} Result of render function
  */
 export function trackRenderTime(componentName, renderFn) {
-    const startTime = performance.now();
-    const result = renderFn();
-    const endTime = performance.now();
+  const startTime = performance.now();
+  const result = renderFn();
+  const endTime = performance.now();
 
-    trackMetric(`render_${componentName}`, endTime - startTime, {
-        component: componentName,
-    });
+  trackMetric(`render_${componentName}`, endTime - startTime, {
+    component: componentName,
+  });
 
-    return result;
+  return result;
 }
 
 /**
@@ -363,9 +363,9 @@ export function trackRenderTime(componentName, renderFn) {
  * @param {string} name - Mark name
  */
 export function mark(name) {
-    if (window.performance && window.performance.mark) {
-        performance.mark(name);
-    }
+  if (window.performance && window.performance.mark) {
+    performance.mark(name);
+  }
 }
 
 /**
@@ -376,27 +376,27 @@ export function mark(name) {
  * @returns {number|null} Duration in milliseconds
  */
 export function measure(name, startMark, endMark = null) {
-    if (!window.performance || !window.performance.measure) return null;
+  if (!window.performance || !window.performance.measure) return null;
 
-    try {
-        if (endMark) {
-            performance.measure(name, startMark, endMark);
-        } else {
-            performance.measure(name, startMark);
-        }
-
-        const entries = performance.getEntriesByName(name, 'measure');
-        const entry = entries[entries.length - 1];
-
-        if (entry) {
-            trackMetric(name, entry.duration);
-            return entry.duration;
-        }
-    } catch (e) {
-        // Mark not found
+  try {
+    if (endMark) {
+      performance.measure(name, startMark, endMark);
+    } else {
+      performance.measure(name, startMark);
     }
 
-    return null;
+    const entries = performance.getEntriesByName(name, 'measure');
+    const entry = entries[entries.length - 1];
+
+    if (entry) {
+      trackMetric(name, entry.duration);
+      return entry.duration;
+    }
+  } catch (e) {
+    // Mark not found
+  }
+
+  return null;
 }
 
 // ============================================
@@ -408,7 +408,7 @@ export function measure(name, startMark, endMark = null) {
  * @returns {Object}
  */
 export function getMetrics() {
-    return { ...metrics };
+  return { ...metrics };
 }
 
 /**
@@ -416,7 +416,7 @@ export function getMetrics() {
  * @returns {Object}
  */
 export function getWebVitals() {
-    return { ...metrics.webVitals };
+  return { ...metrics.webVitals };
 }
 
 /**
@@ -424,25 +424,25 @@ export function getWebVitals() {
  * @returns {Object}
  */
 export function getApiMetrics() {
-    const apiCalls = metrics.api;
+  const apiCalls = metrics.api;
 
-    if (apiCalls.length === 0) {
-        return { count: 0 };
-    }
+  if (apiCalls.length === 0) {
+    return { count: 0 };
+  }
 
-    const durations = apiCalls.map(c => c.duration);
-    const successful = apiCalls.filter(c => c.status >= 200 && c.status < 300);
-    const failed = apiCalls.filter(c => c.status === 0 || c.status >= 400);
+  const durations = apiCalls.map(c => c.duration);
+  const successful = apiCalls.filter(c => c.status >= 200 && c.status < 300);
+  const failed = apiCalls.filter(c => c.status === 0 || c.status >= 400);
 
-    return {
-        count: apiCalls.length,
-        successRate: (successful.length / apiCalls.length) * 100,
-        avgDuration: durations.reduce((a, b) => a + b, 0) / durations.length,
-        minDuration: Math.min(...durations),
-        maxDuration: Math.max(...durations),
-        p95Duration: percentile(durations, 95),
-        failedCount: failed.length,
-    };
+  return {
+    count: apiCalls.length,
+    successRate: (successful.length / apiCalls.length) * 100,
+    avgDuration: durations.reduce((a, b) => a + b, 0) / durations.length,
+    minDuration: Math.min(...durations),
+    maxDuration: Math.max(...durations),
+    p95Duration: percentile(durations, 95),
+    failedCount: failed.length,
+  };
 }
 
 /**
@@ -452,9 +452,9 @@ export function getApiMetrics() {
  * @returns {number}
  */
 function percentile(arr, p) {
-    const sorted = [...arr].sort((a, b) => a - b);
-    const index = Math.ceil((p / 100) * sorted.length) - 1;
-    return sorted[Math.max(0, index)];
+  const sorted = [...arr].sort((a, b) => a - b);
+  const index = Math.ceil((p / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, index)];
 }
 
 /**
@@ -462,7 +462,7 @@ function percentile(arr, p) {
  * @returns {Object}
  */
 export function getNavigationMetrics() {
-    return { ...metrics.navigation };
+  return { ...metrics.navigation };
 }
 
 // ============================================
@@ -474,47 +474,47 @@ export function getNavigationMetrics() {
  * @returns {Promise<boolean>}
  */
 export async function sendMetrics() {
-    const config = getConfig();
+  const config = getConfig();
 
-    if (!config.endpoint) {
-        if (DEBUG) {
-            console.log('[Analytics] No endpoint configured, metrics not sent');
-        }
-        return false;
+  if (!config.endpoint) {
+    if (DEBUG) {
+      console.log('[Analytics] No endpoint configured, metrics not sent');
+    }
+    return false;
+  }
+
+  // Sample rate check
+  if (Math.random() > config.sampleRate) {
+    return false;
+  }
+
+  try {
+    const payload = {
+      navigation: metrics.navigation,
+      webVitals: metrics.webVitals,
+      apiSummary: getApiMetrics(),
+      custom: metrics.custom,
+      timestamp: Date.now(),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+    };
+
+    await fetch(config.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true, // Ensure request completes even if page unloads
+    });
+
+    if (DEBUG) {
+      console.log('[Analytics] Metrics sent successfully');
     }
 
-    // Sample rate check
-    if (Math.random() > config.sampleRate) {
-        return false;
-    }
-
-    try {
-        const payload = {
-            navigation: metrics.navigation,
-            webVitals: metrics.webVitals,
-            apiSummary: getApiMetrics(),
-            custom: metrics.custom,
-            timestamp: Date.now(),
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-        };
-
-        await fetch(config.endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            keepalive: true, // Ensure request completes even if page unloads
-        });
-
-        if (DEBUG) {
-            console.log('[Analytics] Metrics sent successfully');
-        }
-
-        return true;
-    } catch (error) {
-        console.error('[Analytics] Failed to send metrics:', error);
-        return false;
-    }
+    return true;
+  } catch (error) {
+    console.error('[Analytics] Failed to send metrics:', error);
+    return false;
+  }
 }
 
 // ============================================
@@ -528,38 +528,38 @@ let isInitialized = false;
  * @param {Object} options - Configuration options
  */
 export function initAnalytics(options = {}) {
-    if (isInitialized) {
-        console.warn('[Analytics] Already initialized');
-        return;
-    }
+  if (isInitialized) {
+    console.warn('[Analytics] Already initialized');
+    return;
+  }
 
-    const config = getConfig();
+  const config = getConfig();
 
-    if (!config.enabled) {
-        console.info('[Analytics] Performance monitoring disabled');
-        return;
-    }
+  if (!config.enabled) {
+    console.info('[Analytics] Performance monitoring disabled');
+    return;
+  }
 
-    // Track Core Web Vitals
-    trackLCP();
-    trackFID();
-    trackCLS();
-    trackTTFB();
+  // Track Core Web Vitals
+  trackLCP();
+  trackFID();
+  trackCLS();
+  trackTTFB();
 
-    // Track navigation timing
-    trackNavigationTiming();
+  // Track navigation timing
+  trackNavigationTiming();
 
-    // Send metrics before page unload
-    if (options.sendOnUnload !== false) {
-        window.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                sendMetrics();
-            }
-        });
-    }
+  // Send metrics before page unload
+  if (options.sendOnUnload !== false) {
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        sendMetrics();
+      }
+    });
+  }
 
-    isInitialized = true;
-    console.info('[Analytics] Performance monitoring initialized');
+  isInitialized = true;
+  console.info('[Analytics] Performance monitoring initialized');
 }
 
 // ============================================
@@ -567,16 +567,16 @@ export function initAnalytics(options = {}) {
 // ============================================
 
 export default {
-    initAnalytics,
-    trackApiResponse,
-    trackedFetch,
-    trackMetric,
-    trackRenderTime,
-    mark,
-    measure,
-    getMetrics,
-    getWebVitals,
-    getApiMetrics,
-    getNavigationMetrics,
-    sendMetrics,
+  initAnalytics,
+  trackApiResponse,
+  trackedFetch,
+  trackMetric,
+  trackRenderTime,
+  mark,
+  measure,
+  getMetrics,
+  getWebVitals,
+  getApiMetrics,
+  getNavigationMetrics,
+  sendMetrics,
 };

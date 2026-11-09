@@ -1,14 +1,14 @@
-import { createElement } from "../utils/dom.js";
-import { auth } from "../services/apiClient.js";
+import { createElement } from '../utils/dom.js';
+import { auth } from '../services/apiClient.js';
 
 // Inject header styles once
 let _headerStylesInjected = false;
 function injectHeaderStyles() {
-    if (_headerStylesInjected) return;
-    _headerStylesInjected = true;
-    const style = document.createElement('style');
-    style.id = 'header-styles';
-    style.textContent = `
+  if (_headerStylesInjected) return;
+  _headerStylesInjected = true;
+  const style = document.createElement('style');
+  style.id = 'header-styles';
+  style.textContent = `
         .hdr-btn {
             display: inline-flex;
             align-items: center;
@@ -131,14 +131,22 @@ function injectHeaderStyles() {
             }
         }
     `;
-    document.head.appendChild(style);
+  document.head.appendChild(style);
 }
 
-export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktake, currentUser, onLogout, onOpenAdmin }) {
-    injectHeaderStyles();
+export default function Header({
+  onLoad,
+  onExport,
+  onExportPDF,
+  onToggleStocktake,
+  currentUser,
+  onLogout,
+  onOpenAdmin,
+}) {
+  injectHeaderStyles();
 
-    const header = createElement("header", {});
-    header.style.cssText = `
+  const header = createElement('header', {});
+  header.style.cssText = `
         background: #ffffff;
         position: sticky;
         top: 0;
@@ -149,18 +157,19 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         box-sizing: border-box;
     `;
 
-    // ──────────────────────────────────────────────
-    // TOP BAR
-    // ──────────────────────────────────────────────
-    const topBar = createElement("div", {});
-    topBar.style.cssText = 'padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-sizing: border-box; width: 100%;';
+  // ──────────────────────────────────────────────
+  // TOP BAR
+  // ──────────────────────────────────────────────
+  const topBar = createElement('div', {});
+  topBar.style.cssText =
+    'padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-sizing: border-box; width: 100%;';
 
-    // LEFT: Logo + User chip
-    const leftGroup = createElement("div", {});
-    leftGroup.style.cssText = 'display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;';
+  // LEFT: Logo + User chip
+  const leftGroup = createElement('div', {});
+  leftGroup.style.cssText = 'display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;';
 
-    const logoBox = createElement("div", {});
-    logoBox.style.cssText = `
+  const logoBox = createElement('div', {});
+  logoBox.style.cssText = `
         width: 36px; height: 36px;
         border-radius: 10px;
         background: linear-gradient(135deg, #6b5a45 0%, #8b7355 100%);
@@ -169,48 +178,49 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         flex-shrink: 0;
         box-shadow: 0 2px 8px rgba(107,90,69,0.3);
     `;
-    logoBox.textContent = '📦';
+  logoBox.textContent = '📦';
 
-    const titleWrap = createElement("div", {});
-    titleWrap.style.cssText = 'min-width: 0; overflow: hidden;';
-    titleWrap.innerHTML = `
+  const titleWrap = createElement('div', {});
+  titleWrap.style.cssText = 'min-width: 0; overflow: hidden;';
+  titleWrap.innerHTML = `
         <div style="font-size:15px; font-weight:800; color:#2a231f; letter-spacing:-0.2px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Bonario Stock</div>
         <div class="hidden-xs" style="font-size:11px; color:#9d8875; white-space:nowrap;">Tra cứu tồn kho</div>
     `;
 
-    leftGroup.appendChild(logoBox);
-    leftGroup.appendChild(titleWrap);
+  leftGroup.appendChild(logoBox);
+  leftGroup.appendChild(titleWrap);
 
-    // User chip (nếu đăng nhập)
-    if (currentUser) {
-        const chip = createElement("div", { class: 'hdr-user-chip' });
-        const isAdmin = currentUser.role === 'admin';
-        chip.style.cssText += isAdmin
-            ? 'background: linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border-color:#fde68a;'
-            : 'background: linear-gradient(135deg,#d1fae5,#a7f3d0); color:#065f46; border-color:#a7f3d0;';
-        // Truncate username nếu dài
-        const maxLen = 10;
-        const displayName = currentUser.username.length > maxLen
-            ? currentUser.username.slice(0, maxLen) + '…'
-            : currentUser.username;
-        chip.innerHTML = `<span>${isAdmin ? '👑' : '🔍'}</span><span>${displayName}</span>`;
-        leftGroup.appendChild(chip);
-    }
+  // User chip (nếu đăng nhập)
+  if (currentUser) {
+    const chip = createElement('div', { class: 'hdr-user-chip' });
+    const isAdmin = currentUser.role === 'admin';
+    chip.style.cssText += isAdmin
+      ? 'background: linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border-color:#fde68a;'
+      : 'background: linear-gradient(135deg,#d1fae5,#a7f3d0); color:#065f46; border-color:#a7f3d0;';
+    // Truncate username nếu dài
+    const maxLen = 10;
+    const displayName =
+      currentUser.username.length > maxLen
+        ? currentUser.username.slice(0, maxLen) + '…'
+        : currentUser.username;
+    chip.innerHTML = `<span>${isAdmin ? '👑' : '🔍'}</span><span>${displayName}</span>`;
+    leftGroup.appendChild(chip);
+  }
 
-    // RIGHT: Desktop buttons + Mobile menu button
-    const rightGroup = createElement("div", {});
-    rightGroup.style.cssText = 'display: flex; align-items: center; gap: 6px; flex-shrink: 0;';
+  // RIGHT: Desktop buttons + Mobile menu button
+  const rightGroup = createElement('div', {});
+  rightGroup.style.cssText = 'display: flex; align-items: center; gap: 6px; flex-shrink: 0;';
 
-    // ─── DESKTOP BUTTONS (hidden on mobile) ───
-    const desktopBtns = createElement("div", {});
-    desktopBtns.style.cssText = 'display: flex; align-items: center; gap: 6px;';
-    desktopBtns.className = 'desktop-header-btns';
+  // ─── DESKTOP BUTTONS (hidden on mobile) ───
+  const desktopBtns = createElement('div', {});
+  desktopBtns.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+  desktopBtns.className = 'desktop-header-btns';
 
-    // Inject responsive hide rule
-    if (!document.getElementById('hdr-responsive-style')) {
-        const rs = document.createElement('style');
-        rs.id = 'hdr-responsive-style';
-        rs.textContent = `
+  // Inject responsive hide rule
+  if (!document.getElementById('hdr-responsive-style')) {
+    const rs = document.createElement('style');
+    rs.id = 'hdr-responsive-style';
+    rs.textContent = `
             @media (max-width: 639px) {
                 .desktop-header-btns { display: none !important; }
                 .mobile-menu-btn { display: block !important; }
@@ -219,45 +229,59 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
                 .mobile-menu-btn { display: none !important; }
             }
         `;
-        document.head.appendChild(rs);
-    }
+    document.head.appendChild(rs);
+  }
 
-    function makeBtn(emoji, label, color, onClick) {
-        const btn = createElement("button", {
-            class: 'hdr-btn',
-            type: 'button',
-            title: label,
-            'aria-label': label,
-        });
-        btn.style.background = color;
-        btn.innerHTML = `<span>${emoji}</span><span>${label}</span>`;
-        btn.addEventListener("click", onClick);
-        return btn;
-    }
-
-    if (currentUser?.role === 'admin') {
-        desktopBtns.appendChild(makeBtn('👑', 'Admin', 'linear-gradient(135deg,#f59e0b,#d97706)', () => onOpenAdmin?.()));
-    }
-    desktopBtns.appendChild(makeBtn('🧾', 'Kiểm kho', 'linear-gradient(135deg,#6366f1,#4f46e5)', () => onToggleStocktake?.()));
-    desktopBtns.appendChild(makeBtn('🔄', 'Tải lại', 'linear-gradient(135deg,#6b5a45,#8b7355)', () => onLoad?.()));
-    desktopBtns.appendChild(makeBtn('📊', 'Excel', 'linear-gradient(135deg,#10b981,#059669)', () => onExport?.()));
-    desktopBtns.appendChild(makeBtn('📄', 'PDF', 'linear-gradient(135deg,#ef4444,#dc2626)', () => onExportPDF?.()));
-    if (currentUser) {
-        desktopBtns.appendChild(makeBtn('🚪', 'Logout', 'linear-gradient(135deg,#6b7280,#4b5563)', () => onLogout?.()));
-    }
-
-    // ─── MOBILE MENU BUTTON + DROPDOWN (portal vào body) ───
-    const mobileDropdownWrap = createElement("div", { class: 'mobile-menu-btn' });
-    mobileDropdownWrap.style.cssText = 'display: none; position: relative;';
-
-    const mobileMenuBtn = createElement("button", {
-        class: 'hdr-btn',
-        type: 'button',
-        'aria-label': 'Mở menu thao tác',
-        'aria-haspopup': 'menu',
-        'aria-expanded': 'false',
+  function makeBtn(emoji, label, color, onClick) {
+    const btn = createElement('button', {
+      class: 'hdr-btn',
+      type: 'button',
+      title: label,
+      'aria-label': label,
     });
-    mobileMenuBtn.style.cssText = `
+    btn.style.background = color;
+    btn.innerHTML = `<span>${emoji}</span><span>${label}</span>`;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  if (currentUser?.role === 'admin') {
+    desktopBtns.appendChild(
+      makeBtn('👑', 'Admin', 'linear-gradient(135deg,#f59e0b,#d97706)', () => onOpenAdmin?.())
+    );
+  }
+  desktopBtns.appendChild(
+    makeBtn('🧾', 'Kiểm kho', 'linear-gradient(135deg,#6366f1,#4f46e5)', () =>
+      onToggleStocktake?.()
+    )
+  );
+  desktopBtns.appendChild(
+    makeBtn('🔄', 'Tải lại', 'linear-gradient(135deg,#6b5a45,#8b7355)', () => onLoad?.())
+  );
+  desktopBtns.appendChild(
+    makeBtn('📊', 'Excel', 'linear-gradient(135deg,#10b981,#059669)', () => onExport?.())
+  );
+  desktopBtns.appendChild(
+    makeBtn('📄', 'PDF', 'linear-gradient(135deg,#ef4444,#dc2626)', () => onExportPDF?.())
+  );
+  if (currentUser) {
+    desktopBtns.appendChild(
+      makeBtn('🚪', 'Logout', 'linear-gradient(135deg,#6b7280,#4b5563)', () => onLogout?.())
+    );
+  }
+
+  // ─── MOBILE MENU BUTTON + DROPDOWN (portal vào body) ───
+  const mobileDropdownWrap = createElement('div', { class: 'mobile-menu-btn' });
+  mobileDropdownWrap.style.cssText = 'display: none; position: relative;';
+
+  const mobileMenuBtn = createElement('button', {
+    class: 'hdr-btn',
+    type: 'button',
+    'aria-label': 'Mở menu thao tác',
+    'aria-haspopup': 'menu',
+    'aria-expanded': 'false',
+  });
+  mobileMenuBtn.style.cssText = `
         background: linear-gradient(135deg,#6b5a45,#8b7355);
         padding: 0 14px;
         gap: 5px;
@@ -265,131 +289,184 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         height: 36px;
         font-weight: 700;
     `;
-    mobileMenuBtn.title = 'Menu';
+  mobileMenuBtn.title = 'Menu';
+  mobileMenuBtn.innerHTML = '☰ <span>More</span>';
+
+  // Portal panel - gắn trực tiếp vào document.body để tránh bị clip bởi overflow:hidden
+  const dropdownPortal = createElement('div', {
+    class: 'hdr-dropdown-portal',
+    role: 'menu',
+    'aria-label': 'Menu thao tác',
+  });
+  let dropdownOpen = false;
+  let backdropEl = null;
+
+  function positionPortal() {
+    const rect = mobileMenuBtn.getBoundingClientRect();
+    const panelWidth = 240;
+    const margin = 8;
+    // Canh phải theo nút, không vượt qua mép trái màn hình
+    let left = rect.right - panelWidth;
+    if (left < margin) left = margin;
+    dropdownPortal.style.top = rect.bottom + 8 + 'px';
+    dropdownPortal.style.left = left + 'px';
+    dropdownPortal.style.width = panelWidth + 'px';
+  }
+
+  function openDropdown() {
+    if (dropdownOpen) {
+      closeDropdown();
+      return;
+    }
+    dropdownOpen = true;
+    mobileMenuBtn.setAttribute('aria-expanded', 'true');
+    mobileMenuBtn.innerHTML = '✕ <span>Close</span>';
+    // Gắn portal vào body
+    document.body.appendChild(dropdownPortal);
+    positionPortal();
+    // Backdrop
+    backdropEl = createElement('div', { class: 'hdr-dropdown-backdrop', 'aria-hidden': 'true' });
+    backdropEl.addEventListener('click', closeDropdown);
+    document.body.appendChild(backdropEl);
+    // Trigger animation sau 1 frame
+    requestAnimationFrame(() => {
+      dropdownPortal.classList.add('open');
+    });
+  }
+
+  function closeDropdown() {
+    if (!dropdownOpen) return;
+    dropdownOpen = false;
+    mobileMenuBtn.setAttribute('aria-expanded', 'false');
     mobileMenuBtn.innerHTML = '☰ <span>More</span>';
+    dropdownPortal.classList.remove('open');
+    if (backdropEl) {
+      backdropEl.remove();
+      backdropEl = null;
+    }
+    // Xóa portal khỏi body sau animation
+    setTimeout(() => {
+      if (dropdownPortal.parentNode === document.body) {
+        document.body.removeChild(dropdownPortal);
+      }
+    }, 220);
+  }
 
-    // Portal panel - gắn trực tiếp vào document.body để tránh bị clip bởi overflow:hidden
-    const dropdownPortal = createElement("div", {
-        class: 'hdr-dropdown-portal',
-        role: 'menu',
-        'aria-label': 'Menu thao tác',
+  mobileMenuBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    openDropdown();
+  });
+
+  // Reposition on scroll/resize
+  window.addEventListener('resize', () => {
+    if (dropdownOpen) positionPortal();
+  });
+
+  // Helper tạo dropdown item
+  function dropdownItem(emoji, iconBg, label, sub, onClick, danger = false) {
+    const btn = createElement('button', {
+      class: 'hdr-dropdown-item',
+      type: 'button',
+      role: 'menuitem',
     });
-    let dropdownOpen = false;
-    let backdropEl = null;
-
-    function positionPortal() {
-        const rect = mobileMenuBtn.getBoundingClientRect();
-        const panelWidth = 240;
-        const margin = 8;
-        // Canh phải theo nút, không vượt qua mép trái màn hình
-        let left = rect.right - panelWidth;
-        if (left < margin) left = margin;
-        dropdownPortal.style.top  = (rect.bottom + 8) + 'px';
-        dropdownPortal.style.left = left + 'px';
-        dropdownPortal.style.width = panelWidth + 'px';
-    }
-
-    function openDropdown() {
-        if (dropdownOpen) { closeDropdown(); return; }
-        dropdownOpen = true;
-        mobileMenuBtn.setAttribute('aria-expanded', 'true');
-        mobileMenuBtn.innerHTML = '✕ <span>Close</span>';
-        // Gắn portal vào body
-        document.body.appendChild(dropdownPortal);
-        positionPortal();
-        // Backdrop
-        backdropEl = createElement("div", { class: 'hdr-dropdown-backdrop', 'aria-hidden': 'true' });
-        backdropEl.addEventListener('click', closeDropdown);
-        document.body.appendChild(backdropEl);
-        // Trigger animation sau 1 frame
-        requestAnimationFrame(() => {
-            dropdownPortal.classList.add('open');
-        });
-    }
-
-    function closeDropdown() {
-        if (!dropdownOpen) return;
-        dropdownOpen = false;
-        mobileMenuBtn.setAttribute('aria-expanded', 'false');
-        mobileMenuBtn.innerHTML = '☰ <span>More</span>';
-        dropdownPortal.classList.remove('open');
-        if (backdropEl) { backdropEl.remove(); backdropEl = null; }
-        // Xóa portal khỏi body sau animation
-        setTimeout(() => {
-            if (dropdownPortal.parentNode === document.body) {
-                document.body.removeChild(dropdownPortal);
-            }
-        }, 220);
-    }
-
-    mobileMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openDropdown();
-    });
-
-    // Reposition on scroll/resize
-    window.addEventListener('resize', () => { if (dropdownOpen) positionPortal(); });
-
-    // Helper tạo dropdown item
-    function dropdownItem(emoji, iconBg, label, sub, onClick, danger = false) {
-        const btn = createElement("button", {
-            class: 'hdr-dropdown-item',
-            type: 'button',
-            role: 'menuitem',
-        });
-        const iconEl = createElement("div", { class: 'hdr-dropdown-item-icon' });
-        iconEl.style.background = iconBg;
-        iconEl.textContent = emoji;
-        const textEl = createElement("div", { style: 'flex:1; min-width:0;' });
-        textEl.innerHTML = `
+    const iconEl = createElement('div', { class: 'hdr-dropdown-item-icon' });
+    iconEl.style.background = iconBg;
+    iconEl.textContent = emoji;
+    const textEl = createElement('div', { style: 'flex:1; min-width:0;' });
+    textEl.innerHTML = `
             <div class="hdr-dropdown-item-label"${danger ? ' style="color:#dc2626;"' : ''}>${label}</div>
             <div class="hdr-dropdown-item-sub">${sub}</div>
         `;
-        btn.appendChild(iconEl);
-        btn.appendChild(textEl);
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeDropdown();
-            setTimeout(onClick, 80);
-        });
-        return btn;
-    }
-
-    function dropdownDivider() {
-        return createElement("div", { class: 'hdr-dropdown-divider' });
-    }
-
-    // Build menu items theo role
-    if (currentUser?.role === 'admin') {
-        dropdownPortal.appendChild(dropdownItem('👑', 'linear-gradient(135deg,#fef3c7,#fde68a)', 'Admin Dashboard', 'Quản lý tài khoản', () => onOpenAdmin?.()));
-        dropdownPortal.appendChild(dropdownDivider());
-    }
-    dropdownPortal.appendChild(dropdownItem('🧾', 'linear-gradient(135deg,#ede9fe,#ddd6fe)', 'Kiểm kho', 'Kiểm kê hàng tháng', () => onToggleStocktake?.()));
-    dropdownPortal.appendChild(dropdownItem('🔄', 'linear-gradient(135deg,#f5f1ea,#e8ddd4)', 'Tải lại dữ liệu', 'Cập nhật tồn kho mới nhất', () => onLoad?.()));
-    dropdownPortal.appendChild(dropdownDivider());
-    dropdownPortal.appendChild(dropdownItem('📊', 'linear-gradient(135deg,#d1fae5,#a7f3d0)', 'Xuất Excel', 'Tải file .xlsx', () => onExport?.()));
-    dropdownPortal.appendChild(dropdownItem('📄', 'linear-gradient(135deg,#fee2e2,#fecaca)', 'Xuất PDF', 'Tải file .pdf', () => onExportPDF?.()));
-    if (currentUser) {
-        dropdownPortal.appendChild(dropdownDivider());
-        dropdownPortal.appendChild(dropdownItem('🚪', 'linear-gradient(135deg,#f5f5f5,#e5e5e5)', 'Đăng xuất', `Thoát: ${currentUser.username}`, () => onLogout?.(), true));
-    }
-
-    mobileDropdownWrap.appendChild(mobileMenuBtn);
-
-    rightGroup.appendChild(desktopBtns);
-    rightGroup.appendChild(mobileDropdownWrap);
-
-    topBar.appendChild(leftGroup);
-    topBar.appendChild(rightGroup);
-    header.appendChild(topBar);
-
-    // ──────────────────────────────────────────────
-    // SEARCH SECTION
-    // ──────────────────────────────────────────────
-    const searchSection = createElement("div", {
-        id: "headerSearchSection",
+    btn.appendChild(iconEl);
+    btn.appendChild(textEl);
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      closeDropdown();
+      setTimeout(onClick, 80);
     });
-    searchSection.style.cssText = `
+    return btn;
+  }
+
+  function dropdownDivider() {
+    return createElement('div', { class: 'hdr-dropdown-divider' });
+  }
+
+  // Build menu items theo role
+  if (currentUser?.role === 'admin') {
+    dropdownPortal.appendChild(
+      dropdownItem(
+        '👑',
+        'linear-gradient(135deg,#fef3c7,#fde68a)',
+        'Admin Dashboard',
+        'Quản lý tài khoản',
+        () => onOpenAdmin?.()
+      )
+    );
+    dropdownPortal.appendChild(dropdownDivider());
+  }
+  dropdownPortal.appendChild(
+    dropdownItem(
+      '🧾',
+      'linear-gradient(135deg,#ede9fe,#ddd6fe)',
+      'Kiểm kho',
+      'Kiểm kê hàng tháng',
+      () => onToggleStocktake?.()
+    )
+  );
+  dropdownPortal.appendChild(
+    dropdownItem(
+      '🔄',
+      'linear-gradient(135deg,#f5f1ea,#e8ddd4)',
+      'Tải lại dữ liệu',
+      'Cập nhật tồn kho mới nhất',
+      () => onLoad?.()
+    )
+  );
+  dropdownPortal.appendChild(dropdownDivider());
+  dropdownPortal.appendChild(
+    dropdownItem(
+      '📊',
+      'linear-gradient(135deg,#d1fae5,#a7f3d0)',
+      'Xuất Excel',
+      'Tải file .xlsx',
+      () => onExport?.()
+    )
+  );
+  dropdownPortal.appendChild(
+    dropdownItem('📄', 'linear-gradient(135deg,#fee2e2,#fecaca)', 'Xuất PDF', 'Tải file .pdf', () =>
+      onExportPDF?.()
+    )
+  );
+  if (currentUser) {
+    dropdownPortal.appendChild(dropdownDivider());
+    dropdownPortal.appendChild(
+      dropdownItem(
+        '🚪',
+        'linear-gradient(135deg,#f5f5f5,#e5e5e5)',
+        'Đăng xuất',
+        `Thoát: ${currentUser.username}`,
+        () => onLogout?.(),
+        true
+      )
+    );
+  }
+
+  mobileDropdownWrap.appendChild(mobileMenuBtn);
+
+  rightGroup.appendChild(desktopBtns);
+  rightGroup.appendChild(mobileDropdownWrap);
+
+  topBar.appendChild(leftGroup);
+  topBar.appendChild(rightGroup);
+  header.appendChild(topBar);
+
+  // ──────────────────────────────────────────────
+  // SEARCH SECTION
+  // ──────────────────────────────────────────────
+  const searchSection = createElement('div', {
+    id: 'headerSearchSection',
+  });
+  searchSection.style.cssText = `
         padding: 8px 16px 10px;
         background: linear-gradient(to bottom, #ffffff, #faf8f5);
         border-bottom: 1px solid #e8ddd4;
@@ -397,27 +474,27 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         width: 100%;
     `;
 
-    const searchWrap = createElement("div", {});
-    searchWrap.style.cssText = 'max-width: 720px; margin: 0 auto; position: relative;';
+  const searchWrap = createElement('div', {});
+  searchWrap.style.cssText = 'max-width: 720px; margin: 0 auto; position: relative;';
 
-    const searchIcon = createElement("span", {});
-    searchIcon.setAttribute("aria-hidden", "true");
-    searchIcon.style.cssText = `
+  const searchIcon = createElement('span', {});
+  searchIcon.setAttribute('aria-hidden', 'true');
+  searchIcon.style.cssText = `
         position: absolute; left: 12px; top: 50%;
         transform: translateY(-50%);
         font-size: 15px; pointer-events: none;
         color: #9d8875;
     `;
-    searchIcon.textContent = '🔍';
+  searchIcon.textContent = '🔍';
 
-    const searchInput = createElement("input", {
-        id: "searchInput",
-        type: "text",
-        "aria-label": "Tìm kiếm sản phẩm",
-        autocomplete: "off",
-        placeholder: "Tìm kiếm sản phẩm...",
-    });
-    searchInput.style.cssText = `
+  const searchInput = createElement('input', {
+    id: 'searchInput',
+    type: 'text',
+    'aria-label': 'Tìm kiếm sản phẩm',
+    autocomplete: 'off',
+    placeholder: 'Tìm kiếm sản phẩm...',
+  });
+  searchInput.style.cssText = `
         width: 100%;
         height: 40px;
         padding: 0 12px 0 38px;
@@ -431,26 +508,26 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         box-sizing: border-box;
         font-family: inherit;
     `;
-    searchInput.addEventListener("focus", () => {
-        searchInput.style.borderColor = "#8b6b4f";
-        searchInput.style.boxShadow = "0 0 0 3px rgba(139,107,79,0.12)";
-    });
-    searchInput.addEventListener("blur", () => {
-        searchInput.style.borderColor = "#d4c4b0";
-        searchInput.style.boxShadow = "none";
-    });
+  searchInput.addEventListener('focus', () => {
+    searchInput.style.borderColor = '#8b6b4f';
+    searchInput.style.boxShadow = '0 0 0 3px rgba(139,107,79,0.12)';
+  });
+  searchInput.addEventListener('blur', () => {
+    searchInput.style.borderColor = '#d4c4b0';
+    searchInput.style.boxShadow = 'none';
+  });
 
-    searchWrap.appendChild(searchIcon);
-    searchWrap.appendChild(searchInput);
-    searchSection.appendChild(searchWrap);
+  searchWrap.appendChild(searchIcon);
+  searchWrap.appendChild(searchInput);
+  searchSection.appendChild(searchWrap);
 
-    // ──────────────────────────────────────────────
-    // FILTERS SECTION
-    // ──────────────────────────────────────────────
-    const filtersSection = createElement("div", {
-        id: "headerFiltersSection",
-    });
-    filtersSection.style.cssText = `
+  // ──────────────────────────────────────────────
+  // FILTERS SECTION
+  // ──────────────────────────────────────────────
+  const filtersSection = createElement('div', {
+    id: 'headerFiltersSection',
+  });
+  filtersSection.style.cssText = `
         padding: 6px 16px 8px;
         background: #faf8f5;
         border-bottom: 1px solid #e8ddd4;
@@ -458,15 +535,16 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         width: 100%;
     `;
 
-    const filtersContent = createElement("div", {});
-    filtersContent.style.cssText = 'max-width: 820px; margin: 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;';
+  const filtersContent = createElement('div', {});
+  filtersContent.style.cssText =
+    'max-width: 820px; margin: 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;';
 
-    const companyFilter = createElement("select", {
-        id: "companyFilter",
-        title: "Công ty",
-        "aria-label": "Lọc theo công ty",
-    });
-    companyFilter.style.cssText = `
+  const companyFilter = createElement('select', {
+    id: 'companyFilter',
+    title: 'Công ty',
+    'aria-label': 'Lọc theo công ty',
+  });
+  companyFilter.style.cssText = `
         flex: 0 1 190px;
         min-width: 165px;
         height: 34px;
@@ -482,18 +560,18 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         cursor: pointer;
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
     `;
-    const bonarioOpt = createElement("option", { value: "Bonario" });
-    bonarioOpt.textContent = "Công ty: Bonario";
-    const ordinaireOpt = createElement("option", { value: "Ordinaire" });
-    ordinaireOpt.textContent = "Công ty: Ordinaire";
-    companyFilter.appendChild(bonarioOpt);
-    companyFilter.appendChild(ordinaireOpt);
+  const bonarioOpt = createElement('option', { value: 'Bonario' });
+  bonarioOpt.textContent = 'Công ty: Bonario';
+  const ordinaireOpt = createElement('option', { value: 'Ordinaire' });
+  ordinaireOpt.textContent = 'Công ty: Ordinaire';
+  companyFilter.appendChild(bonarioOpt);
+  companyFilter.appendChild(ordinaireOpt);
 
-    const categoryFilter = createElement("select", {
-        id: "categoryFilter",
-        "aria-label": "Lọc theo nhóm sản phẩm",
-    });
-    categoryFilter.style.cssText = `
+  const categoryFilter = createElement('select', {
+    id: 'categoryFilter',
+    'aria-label': 'Lọc theo nhóm sản phẩm',
+  });
+  categoryFilter.style.cssText = `
         flex: 1;
         height: 34px;
         padding: 0 10px;
@@ -506,15 +584,15 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         font-family: inherit;
         cursor: pointer;
     `;
-    const defaultOpt = createElement("option", { value: "" });
-    defaultOpt.textContent = "Tất cả nhóm sản phẩm";
-    categoryFilter.appendChild(defaultOpt);
+  const defaultOpt = createElement('option', { value: '' });
+  defaultOpt.textContent = 'Tất cả nhóm sản phẩm';
+  categoryFilter.appendChild(defaultOpt);
 
-    const sortFilter = createElement("select", {
-        id: "sortFilter",
-        "aria-label": "Sắp xếp sản phẩm",
-    });
-    sortFilter.style.cssText = `
+  const sortFilter = createElement('select', {
+    id: 'sortFilter',
+    'aria-label': 'Sắp xếp sản phẩm',
+  });
+  sortFilter.style.cssText = `
         flex: 0 1 170px;
         min-width: 145px;
         height: 34px;
@@ -528,24 +606,24 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         font-family: inherit;
         cursor: pointer;
     `;
-    [
-        ["quantity_desc", "Tồn nhiều nhất"],
-        ["quantity_asc", "Tồn ít nhất"],
-        ["available_asc", "Khả dụng thấp"],
-        ["incoming_desc", "Đang đến nhiều"],
-        ["name_asc", "Tên A-Z"],
-    ].forEach(([value, label]) => {
-        const option = createElement("option", { value });
-        option.textContent = label;
-        sortFilter.appendChild(option);
-    });
+  [
+    ['quantity_desc', 'Tồn nhiều nhất'],
+    ['quantity_asc', 'Tồn ít nhất'],
+    ['available_asc', 'Khả dụng thấp'],
+    ['incoming_desc', 'Đang đến nhiều'],
+    ['name_asc', 'Tên A-Z'],
+  ].forEach(([value, label]) => {
+    const option = createElement('option', { value });
+    option.textContent = label;
+    sortFilter.appendChild(option);
+  });
 
-    const clearBtn = createElement("button", {
-        id: "clearFiltersBtn",
-        type: "button",
-        "aria-label": "Xóa bộ lọc",
-    });
-    clearBtn.style.cssText = `
+  const clearBtn = createElement('button', {
+    id: 'clearFiltersBtn',
+    type: 'button',
+    'aria-label': 'Xóa bộ lọc',
+  });
+  clearBtn.style.cssText = `
         height: 34px;
         padding: 0 12px;
         border-radius: 8px;
@@ -559,25 +637,25 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         transition: background 0.15s, border-color 0.15s;
         font-family: inherit;
     `;
-    clearBtn.textContent = '✕ Xóa';
-    clearBtn.addEventListener("mouseenter", () => {
-        clearBtn.style.backgroundColor = "#f5f1ea";
-        clearBtn.style.borderColor = "#c9b99e";
-    });
-    clearBtn.addEventListener("mouseleave", () => {
-        clearBtn.style.backgroundColor = "transparent";
-        clearBtn.style.borderColor = "#d4c4b0";
-    });
+  clearBtn.textContent = '✕ Xóa';
+  clearBtn.addEventListener('mouseenter', () => {
+    clearBtn.style.backgroundColor = '#f5f1ea';
+    clearBtn.style.borderColor = '#c9b99e';
+  });
+  clearBtn.addEventListener('mouseleave', () => {
+    clearBtn.style.backgroundColor = 'transparent';
+    clearBtn.style.borderColor = '#d4c4b0';
+  });
 
-    filtersContent.appendChild(companyFilter);
-    filtersContent.appendChild(categoryFilter);
-    filtersContent.appendChild(sortFilter);
+  filtersContent.appendChild(companyFilter);
+  filtersContent.appendChild(categoryFilter);
+  filtersContent.appendChild(sortFilter);
 
-    // Discontinued filter toggle
-    const discontinuedToggle = createElement("label", {});
-    discontinuedToggle.className = 'discontinued-filter-toggle';
-    discontinuedToggle.title = 'Lọc sản phẩm ngưng sản xuất';
-    discontinuedToggle.style.cssText = `
+  // Discontinued filter toggle
+  const discontinuedToggle = createElement('label', {});
+  discontinuedToggle.className = 'discontinued-filter-toggle';
+  discontinuedToggle.title = 'Lọc sản phẩm ngưng sản xuất';
+  discontinuedToggle.style.cssText = `
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -597,12 +675,12 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         flex-shrink: 0;
     `;
 
-    const discontinuedCheckbox = createElement("input", {
-        id: "discontinuedFilter",
-        type: "checkbox",
-        "aria-label": "Chỉ hiển thị sản phẩm ngưng sản xuất",
-    });
-    discontinuedCheckbox.style.cssText = `
+  const discontinuedCheckbox = createElement('input', {
+    id: 'discontinuedFilter',
+    type: 'checkbox',
+    'aria-label': 'Chỉ hiển thị sản phẩm ngưng sản xuất',
+  });
+  discontinuedCheckbox.style.cssText = `
         width: 15px;
         height: 15px;
         accent-color: #d4a017;
@@ -611,105 +689,109 @@ export default function Header({ onLoad, onExport, onExportPDF, onToggleStocktak
         margin: 0;
     `;
 
-    const discontinuedLabel = createElement("span", {});
-    discontinuedLabel.textContent = '⚠️ Ngưng SX';
-    discontinuedLabel.style.cssText = 'font-size: 12px; font-weight: 600; line-height: 1;';
+  const discontinuedLabel = createElement('span', {});
+  discontinuedLabel.textContent = '⚠️ Ngưng SX';
+  discontinuedLabel.style.cssText = 'font-size: 12px; font-weight: 600; line-height: 1;';
 
-    discontinuedToggle.appendChild(discontinuedCheckbox);
-    discontinuedToggle.appendChild(discontinuedLabel);
+  discontinuedToggle.appendChild(discontinuedCheckbox);
+  discontinuedToggle.appendChild(discontinuedLabel);
 
-    function updateDiscontinuedToggleState() {
-        if (discontinuedCheckbox.checked) {
-            discontinuedToggle.style.background = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
-            discontinuedToggle.style.borderColor = '#f0c040';
-            discontinuedToggle.style.color = '#856404';
-            discontinuedToggle.style.boxShadow = '0 2px 8px rgba(255,193,7,0.2)';
-        } else {
-            discontinuedToggle.style.background = '#ffffff';
-            discontinuedToggle.style.borderColor = '#d4c4b0';
-            discontinuedToggle.style.color = '#5d5044';
-            discontinuedToggle.style.boxShadow = 'none';
-        }
+  function updateDiscontinuedToggleState() {
+    if (discontinuedCheckbox.checked) {
+      discontinuedToggle.style.background = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
+      discontinuedToggle.style.borderColor = '#f0c040';
+      discontinuedToggle.style.color = '#856404';
+      discontinuedToggle.style.boxShadow = '0 2px 8px rgba(255,193,7,0.2)';
+    } else {
+      discontinuedToggle.style.background = '#ffffff';
+      discontinuedToggle.style.borderColor = '#d4c4b0';
+      discontinuedToggle.style.color = '#5d5044';
+      discontinuedToggle.style.boxShadow = 'none';
     }
+  }
 
-    // Style change when checked
-    discontinuedCheckbox.addEventListener("change", () => {
-        updateDiscontinuedToggleState();
-        triggerFilterChange();
-    });
+  // Style change when checked
+  discontinuedCheckbox.addEventListener('change', () => {
+    updateDiscontinuedToggleState();
+    triggerFilterChange();
+  });
 
-    filtersContent.appendChild(discontinuedToggle);
-    filtersContent.appendChild(clearBtn);
-    filtersSection.appendChild(filtersContent);
+  filtersContent.appendChild(discontinuedToggle);
+  filtersContent.appendChild(clearBtn);
+  filtersSection.appendChild(filtersContent);
 
-    // ──────────────────────────────────────────────
-    // WAREHOUSE TABS
-    // ──────────────────────────────────────────────
-    const warehouseTabsSection = createElement("div", {
-        id: "warehouseTabsPlaceholder",
-        class: "bg-white",
-    });
-    warehouseTabsSection.style.cssText = 'border-bottom: 2px solid #d4c4b0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); width: 100%; box-sizing: border-box;';
+  // ──────────────────────────────────────────────
+  // WAREHOUSE TABS
+  // ──────────────────────────────────────────────
+  const warehouseTabsSection = createElement('div', {
+    id: 'warehouseTabsPlaceholder',
+    class: 'bg-white',
+  });
+  warehouseTabsSection.style.cssText =
+    'border-bottom: 2px solid #d4c4b0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); width: 100%; box-sizing: border-box;';
 
-    header.appendChild(topBar);
-    header.appendChild(searchSection);
-    header.appendChild(filtersSection);
-    header.appendChild(warehouseTabsSection);
+  header.appendChild(topBar);
+  header.appendChild(searchSection);
+  header.appendChild(filtersSection);
+  header.appendChild(warehouseTabsSection);
 
-    // ──────────────────────────────────────────────
-    // EVENT LISTENERS (debounced search)
-    // ──────────────────────────────────────────────
-    let searchTimeout = null;
-    function triggerFilterChange() {
-        const event = new CustomEvent("filterChange");
-        document.dispatchEvent(event);
+  // ──────────────────────────────────────────────
+  // EVENT LISTENERS (debounced search)
+  // ──────────────────────────────────────────────
+  let searchTimeout = null;
+  function triggerFilterChange() {
+    const event = new CustomEvent('filterChange');
+    document.dispatchEvent(event);
+  }
+  function debounced() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerFilterChange, 300);
+  }
+
+  function hydrateInitialFilters() {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const searchValue = params.get('q');
+    const companyValue = params.get('company');
+    const categoryValue = params.get('category');
+    const sortValue = params.get('sort');
+    const discontinuedValue = params.get('discontinued');
+
+    if (searchValue !== null) searchInput.value = searchValue;
+    if (
+      companyValue &&
+      Array.from(companyFilter.options).some(option => option.value === companyValue)
+    ) {
+      companyFilter.value = companyValue;
+      localStorage.setItem('selectedCompany', companyValue);
     }
-    function debounced() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(triggerFilterChange, 300);
+    if (categoryValue !== null) categoryFilter.setAttribute('data-pending-category', categoryValue);
+    if (sortValue && Array.from(sortFilter.options).some(option => option.value === sortValue)) {
+      sortFilter.value = sortValue;
     }
-
-    function hydrateInitialFilters() {
-        if (typeof window === "undefined") return;
-        const params = new URLSearchParams(window.location.search);
-        const searchValue = params.get("q");
-        const companyValue = params.get("company");
-        const categoryValue = params.get("category");
-        const sortValue = params.get("sort");
-        const discontinuedValue = params.get("discontinued");
-
-        if (searchValue !== null) searchInput.value = searchValue;
-        if (companyValue && Array.from(companyFilter.options).some((option) => option.value === companyValue)) {
-            companyFilter.value = companyValue;
-            localStorage.setItem("selectedCompany", companyValue);
-        }
-        if (categoryValue !== null) categoryFilter.setAttribute("data-pending-category", categoryValue);
-        if (sortValue && Array.from(sortFilter.options).some((option) => option.value === sortValue)) {
-            sortFilter.value = sortValue;
-        }
-        if (discontinuedValue === "1") {
-            discontinuedCheckbox.checked = true;
-            updateDiscontinuedToggleState();
-        }
+    if (discontinuedValue === '1') {
+      discontinuedCheckbox.checked = true;
+      updateDiscontinuedToggleState();
     }
+  }
 
-    hydrateInitialFilters();
+  hydrateInitialFilters();
 
-    searchInput.addEventListener("input", debounced);
-    companyFilter.addEventListener("change", () => {
-        localStorage.setItem("selectedCompany", companyFilter.value || "Bonario");
-        document.dispatchEvent(new CustomEvent("companyContextChange"));
-    });
-    categoryFilter.addEventListener("change", triggerFilterChange);
-    sortFilter.addEventListener("change", triggerFilterChange);
-    clearBtn.addEventListener("click", () => {
-        searchInput.value = "";
-        categoryFilter.value = "";
-        sortFilter.value = "quantity_desc";
-        discontinuedCheckbox.checked = false;
-        updateDiscontinuedToggleState();
-        triggerFilterChange();
-    });
+  searchInput.addEventListener('input', debounced);
+  companyFilter.addEventListener('change', () => {
+    localStorage.setItem('selectedCompany', companyFilter.value || 'Bonario');
+    document.dispatchEvent(new CustomEvent('companyContextChange'));
+  });
+  categoryFilter.addEventListener('change', triggerFilterChange);
+  sortFilter.addEventListener('change', triggerFilterChange);
+  clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    categoryFilter.value = '';
+    sortFilter.value = 'quantity_desc';
+    discontinuedCheckbox.checked = false;
+    updateDiscontinuedToggleState();
+    triggerFilterChange();
+  });
 
-    return header;
+  return header;
 }

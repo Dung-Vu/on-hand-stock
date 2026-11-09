@@ -149,7 +149,8 @@ function createMockFetch(handlers = {}) {
       return new Response('', {
         status: 302,
         headers: {
-          'Set-Cookie': 'arte_session=test-session-val; Path=/; Domain=.arte-international.com; HttpOnly',
+          'Set-Cookie':
+            'arte_session=test-session-val; Path=/; Domain=.arte-international.com; HttpOnly',
           Location: 'https://account.arte-international.com/en',
         },
       });
@@ -233,14 +234,17 @@ test('ArteService parses initial Livewire state, token, and discovered update UR
 
   const state = service._parseLivewireStateFromHtml(FIXTURE_STOCK_PAGE_INITIAL);
   assert.equal(state.token, 'livewire-csrf-token-123');
-  assert.equal(state.updateUrl, 'https://www.arte-international.com/_livewire/livewire-dff0deec/update');
+  assert.equal(
+    state.updateUrl,
+    'https://www.arte-international.com/_livewire/livewire-dff0deec/update'
+  );
   assert.ok(state.snapshot.includes('comp-stock-form'));
 });
 
 test('ArteService warm initial-state lookup fetches the protected stock page only once', async () => {
   let stockPageRequests = 0;
   const mockFetch = createMockFetch({
-    custom: async (url) => {
+    custom: async url => {
       if (url.includes('/check-our-stock')) {
         stockPageRequests++;
         return new Response(FIXTURE_STOCK_PAGE_INITIAL, {
@@ -314,7 +318,7 @@ test('ArteService fails closed with UPSTREAM_ENDPOINT_MISSING when update URI is
         <div wire:id="c" wire:name="${STOCK_FORM_WIRE_NAME}" wire:snapshot="{}"></div>
       `);
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'UPSTREAM_ENDPOINT_MISSING');
       assert.equal(err.status, 502);
@@ -330,7 +334,7 @@ test('ArteService fails closed with UPSTREAM_ENDPOINT_MISSING when update URI is
         <div wire:id="c" wire:name="${STOCK_FORM_WIRE_NAME}" wire:snapshot="{}"></div>
       `);
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'UPSTREAM_ENDPOINT_MISSING');
       return true;
@@ -345,7 +349,7 @@ test('ArteService fails closed with UPSTREAM_ENDPOINT_MISSING when update URI is
         <div wire:id="c" wire:name="${STOCK_FORM_WIRE_NAME}" wire:snapshot="{}"></div>
       `);
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'UPSTREAM_ENDPOINT_MISSING');
       return true;
@@ -405,12 +409,12 @@ test('ArteService chains snapshots code -> batch -> amount strictly and fresh pe
   assert.equal(checkRes.message, 'The required quantity is not available.');
 
   // Verify the chained calls to the update endpoint
-  const updateCalls = mockFetch.calls.filter((c) =>
+  const updateCalls = mockFetch.calls.filter(c =>
     c.url.includes('/_livewire/livewire-dff0deec/update')
   );
 
   assert.equal(updateCalls.length, 3);
-  updateCalls.forEach((call) => {
+  updateCalls.forEach(call => {
     assert.equal(new Headers(call.options.headers).get('X-Livewire'), 'true');
   });
 
@@ -443,9 +447,11 @@ test('No batch checks the whole reference without sending a batch update', async
   const result = await service.checkStock('60741', '', 2);
   assert.equal(result.available, true);
   assert.equal(result.batch, '');
-  const updateCalls = mockFetch.calls.filter((c) => c.url.includes('/_livewire/livewire-dff0deec/update'));
+  const updateCalls = mockFetch.calls.filter(c =>
+    c.url.includes('/_livewire/livewire-dff0deec/update')
+  );
   assert.equal(updateCalls.length, 2);
-  const [code, amount] = updateCalls.map((c) => JSON.parse(c.options.body).components[0]);
+  const [code, amount] = updateCalls.map(c => JSON.parse(c.options.body).components[0]);
   assert.deepEqual(code.updates, { code: '60741' });
   assert.deepEqual(amount.updates, { amount: 2 });
   assert.ok(amount.snapshot.includes('after_code'));
@@ -500,7 +506,10 @@ test('ArteService verifies login through protected stock page even when login re
 
     if (url.includes('/login?service=front')) {
       loginGetCalls++;
-      return new Response(FIXTURE_LOGIN_PAGE, { status: 200, headers: { 'Content-Type': 'text/html' } });
+      return new Response(FIXTURE_LOGIN_PAGE, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      });
     }
 
     if (url.endsWith('/login') && options.method === 'POST') {
@@ -510,7 +519,8 @@ test('ArteService verifies login through protected stock page even when login re
       return new Response('', {
         status: 302,
         headers: {
-          'Set-Cookie': 'arte_auth=auth-token-123; Path=/; Domain=.arte-international.com; HttpOnly',
+          'Set-Cookie':
+            'arte_auth=auth-token-123; Path=/; Domain=.arte-international.com; HttpOnly',
           Location: 'https://account.arte-international.com/en',
         },
       });
@@ -591,7 +601,7 @@ test('ArteService rejects unknown result and fails closed with 502/UPSTREAM_UNCL
     async () => {
       await service.checkStock('60741', '02512120', 1);
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'UPSTREAM_UNCLASSIFIED');
       assert.equal(err.status, 502);
@@ -613,7 +623,7 @@ test('ArteService rejects batch not returned by ARTE for that reference', async 
     async () => {
       await service.checkStock('60741', '09999999', 1);
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'INVALID_BATCH');
       assert.equal(err.status, 400);
@@ -638,7 +648,7 @@ test('ArteService deduplicates concurrent logins via mutex', async () => {
       if (url.endsWith('/login') && options.method === 'POST') {
         loginPostCount++;
         isLoggedIn = true;
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 50));
         return new Response('', {
           status: 302,
           headers: {
@@ -768,7 +778,7 @@ test('ArteService redacts sensitive data and does not leak credentials in errors
     async () => {
       await service.getBatches('60741');
     },
-    (err) => {
+    err => {
       assert.ok(!err.message.includes(secretPassword));
       assert.ok(!err.message.includes(secretEmail));
       return true;
@@ -836,7 +846,7 @@ test('Input validators accept valid values and reject invalid values including c
 test('Finding E: ConcurrencyQueue rejects immediately on overflow when queue is full', async () => {
   const queue = new ConcurrencyQueue(1, 2, 5000);
   let releaseFirstJob;
-  const firstJobPromise = new Promise((resolve) => {
+  const firstJobPromise = new Promise(resolve => {
     releaseFirstJob = resolve;
   });
 
@@ -852,7 +862,7 @@ test('Finding E: ConcurrencyQueue rejects immediately on overflow when queue is 
     async () => {
       await queue.run(() => Promise.resolve('job4'));
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'QUEUE_FULL');
       assert.equal(err.status, 429);
@@ -870,7 +880,7 @@ test('Finding E: ConcurrencyQueue rejects immediately on overflow when queue is 
 test('Finding E: queued timeout rejects cleanly and does not execute upstream later', async () => {
   const queue = new ConcurrencyQueue(1, 5, 50); // 50ms wait timeout
   let releaseJob1;
-  const job1Promise = new Promise((resolve) => {
+  const job1Promise = new Promise(resolve => {
     releaseJob1 = resolve;
   });
 
@@ -888,7 +898,7 @@ test('Finding E: queued timeout rejects cleanly and does not execute upstream la
     async () => {
       await job2;
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'QUEUE_TIMEOUT');
       assert.equal(err.status, 504);
@@ -901,7 +911,7 @@ test('Finding E: queued timeout rejects cleanly and does not execute upstream la
   assert.equal(await job1, 'job1');
 
   // Wait extra time to ensure job 2 is NEVER executed upstream later
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await new Promise(resolve => setTimeout(resolve, 50));
   assert.equal(upstream2Executed, false, 'Timed-out queued job must NEVER execute upstream later');
 });
 
@@ -915,7 +925,7 @@ test('Finding E: ConcurrencyQueue preserves max active 2 strictly', async () => 
     if (activeCount > peakActive) {
       peakActive = activeCount;
     }
-    await new Promise((r) => setTimeout(r, delayMs));
+    await new Promise(r => setTimeout(r, delayMs));
     activeCount--;
     return id;
   };
@@ -935,14 +945,22 @@ test('Finding E: ConcurrencyQueue preserves max active 2 strictly', async () => 
 test('Finding E: browser abort signal cancels queued job before execution', async () => {
   const queue = new ConcurrencyQueue(1, 5, 5000);
   let releaseJob1;
-  const job1 = queue.run(() => new Promise((resolve) => { releaseJob1 = resolve; }));
+  const job1 = queue.run(
+    () =>
+      new Promise(resolve => {
+        releaseJob1 = resolve;
+      })
+  );
 
   const controller = new AbortController();
   let upstreamRan = false;
-  const job2 = queue.run(async () => {
-    upstreamRan = true;
-    return 'job2';
-  }, { signal: controller.signal });
+  const job2 = queue.run(
+    async () => {
+      upstreamRan = true;
+      return 'job2';
+    },
+    { signal: controller.signal }
+  );
 
   // Abort while waiting in queue
   controller.abort();
@@ -951,7 +969,7 @@ test('Finding E: browser abort signal cancels queued job before execution', asyn
     async () => {
       await job2;
     },
-    (err) => {
+    err => {
       assert.ok(err instanceof ArteError);
       assert.equal(err.code, 'CLIENT_ABORTED');
       return true;

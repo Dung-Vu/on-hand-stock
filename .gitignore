@@ -38,6 +38,11 @@ server/.env.production
 server/.env.staging
 server/.env.local
 server/.env.*.local
+server/.env.production.bak*
+server/.env*.bak*
+
+# Generated Excel exports
+ORDST_*.xlsx
 
 # Cloudflare Tunnel credentials - NEVER commit
 credentials.json

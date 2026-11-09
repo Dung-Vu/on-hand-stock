@@ -4,7 +4,7 @@
 // This file is kept for future componentization refactor
 
 export default function StockData() {
-    // Data rendering được xử lý bởi dataStore.js
-    // Data rendering is handled by dataStore.js
-    return null;
+  // Data rendering được xử lý bởi dataStore.js
+  // Data rendering is handled by dataStore.js
+  return null;
 }

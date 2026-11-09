@@ -9,7 +9,9 @@ const router = Router();
  */
 function sanitizeLog(val) {
   if (val === null || val === undefined) return '';
-  return String(val).replace(/[\x00-\x1f\x7f]/g, '').slice(0, 100);
+  return String(val)
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .slice(0, 100);
 }
 
 // Dedicated rate limiter for batches lookup: 30 req / minute per IP
@@ -49,7 +51,8 @@ router.get('/batches', batchesLimiter, async (req, res) => {
   if (!reference) {
     return res.status(400).json({
       success: false,
-      error: 'Mã sản phẩm không hợp lệ (chỉ chấp nhận chữ cái, số, dấu chấm, gạch ngang, gạch chéo, tối đa 40 ký tự)',
+      error:
+        'Mã sản phẩm không hợp lệ (chỉ chấp nhận chữ cái, số, dấu chấm, gạch ngang, gạch chéo, tối đa 40 ký tự)',
       code: 'INVALID_REFERENCE',
     });
   }
@@ -64,7 +67,9 @@ router.get('/batches', batchesLimiter, async (req, res) => {
     const status = err.status || 503;
     const code = err.code || 'UPSTREAM_ERROR';
     // Sanitized log without headers, cookies, passwords, or raw HTML
-    console.error(`[ARTE /batches error] reference="${sanitizeLog(reference)}" code=${code} status=${status} message=${sanitizeLog(err.message)}`);
+    console.error(
+      `[ARTE /batches error] reference="${sanitizeLog(reference)}" code=${code} status=${status} message=${sanitizeLog(err.message)}`
+    );
 
     return res.status(status).json({
       success: false,
@@ -90,11 +95,13 @@ router.post('/check', checkLimiter, async (req, res) => {
     });
   }
 
-  const batch = rawBatch === undefined || rawBatch === null || rawBatch === '' ? '' : validateBatch(rawBatch);
+  const batch =
+    rawBatch === undefined || rawBatch === null || rawBatch === '' ? '' : validateBatch(rawBatch);
   if (batch === null) {
     return res.status(400).json({
       success: false,
-      error: 'Lô hàng không hợp lệ (chỉ chấp nhận chữ cái, số, dấu chấm, gạch ngang, gạch dưới, gạch chéo, tối đa 60 ký tự)',
+      error:
+        'Lô hàng không hợp lệ (chỉ chấp nhận chữ cái, số, dấu chấm, gạch ngang, gạch dưới, gạch chéo, tối đa 60 ký tự)',
       code: 'INVALID_INPUT',
     });
   }
@@ -117,7 +124,9 @@ router.post('/check', checkLimiter, async (req, res) => {
   } catch (err) {
     const status = err.status || 503;
     const code = err.code || 'UPSTREAM_ERROR';
-    console.error(`[ARTE /check error] ref="${sanitizeLog(reference)}" batch="${sanitizeLog(batch)}" amount=${amount} code=${code} status=${status} message=${sanitizeLog(err.message)}`);
+    console.error(
+      `[ARTE /check error] ref="${sanitizeLog(reference)}" batch="${sanitizeLog(batch)}" amount=${amount} code=${code} status=${status} message=${sanitizeLog(err.message)}`
+    );
 
     return res.status(status).json({
       success: false,
