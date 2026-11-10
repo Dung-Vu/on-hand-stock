@@ -10,7 +10,7 @@ import {
 
 function formatNumber(n) {
   const num = Number(n);
-  return Number.isFinite(num) ? num.toLocaleString() : '0';
+  return Number.isFinite(num) ? num.toLocaleString('vi-VN') : '0';
 }
 
 function escapeHtml(value) {
@@ -43,11 +43,10 @@ export default function Stocktake({
   getWarehouses,
   getProductsForWarehouse,
   onToast,
-  currentUser,
 }) {
   const container = createElement('div', {
     id: 'stocktakeView',
-    class: 'max-w-7xl mx-auto px-4 py-6 hidden',
+    class: 'catalog hidden',
   });
 
   // Header row
@@ -56,38 +55,36 @@ export default function Stocktake({
   });
   const title = createElement('div', {});
   title.innerHTML = `
-        <div class="text-lg font-bold" style="color:#2a231f">🧾 Kiểm kho hàng tháng</div>
-        <div class="text-xs" style="color:#7d6d5a">Tạo phiếu theo tháng & kho, nhập số lượng thực tế và xuất báo cáo chênh lệch.</div>
-    `;
+    <div class="supplier-badge-row" style="margin-bottom: 4px;">
+      <span class="kpi-pill is-info">Kiểm kê định kỳ</span>
+      <span id="stocktakeStatusBadge" class="kpi-pill">Bản nháp</span>
+    </div>
+    <h2 class="panel-title">Kiểm kho hàng tháng</h2>
+    <p class="panel-copy">Tạo phiếu theo tháng và kho, đối chiếu tồn thực tế so với hệ thống và xuất báo cáo chênh lệch.</p>
+  `;
 
   const actions = createElement('div', { class: 'flex items-center gap-2' });
 
-  const exportExcelBtn = createElement('button', {
-    class: 'px-3 py-2 rounded-lg text-xs font-semibold',
-  });
-  exportExcelBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-  exportExcelBtn.style.color = 'white';
-  exportExcelBtn.textContent = '📊 Xuất Excel';
+  const exportExcelBtn = createElement('button', { class: 'action-btn', type: 'button' });
+  exportExcelBtn.textContent = 'Xuất Excel';
 
-  const exportBtn = createElement('button', {
-    class: 'px-3 py-2 rounded-lg text-xs font-semibold',
-  });
-  exportBtn.style.background = 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)';
-  exportBtn.style.color = 'white';
-  exportBtn.textContent = '⬇️ Xuất CSV';
+  const exportBtn = createElement('button', { class: 'action-btn', type: 'button' });
+  exportBtn.textContent = 'Xuất CSV';
 
   const lockBtn = createElement('button', {
-    class: 'px-3 py-2 rounded-lg text-xs font-semibold',
+    class: 'action-btn action-btn-primary',
+    type: 'button',
   });
-  lockBtn.style.background = 'linear-gradient(135deg, #6b5a45 0%, #8b7355 100%)';
-  lockBtn.style.color = 'white';
-  lockBtn.textContent = '🔒 Chốt phiếu';
+  lockBtn.textContent = 'Chốt phiếu';
 
-  actions.appendChild(exportExcelBtn);
-  actions.appendChild(exportBtn);
-  actions.appendChild(lockBtn);
-  headerRow.appendChild(title);
-  headerRow.appendChild(actions);
+  actions.append(exportExcelBtn, exportBtn, lockBtn);
+  headerRow.append(title, actions);
+
+  // Live Stocktake Summary KPI Strip
+  const kpiStrip = createElement('div', {
+    class: 'kpi-strip',
+    style: 'margin-top: 16px;',
+  });
 
   // Filters
   const filterRow = createElement('div', {
@@ -96,85 +93,67 @@ export default function Stocktake({
 
   const monthInput = createElement('input', {
     type: 'month',
-    class: 'px-3 py-2 rounded-lg',
+    class: 'control-block',
     value: defaultMonth(),
+    'aria-label': 'Tháng kiểm kho',
   });
-  monthInput.style.border = '1.5px solid #d4c4b0';
-  monthInput.style.backgroundColor = 'white';
 
   const warehouseSelect = createElement('select', {
-    class: 'px-3 py-2 rounded-lg',
+    class: 'control-block',
+    'aria-label': 'Kho kiểm kho',
   });
-  warehouseSelect.style.border = '1.5px solid #d4c4b0';
-  warehouseSelect.style.backgroundColor = 'white';
 
   const searchInput = createElement('input', {
     type: 'text',
-    placeholder: '🔍 Tìm sản phẩm…',
-    class: 'px-3 py-2 rounded-lg',
+    placeholder: 'Tìm sản phẩm trong phiếu…',
+    class: 'control-block',
+    'aria-label': 'Tìm sản phẩm trong phiếu',
   });
-  searchInput.style.border = '1.5px solid #d4c4b0';
-  searchInput.style.backgroundColor = 'white';
 
   const historySelect = createElement('select', {
-    class: 'px-3 py-2 rounded-lg',
+    class: 'control-block',
     title: 'Mở phiếu đã lưu',
+    'aria-label': 'Phiếu đã lưu',
   });
-  historySelect.style.border = '1.5px solid #d4c4b0';
-  historySelect.style.backgroundColor = 'white';
 
-  filterRow.appendChild(monthInput);
-  filterRow.appendChild(warehouseSelect);
-  filterRow.appendChild(searchInput);
-  filterRow.appendChild(historySelect);
+  filterRow.append(monthInput, warehouseSelect, searchInput, historySelect);
 
   // Table
   const tableWrap = createElement('div', {
-    class: 'mt-4 bg-white rounded-xl',
+    class: 'panel stocktake-table',
   });
-  tableWrap.style.border = '1.5px solid #e8ddd4';
-  tableWrap.style.overflow = 'hidden';
 
   const tableHeader = createElement('div', {
-    class: 'grid grid-cols-12 gap-2 px-3 py-2 text-xs font-semibold hidden md:grid',
+    class: 'stocktake-head grid grid-cols-12 gap-2 px-4 py-3 text-xs font-semibold hidden md:grid',
   });
-  tableHeader.style.backgroundColor = '#faf8f5';
-  tableHeader.style.borderBottom = '1px solid #e8ddd4';
   tableHeader.innerHTML = `
-        <div class="col-span-5">Sản phẩm</div>
-        <div class="col-span-2 text-right">Tồn hệ thống</div>
-        <div class="col-span-2 text-right">Thực tế</div>
-        <div class="col-span-2 text-right">Chênh lệch</div>
-        <div class="col-span-1">Ghi chú</div>
-    `;
+    <div class="col-span-5">Sản phẩm & Mã hệ thống</div>
+    <div class="col-span-2 text-right">Tồn hệ thống</div>
+    <div class="col-span-2 text-right">Kiểm thực tế</div>
+    <div class="col-span-2 text-right">Chênh lệch</div>
+    <div class="col-span-1 text-right">Ghi chú</div>
+  `;
 
-  // Mobile header (simplified)
   const mobileTableHeader = createElement('div', {
-    class: 'grid grid-cols-12 gap-2 px-3 py-2 text-xs font-semibold md:hidden',
+    class: 'stocktake-head grid grid-cols-12 gap-2 px-3 py-2 text-xs font-semibold md:hidden',
   });
-  mobileTableHeader.style.backgroundColor = '#faf8f5';
-  mobileTableHeader.style.borderBottom = '1px solid #e8ddd4';
   mobileTableHeader.innerHTML = `
-        <div class="col-span-6">Sản phẩm</div>
-        <div class="col-span-2 text-right">Tồn</div>
-        <div class="col-span-2 text-right">Thực</div>
-        <div class="col-span-2 text-right">Lệch</div>
-    `;
+    <div class="col-span-6">Sản phẩm</div>
+    <div class="col-span-2 text-right">Tồn</div>
+    <div class="col-span-2 text-right">Thực</div>
+    <div class="col-span-2 text-right">Lệch</div>
+  `;
 
   const tableBody = createElement('div', { id: 'stocktakeTableBody' });
 
-  tableWrap.appendChild(tableHeader);
-  tableWrap.appendChild(mobileTableHeader);
-  tableWrap.appendChild(tableBody);
-
-  container.appendChild(headerRow);
-  container.appendChild(filterRow);
-  container.appendChild(tableWrap);
+  tableWrap.append(tableHeader, mobileTableHeader, tableBody);
+  container.append(headerRow, kpiStrip, filterRow, tableWrap);
 
   // State
   let doc = null;
   let products = [];
   let historyItemsById = new Map();
+  let stkFilter = 'all';
 
   function isMobile() {
     if (typeof window === 'undefined') return false;
@@ -211,29 +190,36 @@ export default function Stocktake({
   }
 
   function updateLockButton() {
-    lockBtn.textContent = doc?.status === 'locked' ? '🔓 Mở khóa' : '🔒 Chốt phiếu';
+    const locked = doc?.status === 'locked';
+    lockBtn.textContent = locked ? 'Mở khóa phiếu' : 'Chốt phiếu';
+    const badge = container.querySelector('#stocktakeStatusBadge');
+    if (badge) {
+      badge.textContent = locked ? 'Đã khóa sổ' : 'Đang kiểm đếm';
+      badge.className = `kpi-pill ${locked ? 'is-warn' : 'is-ok'}`;
+    }
   }
 
   function showTableMessage(message) {
     tableBody.innerHTML = '';
     const empty = createElement('div', { class: 'p-6 text-sm' });
-    empty.style.color = '#7d6d5a';
+    empty.style.color = 'var(--muted)';
     empty.textContent = message;
     tableBody.appendChild(empty);
   }
 
   function updateVarianceDisplay(target, variance) {
+    target.classList.remove('variance-empty', 'variance-zero', 'variance-up', 'variance-down');
     if (variance === null || variance === undefined) {
-      target.style.color = '#7d6d5a';
-      target.textContent = '-';
+      target.classList.add('variance-empty');
+      target.textContent = '—';
     } else if (variance === 0) {
-      target.style.color = '#1b5e20';
+      target.classList.add('variance-zero');
       target.textContent = '0';
     } else if (variance > 0) {
-      target.style.color = '#155724';
+      target.classList.add('variance-up');
       target.textContent = `+${formatNumber(variance)}`;
     } else {
-      target.style.color = '#721c24';
+      target.classList.add('variance-down');
       target.textContent = formatNumber(variance);
     }
   }
@@ -244,7 +230,7 @@ export default function Stocktake({
     historySelect.innerHTML = '';
     const opt0 = document.createElement('option');
     opt0.value = '';
-    opt0.textContent = '🕘 Lịch sử phiếu…';
+    opt0.textContent = 'Lịch sử phiếu đã lưu…';
     historySelect.appendChild(opt0);
 
     items.slice(0, 50).forEach(it => {
@@ -269,7 +255,7 @@ export default function Stocktake({
     updateLockButton();
   }
 
-  function computeRows() {
+  function computeAllRows() {
     const q = (searchInput.value || '').toLowerCase().trim();
     const lines = doc?.lines || {};
     return products
@@ -290,17 +276,84 @@ export default function Stocktake({
       });
   }
 
+  function computeRows() {
+    const all = computeAllRows();
+    if (stkFilter === 'uncounted') return all.filter(r => r.counted === null || r.counted === undefined);
+    if (stkFilter === 'variance') return all.filter(r => r.variance !== null && r.variance !== 0);
+    if (stkFilter === 'matched') return all.filter(r => r.variance === 0);
+    return all;
+  }
+
+  function renderKpis(allRows) {
+    const total = allRows.length;
+    const countedCount = allRows.filter(r => r.counted !== null && r.counted !== undefined).length;
+    const matchedCount = allRows.filter(r => r.variance === 0).length;
+    const varianceCount = allRows.filter(r => r.variance !== null && r.variance !== 0).length;
+    const uncountedCount = total - countedCount;
+    const pct = total > 0 ? Math.round((countedCount / total) * 100) : 0;
+
+    kpiStrip.innerHTML = `
+      <button type="button" class="kpi-card ${stkFilter === 'all' ? 'is-active' : ''}" data-stk-filter="all">
+        <div class="kpi-card-top">
+          <span class="kpi-label">Tổng danh mục phiếu</span>
+          <span class="kpi-pill">${pct}% đã đếm</span>
+        </div>
+        <div class="kpi-value">${total.toLocaleString('vi-VN')} <small>mã</small></div>
+        <div class="kpi-sub">Đã nhập: <strong>${countedCount}</strong> / ${total} mã</div>
+      </button>
+
+      <button type="button" class="kpi-card ${stkFilter === 'uncounted' ? 'is-active' : ''}" data-stk-filter="uncounted">
+        <div class="kpi-card-top">
+          <span class="kpi-label">Chưa kiểm đếm</span>
+          <span class="kpi-pill">Còn lại</span>
+        </div>
+        <div class="kpi-value">${uncountedCount.toLocaleString('vi-VN')} <small>mã</small></div>
+        <div class="kpi-sub">Bấm để chỉ hiện các mã chưa nhập</div>
+      </button>
+
+      <button type="button" class="kpi-card kpi-ok ${stkFilter === 'matched' ? 'is-active' : ''}" data-stk-filter="matched">
+        <div class="kpi-card-top">
+          <span class="kpi-label">Khớp tồn hệ thống</span>
+          <span class="kpi-pill is-ok">Lệch = 0</span>
+        </div>
+        <div class="kpi-value">${matchedCount.toLocaleString('vi-VN')} <small>mã</small></div>
+        <div class="kpi-sub">Số thực tế trùng khớp hệ thống</div>
+      </button>
+
+      <button type="button" class="kpi-card kpi-low ${stkFilter === 'variance' ? 'is-active' : ''}" data-stk-filter="variance">
+        <div class="kpi-card-top">
+          <span class="kpi-label">Có chênh lệch</span>
+          <span class="kpi-pill is-warn">Lệch ≠ 0</span>
+        </div>
+        <div class="kpi-value">${varianceCount.toLocaleString('vi-VN')} <small>mã</small></div>
+        <div class="kpi-sub">Cần kiểm tra lại nguyên nhân lệch</div>
+      </button>
+    `;
+
+    kpiStrip.querySelectorAll('[data-stk-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const next = btn.getAttribute('data-stk-filter') || 'all';
+        stkFilter = stkFilter === next ? 'all' : next;
+        render();
+      });
+    });
+  }
+
   function render() {
     if (!doc) return;
     products = getProductsForWarehouse(warehouseSelect.value);
+    const allRows = computeAllRows();
+    renderKpis(allRows);
     const rows = computeRows();
     tableBody.innerHTML = '';
 
     if (!products || products.length === 0) {
-      const empty = createElement('div', { class: 'p-6 text-sm' });
-      empty.style.color = '#7d6d5a';
-      empty.textContent = 'Chưa có dữ liệu kho. Hãy bấm “Tải dữ liệu” trước.';
-      tableBody.appendChild(empty);
+      showTableMessage('Chưa có dữ liệu kho. Hãy bấm “Tải lại” ở thanh trên cùng trước.');
+      return;
+    }
+
+    if (rows.length === 0) {
+      showTableMessage('Không có sản phẩm nào trong bộ lọc kiểm kho này.');
       return;
     }
 
@@ -311,39 +364,29 @@ export default function Stocktake({
       const safeProductId = escapeHtml(r.productId);
 
       if (mobile) {
-        // Mobile card layout
-        const card = createElement('div', {
-          class: 'px-3 py-3',
-        });
-        card.style.borderBottom = '1px solid #f5f1ea';
-
+        const card = createElement('div', { class: 'stk-card' });
         const top = createElement('div', { class: 'flex items-start justify-between gap-2' });
         const name = createElement('div', { class: 'flex-1 min-w-0' });
-        name.innerHTML = `<div class="font-semibold text-sm" style="color:#2a231f">${safeName}</div>
-                    <div class="text-[11px]" style="color:#7d6d5a">ID: ${safeProductId}</div>`;
+        name.innerHTML = `<div class="stk-name">${safeName}</div><div class="stk-id">ID #${safeProductId}</div>`;
 
         const noteBtn = createElement('button', {
-          class: 'text-xs px-2 py-1 rounded-lg shrink-0',
+          class: 'text-btn',
+          type: 'button',
           title: 'Ghi chú',
         });
         noteBtn.disabled = doc.status === 'locked';
-        noteBtn.style.border = '1px solid #d4c4b0';
-        noteBtn.textContent = '📝';
+        noteBtn.textContent = r.note ? 'Sửa ghi chú' : 'Ghi chú';
 
-        top.appendChild(name);
-        top.appendChild(noteBtn);
+        top.append(name, noteBtn);
 
         const grid = createElement('div', {
           class: 'mt-3 grid grid-cols-3 gap-2',
         });
 
-        const sysBox = createElement('div', { class: 'p-2 rounded-lg text-center' });
-        sysBox.style.backgroundColor = '#faf8f5';
-        sysBox.innerHTML = `<div class="text-[10px] uppercase tracking-wider" style="color:#7d6d5a">Tồn</div>
-                    <div class="font-bold" style="color:#2a231f; font-variant-numeric: tabular-nums;">${formatNumber(r.systemQty)}</div>`;
+        const sysBox = createElement('div', { class: 'metric' });
+        sysBox.innerHTML = `<div class="quantity-label">Tồn</div><div class="stk-name">${formatNumber(r.systemQty)}</div>`;
 
-        const countedBox = createElement('div', { class: 'p-2 rounded-lg text-center' });
-        countedBox.style.backgroundColor = '#f5f9f5';
+        const countedBox = createElement('div', { class: 'metric' });
         const countedInput = createElement('input', {
           type: 'number',
           step: '0.01',
@@ -352,14 +395,13 @@ export default function Stocktake({
           value: r.counted ?? '',
         });
         countedInput.disabled = doc.status === 'locked';
-        countedBox.innerHTML = `<div class="text-[10px] uppercase tracking-wider mb-1" style="color:#7d6d5a">Thực tế</div>`;
+        countedBox.innerHTML = `<div class="quantity-label">Thực tế</div>`;
         countedBox.appendChild(countedInput);
 
-        const varBox = createElement('div', { class: 'p-2 rounded-lg text-center' });
-        varBox.style.backgroundColor = '#e8f4f8';
-        const varValue = createElement('div', { class: 'font-bold' });
+        const varBox = createElement('div', { class: 'metric' });
+        const varValue = createElement('div', { class: 'stk-name' });
         updateVarianceDisplay(varValue, r.variance);
-        varBox.innerHTML = `<div class="text-[10px] uppercase tracking-wider" style="color:#7d6d5a">Lệch</div>`;
+        varBox.innerHTML = `<div class="quantity-label">Lệch</div>`;
         varBox.appendChild(varValue);
 
         countedInput.addEventListener('input', e => {
@@ -379,6 +421,7 @@ export default function Stocktake({
               counted: e.target.value,
               note: doc?.lines?.[String(r.productId)]?.note ?? r.note,
             });
+            renderKpis(computeAllRows());
             if (!hadSessionId && doc?.id) {
               await refreshHistory();
             }
@@ -407,34 +450,34 @@ export default function Stocktake({
               await refreshHistory();
             }
             onToast?.('Đã lưu ghi chú', 'success', 1500);
+            render();
           } catch (error) {
             console.error(error);
             onToast?.(`Lỗi lưu ghi chú: ${error?.message || error}`, 'error', 3000);
           }
         });
 
-        grid.appendChild(sysBox);
-        grid.appendChild(countedBox);
-        grid.appendChild(varBox);
-
-        card.appendChild(top);
-        card.appendChild(grid);
+        grid.append(sysBox, countedBox, varBox);
+        card.append(top, grid);
         tableBody.appendChild(card);
         return;
       }
 
       // Desktop row layout
       const row = createElement('div', {
-        class: 'grid grid-cols-12 gap-2 px-3 py-2 items-center text-sm stocktake-row',
+        class: 'grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm stk-row',
       });
-      row.style.borderBottom = '1px solid #f5f1ea';
 
       const name = createElement('div', { class: 'col-span-5' });
-      name.innerHTML = `<div class="font-semibold" style="color:#2a231f">${safeName}</div>
-                <div class="text-[11px]" style="color:#7d6d5a">ID: ${safeProductId}</div>`;
+      name.innerHTML = `
+        <div class="stk-name">${safeName}</div>
+        <div class="stk-id">
+          <span>ID #${safeProductId}</span>
+          ${r.note ? `<span class="category-badge" style="margin-left:6px;">Ghi chú: ${escapeHtml(r.note)}</span>` : ''}
+        </div>
+      `;
 
-      const sys = createElement('div', { class: 'col-span-2 text-right font-semibold' });
-      sys.style.color = '#2a231f';
+      const sys = createElement('div', { class: 'col-span-2 text-right stk-name' });
       sys.textContent = formatNumber(r.systemQty);
 
       const countedWrap = createElement('div', { class: 'col-span-2 text-right' });
@@ -443,6 +486,7 @@ export default function Stocktake({
         step: '0.01',
         inputmode: 'decimal',
         class: 'stocktake-input',
+        placeholder: 'Chưa đếm',
         value: r.counted ?? '',
       });
       countedInput.disabled = doc.status === 'locked';
@@ -451,13 +495,10 @@ export default function Stocktake({
       const varEl = createElement('div', { class: 'col-span-2 text-right font-semibold' });
       updateVarianceDisplay(varEl, r.variance);
 
-      const noteWrap = createElement('div', { class: 'col-span-1' });
-      const noteBtn = createElement('button', {
-        class: 'text-xs px-2 py-1 rounded-lg',
-      });
+      const noteWrap = createElement('div', { class: 'col-span-1 text-right' });
+      const noteBtn = createElement('button', { class: 'text-btn', type: 'button' });
       noteBtn.disabled = doc.status === 'locked';
-      noteBtn.style.border = '1px solid #d4c4b0';
-      noteBtn.textContent = '📝';
+      noteBtn.textContent = r.note ? 'Sửa' : 'Ghi chú';
       noteWrap.appendChild(noteBtn);
 
       countedInput.addEventListener('input', e => {
@@ -477,6 +518,7 @@ export default function Stocktake({
             counted: e.target.value,
             note: doc?.lines?.[String(r.productId)]?.note ?? r.note,
           });
+          renderKpis(computeAllRows());
           if (!hadSessionId && doc?.id) {
             await refreshHistory();
           }
@@ -505,17 +547,14 @@ export default function Stocktake({
             await refreshHistory();
           }
           onToast?.('Đã lưu ghi chú', 'success', 1500);
+          render();
         } catch (error) {
           console.error(error);
           onToast?.(`Lỗi lưu ghi chú: ${error?.message || error}`, 'error', 3000);
         }
       });
 
-      row.appendChild(name);
-      row.appendChild(sys);
-      row.appendChild(countedWrap);
-      row.appendChild(varEl);
-      row.appendChild(noteWrap);
+      row.append(name, sys, countedWrap, varEl, noteWrap);
       tableBody.appendChild(row);
     });
   }
@@ -533,16 +572,10 @@ export default function Stocktake({
     }
   }
 
-  // Events
-  monthInput.addEventListener('change', () => {
-    reloadAll();
-  });
-  warehouseSelect.addEventListener('change', () => {
-    reloadAll();
-  });
+  monthInput.addEventListener('change', () => reloadAll());
+  warehouseSelect.addEventListener('change', () => reloadAll());
   searchInput.addEventListener('input', render);
 
-  // Re-render on viewport change (mobile/desktop)
   if (typeof window !== 'undefined' && window.matchMedia) {
     const mq = window.matchMedia('(max-width: 768px)');
     const handler = () => render();
@@ -585,7 +618,7 @@ export default function Stocktake({
 
   exportBtn.addEventListener('click', () => {
     if (!doc) return;
-    const rows = computeRows();
+    const rows = computeAllRows();
     const csvRows = [
       ['month', doc.month],
       ['warehouse', doc.warehouse],
@@ -610,7 +643,7 @@ export default function Stocktake({
     if (!doc) return;
     try {
       onToast?.('Đang chuẩn bị file Excel', 'info', 1500);
-      const rows = computeRows();
+      const rows = computeAllRows();
       const { exportStocktakeToExcel } = await import('../utils/export.js');
       await exportStocktakeToExcel(
         doc,
@@ -633,13 +666,11 @@ export default function Stocktake({
     }
   });
 
-  // Public API
   container.refresh = async () => {
     refreshWarehouses();
     await reloadAll();
   };
 
-  // initial: keep the hidden view idle until the user opens it after login.
   refreshWarehouses();
   showTableMessage('Chọn kho để bắt đầu kiểm kho.');
 

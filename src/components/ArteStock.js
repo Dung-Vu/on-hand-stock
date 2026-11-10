@@ -1,18 +1,12 @@
 import { createElement } from '../utils/dom.js';
 import { fetchArteBatches, checkArteStock } from '../services/arteApi.js';
 
-/**
- * ARTE Stock Check View Component
- * Vertical flow: Reference -> optional Batch -> Amount -> Availability Result
- * Safe DOM rendering: All dynamic values are rendered via textContent (no innerHTML interpolation).
- */
-export default function ArteStock({ onToast }) {
+export default function ArteStock() {
   const container = createElement('div', {
     id: 'arteStockView',
-    class: 'hidden max-w-3xl mx-auto py-4 px-2 sm:px-4',
+    class: 'supplier-view hidden',
   });
 
-  // Component State
   let currentReference = '';
   let currentProductName = '';
   let currentImageUrl = '';
@@ -24,138 +18,60 @@ export default function ArteStock({ onToast }) {
   let checkResult = null;
   let errorMessage = '';
 
-  // Render helper
+  function label(text, htmlFor) {
+    const node = createElement('label', { class: 'form-label', for: htmlFor });
+    node.textContent = text;
+    return node;
+  }
+
   function render() {
-    container.innerHTML = '';
+    container.replaceChildren();
 
-    // Card Container
-    const card = createElement('div', {});
-    card.style.cssText = `
-            background: #ffffff;
-            border: 1.5px solid #e8ddd4;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(42,35,31,0.06);
-            padding: 20px 24px;
-            box-sizing: border-box;
-            font-family: inherit;
-        `;
+    const studio = createElement('div', { class: 'supplier-studio' });
 
-    // Header Title (static trusted markup)
-    const header = createElement('div', {
-      style: 'margin-bottom: 20px; border-bottom: 1px solid #f0ebe4; padding-bottom: 14px;',
-    });
-    const headerTitleRow = createElement('div', {
-      style: 'display:flex; align-items:center; gap:8px;',
-    });
-    const headerIcon = createElement('span', { style: 'font-size:20px;' });
-    headerIcon.textContent = '🏛️';
-    const headerTitle = createElement('h2', {
-      style: 'margin:0; font-size:18px; font-weight:700; color:#2a231f;',
-    });
-    headerTitle.textContent = 'Tra cứu tồn kho quốc tế ARTE';
-    headerTitleRow.appendChild(headerIcon);
-    headerTitleRow.appendChild(headerTitle);
+    // ── LEFT PANEL: Lookup Controls
+    const leftCard = createElement('div', { class: 'panel supplier-form-panel' });
+    const badgeRow = createElement('div', { class: 'supplier-badge-row' });
+    badgeRow.innerHTML = `
+      <span class="kpi-pill is-info">ARTE International</span>
+      <span class="supplier-origin">Belgium · Realtime Stock Portal</span>
+    `;
+    const heading = createElement('h2', { class: 'panel-title' });
+    heading.textContent = 'Tra cứu tồn kho ARTE';
+    const subtitle = createElement('p', { class: 'panel-copy' });
+    subtitle.textContent =
+      'Kiểm tra tồn kho trực tiếp từ hệ thống ARTE International theo mã thiết kế, số lô (batch) và số lượng đặt hàng.';
+    leftCard.append(badgeRow, heading, subtitle);
 
-    const headerSubtitle = createElement('p', {
-      style: 'margin:4px 0 0 28px; font-size:13px; color:#6b5a45;',
-    });
-    headerSubtitle.textContent =
-      'Tra cứu trực tiếp trạng thái khả dụng theo Mã sản phẩm, Lô hàng và Số lượng từ hệ thống ARTE International.';
-    header.appendChild(headerTitleRow);
-    header.appendChild(headerSubtitle);
-    card.appendChild(header);
-
-    // Live status region for screen readers
-    const liveRegion = createElement('div', {
-      'aria-live': 'polite',
-      class: 'sr-only',
-    });
-    liveRegion.style.cssText =
-      'position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;';
+    const liveRegion = createElement('div', { 'aria-live': 'polite', class: 'sr-only' });
     if (isLoadingBatches) liveRegion.textContent = 'Đang tìm kiếm lô hàng từ ARTE...';
     else if (isCheckingStock) liveRegion.textContent = 'Đang kiểm tra tồn kho từ ARTE...';
-    else if (checkResult)
+    else if (checkResult) {
       liveRegion.textContent = `Kết quả: ${checkResult.available ? 'Còn hàng' : 'Không đủ số lượng'}. ${checkResult.message}`;
-    card.appendChild(liveRegion);
+    }
+    leftCard.appendChild(liveRegion);
 
-    // Step 1: Reference Input Section
-    const refSection = createElement('div', { style: 'margin-bottom: 18px;' });
-
-    const refLabel = createElement('label', {
-      for: 'arteRefInput',
-      style: 'display:block; font-size:13px; font-weight:700; color:#2a231f; margin-bottom:6px;',
-    });
-    refLabel.textContent = '1. Mã sản phẩm (Reference)';
-
-    const refInputGroup = createElement('div', { style: 'display:flex; gap:8px;' });
-
+    const refSection = createElement('div', { style: 'margin-top: 18px;' });
+    const refRow = createElement('div', { class: 'field-row' });
     const refInput = createElement('input', {
       id: 'arteRefInput',
+      class: 'control-block',
       type: 'text',
-      placeholder: 'Ví dụ: 60741',
+      placeholder: 'Nhập mã sản phẩm (VD: 60741)...',
       value: currentReference,
       autocomplete: 'off',
       'aria-label': 'Mã sản phẩm ARTE',
     });
     refInput.disabled = isLoadingBatches || isCheckingStock;
-    refInput.style.cssText = `
-            flex: 1;
-            height: 40px;
-            padding: 0 12px;
-            border-radius: 8px;
-            border: 1.5px solid #d4c4b0;
-            background: #ffffff;
-            font-size: 14px;
-            color: #2a231f;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            font-family: inherit;
-        `;
-    refInput.addEventListener('focus', () => {
-      refInput.style.borderColor = '#8b6b4f';
-      refInput.style.boxShadow = '0 0 0 3px rgba(139,107,79,0.12)';
-    });
-    refInput.addEventListener('blur', () => {
-      refInput.style.borderColor = '#d4c4b0';
-      refInput.style.boxShadow = 'none';
-    });
 
     const searchBtn = createElement('button', {
       type: 'button',
+      class: 'action-btn action-btn-primary',
       'aria-label': 'Tìm lô hàng',
     });
     searchBtn.disabled = isLoadingBatches || isCheckingStock;
-    searchBtn.style.cssText = `
-            height: 40px;
-            padding: 0 16px;
-            border-radius: 8px;
-            border: none;
-            background: #6b5a45;
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: ${isLoadingBatches || isCheckingStock ? 'not-allowed' : 'pointer'};
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: background-color 0.15s;
-            font-family: inherit;
-            white-space: nowrap;
-        `;
+    searchBtn.textContent = isLoadingBatches ? 'Đang tìm...' : 'Tìm lô hàng';
 
-    const searchIcon = createElement('span');
-    if (isLoadingBatches) {
-      searchIcon.className = 'inline-block animate-spin';
-      searchIcon.textContent = '⏳';
-    } else {
-      searchIcon.textContent = '🔍';
-    }
-    const searchText = createElement('span');
-    searchText.textContent = isLoadingBatches ? 'Đang tìm...' : 'Tìm lô';
-    searchBtn.appendChild(searchIcon);
-    searchBtn.appendChild(searchText);
-
-    // Event: Reference Search
     const handleSearchBatches = async () => {
       const refVal = refInput.value.trim();
       if (!refVal) {
@@ -163,7 +79,6 @@ export default function ArteStock({ onToast }) {
         render();
         return;
       }
-
       currentReference = refVal;
       isLoadingBatches = true;
       errorMessage = '';
@@ -173,7 +88,6 @@ export default function ArteStock({ onToast }) {
       currentProductName = '';
       currentImageUrl = '';
       render();
-
       try {
         const data = await fetchArteBatches(refVal);
         batchesList = data.batches || [];
@@ -189,107 +103,51 @@ export default function ArteStock({ onToast }) {
     };
 
     searchBtn.addEventListener('click', handleSearchBatches);
-    refInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleSearchBatches();
-      }
+    refInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      handleSearchBatches();
     });
+    refRow.append(refInput, searchBtn);
+    refSection.append(label('Bước 1 · Mã sản phẩm (Reference)', 'arteRefInput'), refRow);
+    leftCard.appendChild(refSection);
 
-    refInputGroup.appendChild(refInput);
-    refInputGroup.appendChild(searchBtn);
-    refSection.appendChild(refLabel);
-    refSection.appendChild(refInputGroup);
-    card.appendChild(refSection);
-
-    // Error message banner
     if (errorMessage) {
       const errBanner = createElement('div', {
         role: 'alert',
-        style: `
-                    background: #fef2f2;
-                    border: 1px solid #fee2e2;
-                    border-left: 4px solid #ef4444;
-                    padding: 10px 14px;
-                    border-radius: 6px;
-                    margin-bottom: 18px;
-                    font-size: 13px;
-                    color: #b91c1c;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                `,
+        class: 'alert alert-error',
+        style: 'margin-top: 14px;',
       });
-      const errIcon = createElement('span');
-      errIcon.textContent = '❌';
-      const errText = createElement('span');
-      errText.textContent = errorMessage;
-      errBanner.appendChild(errIcon);
-      errBanner.appendChild(errText);
-      card.appendChild(errBanner);
+      errBanner.textContent = errorMessage;
+      leftCard.appendChild(errBanner);
     }
 
-    // Step 2 & 3: Batch Selector and Amount (shown when batches are available)
     if (batchesList.length > 0) {
-      const formGrid = createElement('div', {
-        style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;',
-      });
-
-      // Batch dropdown
-      const batchGroup = createElement('div');
-      const batchLabel = createElement('label', {
-        for: 'arteBatchSelect',
-        style: 'display:block; font-size:13px; font-weight:700; color:#2a231f; margin-bottom:6px;',
-      });
-      batchLabel.textContent = '2. Chọn số lô (Batch)';
-
+      const formGrid = createElement('div', { class: 'form-grid' });
       const batchSelect = createElement('select', {
         id: 'arteBatchSelect',
+        class: 'control-block',
         'aria-label': 'Chọn số lô ARTE',
       });
       batchSelect.disabled = isCheckingStock;
-      batchSelect.style.cssText = `
-                width: 100%;
-                height: 40px;
-                padding: 0 10px;
-                border-radius: 8px;
-                border: 1.5px solid #d4c4b0;
-                background: #ffffff;
-                font-size: 14px;
-                color: #2a231f;
-                outline: none;
-                font-family: inherit;
-                cursor: pointer;
-            `;
       const defaultOption = createElement('option', { value: '' });
-      defaultOption.textContent = 'Select (không chọn lô - kiểm tra toàn bộ)';
+      defaultOption.textContent = 'Không chọn lô — kiểm tra toàn bộ';
       batchSelect.appendChild(defaultOption);
-      batchesList.forEach(b => {
-        const opt = createElement('option', { value: b });
-        opt.textContent = `Lô ${b}`;
-        if (b === selectedBatch) opt.selected = true;
-        batchSelect.appendChild(opt);
+      batchesList.forEach(batch => {
+        const option = createElement('option', { value: batch });
+        option.textContent = `Lô ${batch}`;
+        if (batch === selectedBatch) option.selected = true;
+        batchSelect.appendChild(option);
       });
-      batchSelect.addEventListener('change', e => {
-        selectedBatch = e.target.value;
+      batchSelect.addEventListener('change', event => {
+        selectedBatch = event.target.value;
         checkResult = null;
         render();
       });
 
-      batchGroup.appendChild(batchLabel);
-      batchGroup.appendChild(batchSelect);
-      formGrid.appendChild(batchGroup);
-
-      // Amount input: supports positive decimals
-      const amountGroup = createElement('div');
-      const amountLabel = createElement('label', {
-        for: 'arteAmountInput',
-        style: 'display:block; font-size:13px; font-weight:700; color:#2a231f; margin-bottom:6px;',
-      });
-      amountLabel.textContent = '3. Số lượng cần tra cứu';
-
       const amountInput = createElement('input', {
         id: 'arteAmountInput',
+        class: 'control-block',
         type: 'number',
         min: '0.01',
         max: '100000',
@@ -298,70 +156,28 @@ export default function ArteStock({ onToast }) {
         'aria-label': 'Số lượng kiểm tra',
       });
       amountInput.disabled = isCheckingStock;
-      amountInput.style.cssText = `
-                width: 100%;
-                height: 40px;
-                padding: 0 12px;
-                border-radius: 8px;
-                border: 1.5px solid #d4c4b0;
-                background: #ffffff;
-                font-size: 14px;
-                color: #2a231f;
-                outline: none;
-                box-sizing: border-box;
-                font-family: inherit;
-            `;
-      amountInput.addEventListener('input', e => {
-        const val = parseFloat(e.target.value);
-        if (Number.isFinite(val) && val > 0) {
-          currentAmount = val;
-        }
+      amountInput.addEventListener('input', event => {
+        const val = parseFloat(event.target.value);
+        if (Number.isFinite(val) && val > 0) currentAmount = val;
       });
 
-      amountGroup.appendChild(amountLabel);
-      amountGroup.appendChild(amountInput);
-      formGrid.appendChild(amountGroup);
-      card.appendChild(formGrid);
+      const batchGroup = createElement('div');
+      batchGroup.append(label('Bước 2 · Chọn số lô', 'arteBatchSelect'), batchSelect);
+      const amountGroup = createElement('div');
+      amountGroup.append(label('Bước 3 · Số lượng cần đặt', 'arteAmountInput'), amountInput);
+      formGrid.append(batchGroup, amountGroup);
+      leftCard.appendChild(formGrid);
 
-      // Submit Button: Check Stock
       const submitBtn = createElement('button', {
         type: 'button',
+        class: 'action-btn action-btn-primary',
         'aria-label': 'Kiểm tra tồn kho',
+        style: 'width: 100%; height: 42px;',
       });
       submitBtn.disabled = isCheckingStock || currentAmount <= 0;
-      submitBtn.style.cssText = `
-                width: 100%;
-                height: 44px;
-                border-radius: 8px;
-                border: none;
-                background: linear-gradient(135deg, #2563eb, #1d4ed8);
-                color: #ffffff;
-                font-size: 14px;
-                font-weight: 700;
-                cursor: ${isCheckingStock ? 'not-allowed' : 'pointer'};
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                box-shadow: 0 2px 8px rgba(37,99,235,0.25);
-                font-family: inherit;
-                transition: transform 0.15s, opacity 0.15s;
-                margin-bottom: 18px;
-            `;
-
-      const submitIcon = createElement('span');
-      if (isCheckingStock) {
-        submitIcon.className = 'inline-block animate-spin';
-        submitIcon.textContent = '⏳';
-      } else {
-        submitIcon.textContent = '✨';
-      }
-      const submitText = createElement('span');
-      submitText.textContent = isCheckingStock
+      submitBtn.textContent = isCheckingStock
         ? 'Đang kiểm tra tồn kho từ ARTE...'
-        : 'Kiểm tra tồn kho';
-      submitBtn.appendChild(submitIcon);
-      submitBtn.appendChild(submitText);
+        : 'Kiểm tra khả dụng ngay';
 
       const handleCheckStock = async () => {
         const amountFromInput = Number(amountInput.value);
@@ -371,12 +187,10 @@ export default function ArteStock({ onToast }) {
           return;
         }
         currentAmount = amountFromInput;
-
         isCheckingStock = true;
         errorMessage = '';
         checkResult = null;
         render();
-
         try {
           const res = await checkArteStock({
             reference: currentReference,
@@ -396,128 +210,93 @@ export default function ArteStock({ onToast }) {
       };
 
       submitBtn.addEventListener('click', handleCheckStock);
-      amountInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          handleCheckStock();
-        }
+      amountInput.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        handleCheckStock();
       });
+      leftCard.appendChild(submitBtn);
+    }
 
-      card.appendChild(submitBtn);
+    // ── RIGHT PANEL: Live Preview & Results
+    const rightCard = createElement('div', { class: 'panel supplier-preview-panel' });
 
-      // ARTE only returns the product image after the final amount check.
-      // Show a large, image-only preview directly below the check button.
+    if (!currentProductName && !checkResult && batchesList.length === 0) {
+      const emptyPreview = createElement('div', { class: 'empty-state', style: 'min-height: 240px;' });
+      emptyPreview.innerHTML = `
+        <div class="state-icon-circle">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m16.5 16.5 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Sẵn sàng tra cứu ARTE</h2>
+        <p>Nhập mã sản phẩm ở cột bên trái để xem hình mẫu, danh sách lô hàng hiện có và kiểm tra số lượng khả dụng.</p>
+      `;
+      rightCard.appendChild(emptyPreview);
+    } else {
+      if (currentProductName || currentReference) {
+        const prodHead = createElement('div', { style: 'margin-bottom: 14px;' });
+        prodHead.innerHTML = `
+          <span class="kpi-label">Sản phẩm đang chọn</span>
+          <h3 class="panel-title" style="margin-top: 4px;">${currentProductName || `Mã ${currentReference}`}</h3>
+        `;
+        rightCard.appendChild(prodHead);
+      }
+
       if (currentImageUrl) {
-        const imageWrap = createElement('div', {
-          style: 'display:flex; justify-content:center; margin:0 0 18px;',
-        });
         const productImage = createElement('img', {
+          class: 'product-shot',
           src: currentImageUrl,
-          alt: 'Hình ảnh sản phẩm ARTE',
+          alt: currentProductName ? `Hình ảnh ${currentProductName}` : 'Hình ảnh sản phẩm ARTE',
+          style: 'aspect-ratio: 1 / 1; object-fit: cover;',
         });
-        productImage.style.cssText = `
-                    display: block;
-                    width: min(100%, 360px);
-                    aspect-ratio: 1 / 1;
-                    object-fit: cover;
-                    border-radius: 12px;
-                    border: 1px solid #e2d6ca;
-                    box-shadow: 0 6px 18px rgba(42,35,31,0.12);
-                    background: #f8f5f1;
-                `;
-        imageWrap.appendChild(productImage);
-        card.appendChild(imageWrap);
+        rightCard.appendChild(productImage);
+      }
+
+      if (batchesList.length > 0) {
+        const batchesBox = createElement('div', { style: 'margin-bottom: 16px;' });
+        const bLabel = createElement('div', { class: 'form-label' });
+        bLabel.textContent = `Các lô hiện có tại ARTE (${batchesList.length} lô)`;
+        const chipsWrap = createElement('div', { class: 'lot-chips-wrap' });
+        batchesList.forEach(b => {
+          const chip = createElement('span', { class: 'lot-chip' });
+          chip.textContent = `Lô ${b}`;
+          chipsWrap.appendChild(chip);
+        });
+        batchesBox.append(bLabel, chipsWrap);
+        rightCard.appendChild(batchesBox);
+      }
+
+      if (checkResult) {
+        const isAvailable = checkResult.available;
+        const resultBox = createElement('div', {
+          role: 'region',
+          class: `result-card ${isAvailable ? 'is-ok' : 'is-bad'}`,
+          'aria-label': 'Kết quả kiểm tra tồn kho ARTE',
+        });
+        const topRow = createElement('div', {
+          class: 'stock-results-summary',
+        });
+        const badge = createElement('strong');
+        badge.textContent = isAvailable ? 'Đủ số lượng đáp ứng' : 'Không đủ số lượng';
+        const time = createElement('span');
+        time.textContent = new Date(checkResult.checkedAt).toLocaleTimeString('vi-VN');
+        topRow.append(badge, time);
+        const message = createElement('p', { class: 'panel-copy', style: 'color: inherit;' });
+        message.textContent = checkResult.message;
+        const details = createElement('div', { class: 'result-meta' });
+        const batchCol = createElement('div');
+        batchCol.textContent = `Lô hàng: ${checkResult.batch || 'Toàn bộ'}`;
+        const amountCol = createElement('div');
+        amountCol.textContent = `Số lượng yêu cầu: ${checkResult.amount}`;
+        details.append(batchCol, amountCol);
+        resultBox.append(topRow, message, details);
+        rightCard.appendChild(resultBox);
       }
     }
 
-    // 4. Result View State (Available / Unavailable)
-    if (checkResult) {
-      const resultBox = createElement('div', {
-        role: 'region',
-        'aria-label': 'Kết quả kiểm tra tồn kho ARTE',
-      });
-
-      const isAvailable = checkResult.available;
-      resultBox.style.cssText = `
-                padding: 18px;
-                border-radius: 10px;
-                border: 1.5px solid ${isAvailable ? '#86efac' : '#fca5a5'};
-                background: ${isAvailable ? '#f0fdf4' : '#fef2f2'};
-                box-shadow: 0 4px 12px ${isAvailable ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'};
-            `;
-
-      const badgeColor = isAvailable ? '#15803d' : '#b91c1c';
-      const badgeBg = isAvailable ? '#dcfce7' : '#fee2e2';
-      const statusIcon = isAvailable ? '✅' : '❌';
-      const statusTitle = isAvailable
-        ? 'ĐỦ SỐ LƯỢNG (AVAILABLE)'
-        : 'KHÔNG ĐỦ SỐ LƯỢNG (NOT AVAILABLE)';
-
-      // Top status header row
-      const topRow = createElement('div', {
-        style:
-          'display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;',
-      });
-      const badgeWrapper = createElement('div', {
-        style: 'display:flex; align-items:center; gap:8px;',
-      });
-      const iconSpan = createElement('span', { style: 'font-size:22px;' });
-      iconSpan.textContent = statusIcon;
-
-      const badgeSpan = createElement('span', {
-        style: `display:inline-block; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:800; background:${badgeBg}; color:${badgeColor}; letter-spacing:0.5px;`,
-      });
-      badgeSpan.textContent = statusTitle;
-      badgeWrapper.appendChild(iconSpan);
-      badgeWrapper.appendChild(badgeSpan);
-
-      const timeSpan = createElement('span', { style: 'font-size:11px; color:#6b7280;' });
-      timeSpan.textContent = new Date(checkResult.checkedAt).toLocaleTimeString('vi-VN');
-      topRow.appendChild(badgeWrapper);
-      topRow.appendChild(timeSpan);
-      resultBox.appendChild(topRow);
-
-      // Message text
-      const msgEl = createElement('div', {
-        style: 'font-size:15px; font-weight:600; color:#1f2937; margin-bottom:12px;',
-      });
-      msgEl.textContent = `"${checkResult.message}"`;
-      resultBox.appendChild(msgEl);
-
-      // Details grid
-      const detailsGrid = createElement('div', {
-        style:
-          'display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; font-size:12px; background:rgba(255,255,255,0.7); padding:10px; border-radius:6px; border:1px solid rgba(0,0,0,0.05);',
-      });
-
-      // Batch column
-      const batchCol = createElement('div');
-      const batchLbl = createElement('span', { style: 'color:#6b7280;' });
-      batchLbl.textContent = 'Lô hàng: ';
-      const batchVal = createElement('strong', { style: 'color:#111827;' });
-      batchVal.textContent = checkResult.batch || 'Toàn bộ (không chọn lô)';
-      batchCol.appendChild(batchLbl);
-      batchCol.appendChild(batchVal);
-      detailsGrid.appendChild(batchCol);
-
-      // Amount column
-      const amountCol = createElement('div');
-      const amountLbl = createElement('span', { style: 'color:#6b7280;' });
-      amountLbl.textContent = 'Số lượng yêu cầu: ';
-      const amountVal = createElement('strong', { style: 'color:#111827;' });
-      amountVal.textContent = String(checkResult.amount);
-      amountCol.appendChild(amountLbl);
-      amountCol.appendChild(amountVal);
-      detailsGrid.appendChild(amountCol);
-
-      resultBox.appendChild(detailsGrid);
-      card.appendChild(resultBox);
-    }
-
-    container.appendChild(card);
+    studio.append(leftCard, rightCard);
+    container.appendChild(studio);
   }
 
   render();
-
   return container;
 }

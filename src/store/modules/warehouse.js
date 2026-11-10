@@ -2,13 +2,6 @@
 // WAREHOUSE MODULE - Warehouse Configuration & Mapping
 // ============================================
 
-import { signal, computed } from '@preact/signals-core';
-
-// ============================================
-// WAREHOUSE CONFIGURATION
-// ============================================
-
-// Warehouse mapping
 export const WAREHOUSE_MAP = {
   165: 'BONAP/Stock',
   328: 'O-BAP/Stock',
@@ -30,7 +23,6 @@ export const WAREHOUSE_MAP = {
   Incomming: 'Kho Vải', // Gộp MID/Stock/Vải Incoming (legacy key)
 };
 
-// Warehouse groups for sorting
 export const PRODUCT_WAREHOUSES = [
   'BONAP/Stock',
   'O-BAP/Stock',
@@ -43,23 +35,6 @@ export const PRODUCT_WAREHOUSES = [
 
 export const FABRIC_WAREHOUSES = ['Kho Vải'];
 
-// ============================================
-// WAREHOUSE STATE
-// ============================================
-
-// Loaded warehouses tracking (for lazy loading)
-export const loadedWarehouses = signal(new Set());
-
-// Active warehouse
-export const activeWarehouse = signal(() => {
-  return localStorage.getItem('lastActiveTab') || 'all';
-});
-
-// ============================================
-// WAREHOUSE HELPERS
-// ============================================
-
-// Sort warehouses by groups: products first, then fabrics
 export function sortWarehouses(warehouses) {
   const productGroup = [];
   const fabricGroup = [];
@@ -75,12 +50,10 @@ export function sortWarehouses(warehouses) {
     }
   });
 
-  // Sort within each group
   productGroup.sort();
   fabricGroup.sort();
   otherGroup.sort();
 
-  // Return grouped array with separator markers
   return {
     productGroup,
     fabricGroup,
@@ -90,14 +63,10 @@ export function sortWarehouses(warehouses) {
 }
 
 /**
- * Synchronize Kho ARTE across warehouse groups and available list.
- * Adds 'Kho ARTE' to both display group (otherGroup) and available set (all) for 'Bonario'.
- * Keeps 'Kho ARTE' absent from all groups for 'Ordinaire' or other companies.
+ * Synchronize Kho ARTE and Kho Gimmersta across warehouse groups and available list.
+ * Adds 'Kho ARTE' and 'Kho Gimmersta' to both display group (otherGroup) and available set (all) for 'Bonario'.
+ * Keeps supplier warehouses absent from all groups for 'Ordinaire' or other companies.
  * Guarantees no duplicates.
- *
- * @param {Object|Array} warehouses
- * @param {string} [selectedCompany='Bonario']
- * @returns {Object|Array}
  */
 export function syncArteWarehouse(warehouses, selectedCompany = 'Bonario') {
   const isBonario = selectedCompany === 'Bonario';
@@ -126,8 +95,12 @@ export function syncArteWarehouse(warehouses, selectedCompany = 'Bonario') {
       if (!all.includes('Kho ARTE')) {
         all.push('Kho ARTE');
       }
-      otherGroup.push('Kho Gimmersta');
-      all.push('Kho Gimmersta');
+      if (!otherGroup.includes('Kho Gimmersta')) {
+        otherGroup.push('Kho Gimmersta');
+      }
+      if (!all.includes('Kho Gimmersta')) {
+        all.push('Kho Gimmersta');
+      }
     }
 
     return {
@@ -142,50 +115,18 @@ export function syncArteWarehouse(warehouses, selectedCompany = 'Bonario') {
   return warehouses;
 }
 
-// Mark warehouse as loaded
-export function markWarehouseLoaded(warehouse) {
-  const current = loadedWarehouses.value;
-  const newSet = new Set(current);
-  newSet.add(warehouse);
-  loadedWarehouses.value = newSet;
-}
-
-// Check if warehouse is loaded
-export function isWarehouseLoaded(warehouse) {
-  return loadedWarehouses.value.has(warehouse);
-}
-
-// Clear loaded warehouses
-export function clearLoadedWarehouses() {
-  loadedWarehouses.value = new Set();
-}
-
-// Set active warehouse
-export function setActiveWarehouse(warehouse) {
-  activeWarehouse.value = warehouse;
-  localStorage.setItem('lastActiveTab', warehouse);
-}
-
-// ============================================
-// COMPUTED WAREHOUSE DATA
-// ============================================
-
-// Get warehouse display name
 export function getWarehouseName(locationId) {
   return WAREHOUSE_MAP[locationId] || `Location ${locationId}`;
 }
 
-// Check if location is a product warehouse
 export function isProductWarehouse(warehouse) {
   return PRODUCT_WAREHOUSES.includes(warehouse);
 }
 
-// Check if location is a fabric warehouse
 export function isFabricWarehouse(warehouse) {
   return FABRIC_WAREHOUSES.includes(warehouse);
 }
 
-// Get warehouse type
 export function getWarehouseType(warehouse) {
   if (isProductWarehouse(warehouse)) return 'product';
   if (isFabricWarehouse(warehouse)) return 'fabric';

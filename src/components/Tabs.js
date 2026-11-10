@@ -1,160 +1,104 @@
 import { createElement } from '../utils/dom.js';
 
-export default function Tabs({ warehouses, activeWarehouse, onTabChange }) {
-  const tabsContainer = createElement('div', {});
-  tabsContainer.style.cssText =
-    'background-color: #faf8f5; padding: 8px 12px 10px; width: 100%; box-sizing: border-box; overflow: hidden;';
+function shortName(warehouseName) {
+  if (warehouseName === 'Kho Gimmersta') return 'SANDBERG - REBEL WALLS';
+  if (warehouseName === 'Kho ARTE') return 'ARTE International';
+  return warehouseName.replace('/Stock', '');
+}
 
-  const centerWrapper = createElement('div', {});
-  centerWrapper.style.cssText =
-    'max-width: 960px; margin: 0 auto; width: 100%; box-sizing: border-box;';
+function warehouseIconSvg(warehouseName) {
+  if (warehouseName === 'Kho ARTE' || warehouseName === 'Kho Gimmersta') {
+    return `<svg class="wh-tab-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.4"/><path d="M2 8h12M8 1.75c1.9 1.7 2.8 3.8 2.8 6.25S9.9 12.55 8 14.25c-1.9-1.7-2.8-3.8-2.8-6.25S6.1 3.45 8 1.75Z" stroke="currentColor" stroke-width="1.3"/></svg>`;
+  }
+  if (warehouseName === 'Kho Vải') {
+    return `<svg class="wh-tab-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 0 1 4.5 3h7A1.5 1.5 0 0 1 13 4.5v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 11.5v-7Z" stroke="currentColor" stroke-width="1.4"/><path d="M3 7.5h10M7.5 3v10" stroke="currentColor" stroke-width="1.3"/></svg>`;
+  }
+  return `<svg class="wh-tab-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.25 6.2 8 2.5l5.75 3.7v6.55a1 1 0 0 1-1 1H3.25a1 1 0 0 1-1-1V6.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6 13.75V9.5h4v4.25" stroke="currentColor" stroke-width="1.3"/></svg>`;
+}
 
-  // Header label
-  const tabsHeader = createElement('div', {});
-  tabsHeader.style.cssText = 'display: flex; align-items: center; gap: 6px; margin-bottom: 8px;';
-  tabsHeader.innerHTML = `<span style="font-size:13px;">🏪</span><span style="font-size:11px; font-weight:600; color:#5d5044; text-transform:uppercase; letter-spacing:0.5px;">Chọn kho</span>`;
+export default function Tabs({
+  warehouses,
+  activeWarehouse,
+  warehouseCounts = {},
+  onTabChange,
+}) {
+  const rail = createElement('div', { class: 'warehouse-rail-inner' });
 
-  // Handle warehouses - can be object with groups or array
-  let warehouseGroups = warehouses;
-  if (Array.isArray(warehouses)) {
-    warehouseGroups = { all: warehouses };
+  const groups = Array.isArray(warehouses) ? { all: warehouses } : warehouses;
+  const productList = groups.productGroup || [];
+  const fabricList = groups.fabricGroup || [];
+  const supplierList = groups.otherGroup || [];
+  const allList = groups.all || [];
+  const hasGroups =
+    productList.length > 0 || fabricList.length > 0 || supplierList.length > 0;
+
+  const list = createElement('div', {
+    class: 'warehouse-groups',
+    role: 'group',
+    'aria-label': 'Chọn kho tồn kho',
+  });
+
+  function paint(button, active) {
+    const warehouseName = button.getAttribute('data-warehouse');
+    const isSupplier = warehouseName === 'Kho ARTE' || warehouseName === 'Kho Gimmersta';
+    const count = warehouseCounts[warehouseName];
+
+    button.classList.toggle('tab-active', active);
+    button.classList.toggle('tab-pill-active', active);
+    button.classList.toggle('is-supplier', isSupplier);
+    button.setAttribute('aria-pressed', String(active));
+
+    const badgeText = isSupplier
+      ? 'TRA CỨU'
+      : typeof count === 'number'
+        ? String(count)
+        : '';
+
+    button.innerHTML = `
+      ${warehouseIconSvg(warehouseName)}
+      <span class="wh-tab-name">${shortName(warehouseName)}</span>
+      ${badgeText ? `<span class="wh-tab-count${isSupplier ? ' is-api' : ''}">${badgeText}</span>` : ''}
+    `;
   }
 
-  // Gom tất cả kho thành danh sách hiển thị theo thứ tự
-  const productList = warehouseGroups.productGroup || [];
-  const fabricList = warehouseGroups.fabricGroup || [];
-  const otherList = warehouseGroups.otherGroup || [];
-  const allList = warehouseGroups.all || [];
-
-  // Nếu không có groups thì dùng all
-  const hasGroups = productList.length > 0 || fabricList.length > 0;
-
-  // Container bao toàn bộ tabs - flex-wrap: tự xuống hàng, không scroll ngang
-  const allTabsContainer = createElement('div', {
-    role: 'group',
-    'aria-label': 'Chọn kho',
-  });
-  allTabsContainer.style.cssText = 'width: 100%; box-sizing: border-box;';
-
-  // Helper tạo tab button
-  const createTab = warehouseName => {
-    const isActive = warehouseName === activeWarehouse;
-    const shortName =
-      warehouseName === 'Kho Gimmersta'
-        ? 'Kho SANDBERG - REBEL WALLS'
-        : warehouseName.replace('/Stock', '');
-
+  function createTab(warehouseName) {
     const tab = createElement('button', {
-      'data-warehouse': warehouseName,
+      class: 'wh-tab',
       type: 'button',
-      'aria-pressed': String(isActive),
-      'aria-label': `Chọn kho ${shortName}`,
+      'data-warehouse': warehouseName,
+      'aria-label': `Chọn kho ${shortName(warehouseName)}`,
     });
-    tab.style.cssText = `
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, transform 0.15s ease;
-            outline: none;
-            border: 1.5px solid ${isActive ? 'transparent' : '#d4c4b0'};
-            background: ${isActive ? 'linear-gradient(135deg,#6b5a45,#8b7355)' : '#ffffff'};
-            color: ${isActive ? '#ffffff' : '#5d5044'};
-            box-shadow: ${isActive ? '0 2px 8px rgba(107,90,69,0.28)' : 'none'};
-        `;
-    if (isActive) {
-      tab.classList.add('tab-active', 'tab-pill-active');
-    } else {
-      tab.classList.add('tab-pill-inactive');
-    }
-
-    if (isActive) {
-      tab.innerHTML = `<span style="font-size:10px;">✓</span><span>${shortName}</span>`;
-    } else if (warehouseName === 'Kho ARTE' || warehouseName === 'Kho Gimmersta') {
-      tab.textContent = shortName;
-    } else {
-      tab.textContent = shortName;
-    }
-
-    tab.addEventListener('mouseenter', () => {
-      if (!tab.classList.contains('tab-active')) {
-        tab.style.background = '#f5f1ea';
-        tab.style.borderColor = '#c9b99e';
-      }
-    });
-    tab.addEventListener('mouseleave', () => {
-      if (!tab.classList.contains('tab-active')) {
-        tab.style.background = '#ffffff';
-        tab.style.borderColor = '#d4c4b0';
-      }
-    });
-
+    paint(tab, warehouseName === activeWarehouse);
     tab.addEventListener('click', () => {
-      // Reset all tabs
-      allTabsContainer.querySelectorAll('button[data-warehouse]').forEach(t => {
-        t.classList.remove('tab-active', 'tab-pill-active');
-        t.classList.add('tab-pill-inactive');
-        t.style.background = '#ffffff';
-        t.style.color = '#5d5044';
-        t.style.border = '1.5px solid #d4c4b0';
-        t.style.boxShadow = 'none';
-        t.setAttribute('aria-pressed', 'false');
-        const wh = t.getAttribute('data-warehouse');
-        if (wh === 'Kho ARTE' || wh === 'Kho Gimmersta') {
-          t.textContent = wh === 'Kho Gimmersta' ? 'Kho SANDBERG - REBEL WALLS' : wh;
-        } else {
-          t.textContent = wh ? wh.replace('/Stock', '') : t.textContent;
-        }
-      });
-      // Activate clicked tab
-      tab.classList.add('tab-active', 'tab-pill-active');
-      tab.classList.remove('tab-pill-inactive');
-      tab.style.background = 'linear-gradient(135deg,#6b5a45,#8b7355)';
-      tab.style.color = '#ffffff';
-      tab.style.border = '1.5px solid transparent';
-      tab.style.boxShadow = '0 2px 8px rgba(107,90,69,0.28)';
-      tab.setAttribute('aria-pressed', 'true');
-      tab.innerHTML = `<span style="font-size:10px;">✓</span><span>${shortName}</span>`;
-
+      list.querySelectorAll('button[data-warehouse]').forEach(button => paint(button, false));
+      paint(tab, true);
       onTabChange(warehouseName);
     });
-
     return tab;
-  };
-
-  if (hasGroups) {
-    // --- Nhóm sản phẩm ---
-    if (productList.length > 0) {
-      const row = createElement('div', {});
-      row.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;';
-      productList.forEach(name => row.appendChild(createTab(name)));
-      allTabsContainer.appendChild(row);
-    }
-    // --- Nhóm vải + khác ---
-    const fabricAll = [...fabricList, ...otherList];
-    if (fabricAll.length > 0) {
-      const row = createElement('div', {});
-      row.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
-      fabricAll.forEach(name => row.appendChild(createTab(name)));
-      allTabsContainer.appendChild(row);
-    }
-  } else {
-    // Fallback: all in one wrap row
-    const row = createElement('div', {});
-    row.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
-    allList.forEach(name => row.appendChild(createTab(name)));
-    allTabsContainer.appendChild(row);
   }
 
-  centerWrapper.appendChild(tabsHeader);
-  centerWrapper.appendChild(allTabsContainer);
-  tabsContainer.appendChild(centerWrapper);
+  function addGroup(groupTitle, names) {
+    if (!names.length) return;
+    const groupWrap = createElement('div', { class: 'warehouse-group-cluster' });
+    if (groupTitle) {
+      const groupHeading = createElement('span', { class: 'warehouse-label' });
+      groupHeading.textContent = groupTitle;
+      groupWrap.appendChild(groupHeading);
+    }
+    const row = createElement('div', { class: 'warehouse-row' });
+    names.forEach(name => row.appendChild(createTab(name)));
+    groupWrap.appendChild(row);
+    list.appendChild(groupWrap);
+  }
 
-  return tabsContainer;
+  if (hasGroups) {
+    addGroup('Kho thành phẩm', productList);
+    addGroup('Kho nguyên liệu', fabricList);
+    addGroup('Nhà cung cấp quốc tế', supplierList);
+  } else {
+    addGroup('Danh sách kho', allList);
+  }
+
+  rail.appendChild(list);
+  return rail;
 }

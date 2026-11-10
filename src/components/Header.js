@@ -1,138 +1,15 @@
 import { createElement } from '../utils/dom.js';
-import { auth } from '../services/apiClient.js';
 
-// Inject header styles once
-let _headerStylesInjected = false;
-function injectHeaderStyles() {
-  if (_headerStylesInjected) return;
-  _headerStylesInjected = true;
-  const style = document.createElement('style');
-  style.id = 'header-styles';
-  style.textContent = `
-        .hdr-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            border: none;
-            border-radius: 9px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-            color: #ffffff;
-            padding: 0 14px;
-            height: 36px;
-            font-size: 13px;
-        }
-        .hdr-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
-        .hdr-btn:active { transform: translateY(0); box-shadow: none; }
-        .hdr-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-        .hdr-btn:focus-visible,
-        .hdr-dropdown-item:focus-visible {
-            outline: 2px solid #2f6fed !important;
-            outline-offset: 2px;
-        }
-
-        /* ─── MOBILE DROPDOWN - fixed vào body, tính toán vị trí từ button ─── */
-        .hdr-dropdown-portal {
-            position: fixed;
-            z-index: 9999;
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 12px 40px rgba(42,35,31,0.22), 0 2px 8px rgba(42,35,31,0.10);
-            border: 1px solid #e8ddd4;
-            min-width: 230px;
-            overflow: hidden;
-            /* animation */
-            transform-origin: top right;
-            transform: scale(0.9) translateY(-8px);
-            opacity: 0;
-            pointer-events: none;
-            transition: transform 0.22s cubic-bezier(0.16,1,0.3,1),
-                        opacity 0.16s ease;
-        }
-        .hdr-dropdown-portal.open {
-            transform: scale(1) translateY(0);
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .hdr-dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            border: none;
-            background: none;
-            width: 100%;
-            text-align: left;
-            font-family: inherit;
-            font-size: 14px;
-            font-weight: 500;
-            color: #2a231f;
-            cursor: pointer;
-            transition: background 0.1s;
-            box-sizing: border-box;
-            min-height: 52px;
-        }
-        .hdr-dropdown-item:active { background: #f0ebe4; }
-        .hdr-dropdown-item:focus-visible { background: #f5f1ea; }
-        .hdr-dropdown-item-icon {
-            width: 36px; height: 36px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        .hdr-dropdown-item-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #2a231f;
-            line-height: 1.2;
-        }
-        .hdr-dropdown-item-sub {
-            font-size: 11px;
-            color: #9d8875;
-            margin-top: 2px;
-        }
-        .hdr-dropdown-divider {
-            height: 1px;
-            background: #f0ebe4;
-            margin: 2px 14px;
-        }
-        .hdr-dropdown-backdrop {
-            position: fixed;
-            inset: 0;
-            z-index: 9998;
-            background: transparent;
-        }
-
-        /* User badge chip */
-        .hdr-user-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1.5px solid transparent;
-            white-space: nowrap;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .hdr-btn,
-            .hdr-dropdown-portal,
-            .hdr-dropdown-item {
-                transition: none !important;
-            }
-            .hdr-btn:hover {
-                transform: none;
-            }
-        }
-    `;
-  document.head.appendChild(style);
-}
+const ICONS = {
+  search: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7.2" cy="7.2" r="5" stroke="currentColor" stroke-width="1.5"/><path d="m11 11 3.2 3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  refresh: `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.4-3.66M13.5 2.5v2.6h-2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  stocktake: `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="2.5" width="10" height="11.5" rx="1.8" stroke="currentColor" stroke-width="1.4"/><path d="M6 2.5h4M5.6 8.3l1.7 1.7 3.2-3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  excel: `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.8A1.3 1.3 0 0 1 4.3 1.5h5.4L13 4.8v8.4a1.3 1.3 0 0 1-1.3 1.3H4.3A1.3 1.3 0 0 1 3 13.2V2.8Z" stroke="currentColor" stroke-width="1.4"/><path d="m6.2 6.8 3.6 4.4m0-4.4-3.6 4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  pdf: `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.8A1.3 1.3 0 0 1 4.3 1.5h5.4L13 4.8v8.4a1.3 1.3 0 0 1-1.3 1.3H4.3A1.3 1.3 0 0 1 3 13.2V2.8Z" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 8.5h5M5.5 11h3.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  admin: `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2 3 4.2v3.6c0 3.2 2.1 5.6 5 6.4 2.9-.8 5-3.2 5-6.4V4.2L8 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  logout: `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h2.5M10.5 11l3-3-3-3M6.5 8h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  menu: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+};
 
 export default function Header({
   onLoad,
@@ -143,156 +20,117 @@ export default function Header({
   onLogout,
   onOpenAdmin,
 }) {
-  injectHeaderStyles();
+  const header = createElement('header', { class: 'app-header' });
 
-  const header = createElement('header', {});
-  header.style.cssText = `
-        background: #ffffff;
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        border-bottom: 2px solid #d4c4b0;
-        box-shadow: 0 2px 8px rgba(42,35,31,0.06);
-        width: 100%;
-        box-sizing: border-box;
-    `;
+  // ── 1. TOPBAR
+  const topBar = createElement('div', { class: 'app-bar' });
 
-  // ──────────────────────────────────────────────
-  // TOP BAR
-  // ──────────────────────────────────────────────
-  const topBar = createElement('div', {});
-  topBar.style.cssText =
-    'padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-sizing: border-box; width: 100%;';
+  const brand = createElement('div', { class: 'brand' });
+  const mark = createElement('div', { class: 'brand-mark', 'aria-hidden': 'true' });
+  mark.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3.5 6.2 10 2.5l6.5 3.7v7.6L10 17.5l-6.5-3.7V6.2Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M3.8 6.4 10 10l6.2-3.6M10 10v7.2" stroke="currentColor" stroke-width="1.5"/></svg>`;
 
-  // LEFT: Logo + User chip
-  const leftGroup = createElement('div', {});
-  leftGroup.style.cssText = 'display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;';
-
-  const logoBox = createElement('div', {});
-  logoBox.style.cssText = `
-        width: 36px; height: 36px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #6b5a45 0%, #8b7355 100%);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 18px;
-        flex-shrink: 0;
-        box-shadow: 0 2px 8px rgba(107,90,69,0.3);
-    `;
-  logoBox.textContent = '📦';
-
-  const titleWrap = createElement('div', {});
-  titleWrap.style.cssText = 'min-width: 0; overflow: hidden;';
+  const titleWrap = createElement('div', { class: 'brand-copy' });
   titleWrap.innerHTML = `
-        <div style="font-size:15px; font-weight:800; color:#2a231f; letter-spacing:-0.2px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Bonario Stock</div>
-        <div class="hidden-xs" style="font-size:11px; color:#9d8875; white-space:nowrap;">Tra cứu tồn kho</div>
-    `;
+    <div class="brand-title-line">
+      <span class="brand-name">Bonario Stock</span>
+    </div>
+    <div class="brand-sub">Quản lý tồn kho & kiểm kê</div>
+  `;
+  brand.appendChild(mark);
+  brand.appendChild(titleWrap);
 
-  leftGroup.appendChild(logoBox);
-  leftGroup.appendChild(titleWrap);
-
-  // User chip (nếu đăng nhập)
   if (currentUser) {
-    const chip = createElement('div', { class: 'hdr-user-chip' });
-    const isAdmin = currentUser.role === 'admin';
-    chip.style.cssText += isAdmin
-      ? 'background: linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border-color:#fde68a;'
-      : 'background: linear-gradient(135deg,#d1fae5,#a7f3d0); color:#065f46; border-color:#a7f3d0;';
-    // Truncate username nếu dài
-    const maxLen = 10;
+    const chip = createElement('div', {
+      class: `user-chip${currentUser.role === 'admin' ? ' user-chip-admin' : ''}`,
+    });
     const displayName =
-      currentUser.username.length > maxLen
-        ? currentUser.username.slice(0, maxLen) + '…'
+      currentUser.username.length > 14
+        ? `${currentUser.username.slice(0, 14)}…`
         : currentUser.username;
-    chip.innerHTML = `<span>${isAdmin ? '👑' : '🔍'}</span><span>${displayName}</span>`;
-    leftGroup.appendChild(chip);
+    chip.textContent = currentUser.role === 'admin' ? `Admin · ${displayName}` : displayName;
+    brand.appendChild(chip);
   }
 
-  // RIGHT: Desktop buttons + Mobile menu button
-  const rightGroup = createElement('div', {});
-  rightGroup.style.cssText = 'display: flex; align-items: center; gap: 6px; flex-shrink: 0;';
+  // Center: Clean Search Field (no Ctrl+K badge)
+  const searchSection = createElement('div', {
+    id: 'headerSearchSection',
+    class: 'search-row',
+  });
+  const searchWrap = createElement('div', { class: 'search-field' });
+  const searchIcon = createElement('span', { class: 'search-icon', 'aria-hidden': 'true' });
+  searchIcon.innerHTML = ICONS.search;
 
-  // ─── DESKTOP BUTTONS (hidden on mobile) ───
-  const desktopBtns = createElement('div', {});
-  desktopBtns.style.cssText = 'display: flex; align-items: center; gap: 6px;';
-  desktopBtns.className = 'desktop-header-btns';
+  const searchInput = createElement('input', {
+    id: 'searchInput',
+    type: 'text',
+    'aria-label': 'Tìm kiếm sản phẩm',
+    autocomplete: 'off',
+    placeholder: 'Tìm mã SKU, tên sản phẩm, số lô...',
+  });
 
-  // Inject responsive hide rule
-  if (!document.getElementById('hdr-responsive-style')) {
-    const rs = document.createElement('style');
-    rs.id = 'hdr-responsive-style';
-    rs.textContent = `
-            @media (max-width: 639px) {
-                .desktop-header-btns { display: none !important; }
-                .mobile-menu-btn { display: block !important; }
-            }
-            @media (min-width: 640px) {
-                .mobile-menu-btn { display: none !important; }
-            }
-        `;
-    document.head.appendChild(rs);
-  }
+  const searchClearBtn = createElement('button', {
+    type: 'button',
+    class: 'search-clear-btn hidden',
+    'aria-label': 'Xóa từ khóa tìm kiếm',
+    title: 'Xóa tìm kiếm',
+  });
+  searchClearBtn.textContent = '×';
 
-  function makeBtn(emoji, label, color, onClick) {
+  searchWrap.append(searchIcon, searchInput, searchClearBtn);
+  searchSection.appendChild(searchWrap);
+
+  // Right: Action Toolbar
+  const actions = createElement('div', { class: 'app-actions' });
+  const desktop = createElement('div', { class: 'desktop-header-btns app-actions' });
+
+  function makeBtn(label, iconSvg, className, onClick, id) {
     const btn = createElement('button', {
-      class: 'hdr-btn',
+      class: className,
       type: 'button',
-      title: label,
+      id,
       'aria-label': label,
     });
-    btn.style.background = color;
-    btn.innerHTML = `<span>${emoji}</span><span>${label}</span>`;
+    btn.innerHTML = `${iconSvg || ''}<span>${label}</span>`;
     btn.addEventListener('click', onClick);
     return btn;
   }
 
   if (currentUser?.role === 'admin') {
-    desktopBtns.appendChild(
-      makeBtn('👑', 'Admin', 'linear-gradient(135deg,#f59e0b,#d97706)', () => onOpenAdmin?.())
-    );
+    desktop.appendChild(makeBtn('Admin', ICONS.admin, 'action-btn', () => onOpenAdmin?.()));
   }
-  desktopBtns.appendChild(
-    makeBtn('🧾', 'Kiểm kho', 'linear-gradient(135deg,#6366f1,#4f46e5)', () =>
-      onToggleStocktake?.()
+  desktop.appendChild(
+    makeBtn('Kiểm kho', ICONS.stocktake, 'action-btn', () => onToggleStocktake?.())
+  );
+  desktop.appendChild(
+    makeBtn(
+      'Tải lại',
+      ICONS.refresh,
+      'action-btn action-btn-primary',
+      () => onLoad?.(),
+      'loadDataBtn'
     )
   );
-  desktopBtns.appendChild(
-    makeBtn('🔄', 'Tải lại', 'linear-gradient(135deg,#6b5a45,#8b7355)', () => onLoad?.())
-  );
-  desktopBtns.appendChild(
-    makeBtn('📊', 'Excel', 'linear-gradient(135deg,#10b981,#059669)', () => onExport?.())
-  );
-  desktopBtns.appendChild(
-    makeBtn('📄', 'PDF', 'linear-gradient(135deg,#ef4444,#dc2626)', () => onExportPDF?.())
+  desktop.appendChild(makeBtn('Excel', ICONS.excel, 'action-btn', () => onExport?.()));
+  desktop.appendChild(
+    makeBtn('PDF', ICONS.pdf, 'action-btn action-btn-quiet', () => onExportPDF?.())
   );
   if (currentUser) {
-    desktopBtns.appendChild(
-      makeBtn('🚪', 'Logout', 'linear-gradient(135deg,#6b7280,#4b5563)', () => onLogout?.())
+    desktop.appendChild(
+      makeBtn('Đăng xuất', ICONS.logout, 'action-btn action-btn-quiet', () => onLogout?.())
     );
   }
 
-  // ─── MOBILE MENU BUTTON + DROPDOWN (portal vào body) ───
-  const mobileDropdownWrap = createElement('div', { class: 'mobile-menu-btn' });
-  mobileDropdownWrap.style.cssText = 'display: none; position: relative;';
-
+  // Mobile Menu Dropdown
+  const mobileWrap = createElement('div', { class: 'mobile-menu-btn' });
   const mobileMenuBtn = createElement('button', {
-    class: 'hdr-btn',
+    class: 'menu-btn',
     type: 'button',
     'aria-label': 'Mở menu thao tác',
     'aria-haspopup': 'menu',
     'aria-expanded': 'false',
   });
-  mobileMenuBtn.style.cssText = `
-        background: linear-gradient(135deg,#6b5a45,#8b7355);
-        padding: 0 14px;
-        gap: 5px;
-        font-size: 13px;
-        height: 36px;
-        font-weight: 700;
-    `;
-  mobileMenuBtn.title = 'Menu';
-  mobileMenuBtn.innerHTML = '☰ <span>More</span>';
+  mobileMenuBtn.innerHTML = `${ICONS.menu}<span>Menu</span>`;
 
-  // Portal panel - gắn trực tiếp vào document.body để tránh bị clip bởi overflow:hidden
   const dropdownPortal = createElement('div', {
     class: 'hdr-dropdown-portal',
     role: 'menu',
@@ -303,14 +141,24 @@ export default function Header({
 
   function positionPortal() {
     const rect = mobileMenuBtn.getBoundingClientRect();
-    const panelWidth = 240;
-    const margin = 8;
-    // Canh phải theo nút, không vượt qua mép trái màn hình
+    const panelWidth = 248;
     let left = rect.right - panelWidth;
-    if (left < margin) left = margin;
-    dropdownPortal.style.top = rect.bottom + 8 + 'px';
-    dropdownPortal.style.left = left + 'px';
-    dropdownPortal.style.width = panelWidth + 'px';
+    if (left < 8) left = 8;
+    dropdownPortal.style.top = `${rect.bottom + 8}px`;
+    dropdownPortal.style.left = `${left}px`;
+  }
+
+  function closeDropdown() {
+    if (!dropdownOpen) return;
+    dropdownOpen = false;
+    mobileMenuBtn.setAttribute('aria-expanded', 'false');
+    mobileMenuBtn.innerHTML = `${ICONS.menu}<span>Menu</span>`;
+    dropdownPortal.classList.remove('open');
+    backdropEl?.remove();
+    backdropEl = null;
+    setTimeout(() => {
+      if (!dropdownOpen && dropdownPortal.parentNode === document.body) dropdownPortal.remove();
+    }, 180);
   }
 
   function openDropdown() {
@@ -320,67 +168,39 @@ export default function Header({
     }
     dropdownOpen = true;
     mobileMenuBtn.setAttribute('aria-expanded', 'true');
-    mobileMenuBtn.innerHTML = '✕ <span>Close</span>';
-    // Gắn portal vào body
+    mobileMenuBtn.innerHTML = `<span>Đóng</span>`;
     document.body.appendChild(dropdownPortal);
     positionPortal();
-    // Backdrop
     backdropEl = createElement('div', { class: 'hdr-dropdown-backdrop', 'aria-hidden': 'true' });
     backdropEl.addEventListener('click', closeDropdown);
     document.body.appendChild(backdropEl);
-    // Trigger animation sau 1 frame
-    requestAnimationFrame(() => {
-      dropdownPortal.classList.add('open');
-    });
+    requestAnimationFrame(() => dropdownPortal.classList.add('open'));
   }
 
-  function closeDropdown() {
-    if (!dropdownOpen) return;
-    dropdownOpen = false;
-    mobileMenuBtn.setAttribute('aria-expanded', 'false');
-    mobileMenuBtn.innerHTML = '☰ <span>More</span>';
-    dropdownPortal.classList.remove('open');
-    if (backdropEl) {
-      backdropEl.remove();
-      backdropEl = null;
-    }
-    // Xóa portal khỏi body sau animation
-    setTimeout(() => {
-      if (dropdownPortal.parentNode === document.body) {
-        document.body.removeChild(dropdownPortal);
-      }
-    }, 220);
-  }
-
-  mobileMenuBtn.addEventListener('click', e => {
-    e.stopPropagation();
+  mobileMenuBtn.addEventListener('click', event => {
+    event.stopPropagation();
     openDropdown();
   });
-
-  // Reposition on scroll/resize
   window.addEventListener('resize', () => {
     if (dropdownOpen) positionPortal();
   });
 
-  // Helper tạo dropdown item
-  function dropdownItem(emoji, iconBg, label, sub, onClick, danger = false) {
+  function dropdownItem(label, sub, onClick, danger = false) {
     const btn = createElement('button', {
-      class: 'hdr-dropdown-item',
+      class: `hdr-dropdown-item${danger ? ' is-danger' : ''}`,
       type: 'button',
       role: 'menuitem',
     });
-    const iconEl = createElement('div', { class: 'hdr-dropdown-item-icon' });
-    iconEl.style.background = iconBg;
-    iconEl.textContent = emoji;
-    const textEl = createElement('div', { style: 'flex:1; min-width:0;' });
-    textEl.innerHTML = `
-            <div class="hdr-dropdown-item-label"${danger ? ' style="color:#dc2626;"' : ''}>${label}</div>
-            <div class="hdr-dropdown-item-sub">${sub}</div>
-        `;
-    btn.appendChild(iconEl);
-    btn.appendChild(textEl);
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
+    btn.innerHTML = `
+      <span>
+        <div class="hdr-dropdown-item-label"></div>
+        <div class="hdr-dropdown-item-sub"></div>
+      </span>
+    `;
+    btn.querySelector('.hdr-dropdown-item-label').textContent = label;
+    btn.querySelector('.hdr-dropdown-item-sub').textContent = sub;
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
       closeDropdown();
       setTimeout(onClick, 80);
     });
@@ -391,385 +211,188 @@ export default function Header({
     return createElement('div', { class: 'hdr-dropdown-divider' });
   }
 
-  // Build menu items theo role
   if (currentUser?.role === 'admin') {
-    dropdownPortal.appendChild(
-      dropdownItem(
-        '👑',
-        'linear-gradient(135deg,#fef3c7,#fde68a)',
-        'Admin Dashboard',
-        'Quản lý tài khoản',
-        () => onOpenAdmin?.()
-      )
-    );
+    dropdownPortal.appendChild(dropdownItem('Admin', 'Quản lý tài khoản', () => onOpenAdmin?.()));
     dropdownPortal.appendChild(dropdownDivider());
   }
   dropdownPortal.appendChild(
-    dropdownItem(
-      '🧾',
-      'linear-gradient(135deg,#ede9fe,#ddd6fe)',
-      'Kiểm kho',
-      'Kiểm kê hàng tháng',
-      () => onToggleStocktake?.()
-    )
+    dropdownItem('Kiểm kho', 'Kiểm kê theo tháng và kho', () => onToggleStocktake?.())
   );
-  dropdownPortal.appendChild(
-    dropdownItem(
-      '🔄',
-      'linear-gradient(135deg,#f5f1ea,#e8ddd4)',
-      'Tải lại dữ liệu',
-      'Cập nhật tồn kho mới nhất',
-      () => onLoad?.()
-    )
-  );
+  dropdownPortal.appendChild(dropdownItem('Tải lại', 'Lấy tồn kho mới nhất', () => onLoad?.()));
   dropdownPortal.appendChild(dropdownDivider());
-  dropdownPortal.appendChild(
-    dropdownItem(
-      '📊',
-      'linear-gradient(135deg,#d1fae5,#a7f3d0)',
-      'Xuất Excel',
-      'Tải file .xlsx',
-      () => onExport?.()
-    )
-  );
-  dropdownPortal.appendChild(
-    dropdownItem('📄', 'linear-gradient(135deg,#fee2e2,#fecaca)', 'Xuất PDF', 'Tải file .pdf', () =>
-      onExportPDF?.()
-    )
-  );
+  dropdownPortal.appendChild(dropdownItem('Xuất Excel', 'Tải file .xlsx', () => onExport?.()));
+  dropdownPortal.appendChild(dropdownItem('Xuất PDF', 'Tải file .pdf', () => onExportPDF?.()));
   if (currentUser) {
     dropdownPortal.appendChild(dropdownDivider());
     dropdownPortal.appendChild(
-      dropdownItem(
-        '🚪',
-        'linear-gradient(135deg,#f5f5f5,#e5e5e5)',
-        'Đăng xuất',
-        `Thoát: ${currentUser.username}`,
-        () => onLogout?.(),
-        true
-      )
+      dropdownItem('Đăng xuất', currentUser.username, () => onLogout?.(), true)
     );
   }
 
-  mobileDropdownWrap.appendChild(mobileMenuBtn);
+  mobileWrap.appendChild(mobileMenuBtn);
+  actions.appendChild(desktop);
+  actions.appendChild(mobileWrap);
+  topBar.append(brand, searchSection, actions);
 
-  rightGroup.appendChild(desktopBtns);
-  rightGroup.appendChild(mobileDropdownWrap);
-
-  topBar.appendChild(leftGroup);
-  topBar.appendChild(rightGroup);
-  header.appendChild(topBar);
-
-  // ──────────────────────────────────────────────
-  // SEARCH SECTION
-  // ──────────────────────────────────────────────
-  const searchSection = createElement('div', {
-    id: 'headerSearchSection',
-  });
-  searchSection.style.cssText = `
-        padding: 8px 16px 10px;
-        background: linear-gradient(to bottom, #ffffff, #faf8f5);
-        border-bottom: 1px solid #e8ddd4;
-        box-sizing: border-box;
-        width: 100%;
-    `;
-
-  const searchWrap = createElement('div', {});
-  searchWrap.style.cssText = 'max-width: 720px; margin: 0 auto; position: relative;';
-
-  const searchIcon = createElement('span', {});
-  searchIcon.setAttribute('aria-hidden', 'true');
-  searchIcon.style.cssText = `
-        position: absolute; left: 12px; top: 50%;
-        transform: translateY(-50%);
-        font-size: 15px; pointer-events: none;
-        color: #9d8875;
-    `;
-  searchIcon.textContent = '🔍';
-
-  const searchInput = createElement('input', {
-    id: 'searchInput',
-    type: 'text',
-    'aria-label': 'Tìm kiếm sản phẩm',
-    autocomplete: 'off',
-    placeholder: 'Tìm kiếm sản phẩm...',
-  });
-  searchInput.style.cssText = `
-        width: 100%;
-        height: 40px;
-        padding: 0 12px 0 38px;
-        border-radius: 10px;
-        border: 1.5px solid #d4c4b0;
-        background: #ffffff;
-        font-size: 14px;
-        color: #2a231f;
-        outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        box-sizing: border-box;
-        font-family: inherit;
-    `;
-  searchInput.addEventListener('focus', () => {
-    searchInput.style.borderColor = '#8b6b4f';
-    searchInput.style.boxShadow = '0 0 0 3px rgba(139,107,79,0.12)';
-  });
-  searchInput.addEventListener('blur', () => {
-    searchInput.style.borderColor = '#d4c4b0';
-    searchInput.style.boxShadow = 'none';
+  // ── 2. WAREHOUSE NAVIGATION RAIL
+  const warehouseTabsSection = createElement('div', {
+    id: 'warehouseTabsPlaceholder',
+    class: 'warehouse-rail',
   });
 
-  searchWrap.appendChild(searchIcon);
-  searchWrap.appendChild(searchInput);
-  searchSection.appendChild(searchWrap);
-
-  // ──────────────────────────────────────────────
-  // FILTERS SECTION
-  // ──────────────────────────────────────────────
+  // ── 3. FILTER & COMPANY SWITCHER BAR
   const filtersSection = createElement('div', {
     id: 'headerFiltersSection',
+    class: 'filters-bar-wrap',
   });
-  filtersSection.style.cssText = `
-        padding: 6px 16px 8px;
-        background: #faf8f5;
-        border-bottom: 1px solid #e8ddd4;
-        box-sizing: border-box;
-        width: 100%;
-    `;
+  const filtersContent = createElement('div', { class: 'filter-row' });
 
-  const filtersContent = createElement('div', {});
-  filtersContent.style.cssText =
-    'max-width: 820px; margin: 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;';
+  const companySegmented = createElement('div', {
+    class: 'company-segmented',
+    role: 'group',
+    'aria-label': 'Chuyển đổi công ty',
+  });
 
   const companyFilter = createElement('select', {
     id: 'companyFilter',
+    class: 'control control-company sr-only',
     title: 'Công ty',
     'aria-label': 'Lọc theo công ty',
   });
-  companyFilter.style.cssText = `
-        flex: 0 1 190px;
-        min-width: 165px;
-        height: 34px;
-        padding: 0 12px;
-        border-radius: 8px;
-        border: 2px solid #2563eb;
-        background: #eff6ff;
-        font-size: 13px;
-        color: #1e3a8a;
-        outline: none;
-        font-family: inherit;
-        font-weight: 800;
-        cursor: pointer;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
-    `;
-  const bonarioOpt = createElement('option', { value: 'Bonario' });
-  bonarioOpt.textContent = 'Công ty: Bonario';
-  const ordinaireOpt = createElement('option', { value: 'Ordinaire' });
-  ordinaireOpt.textContent = 'Công ty: Ordinaire';
-  companyFilter.appendChild(bonarioOpt);
-  companyFilter.appendChild(ordinaireOpt);
+
+  const companySegButtons = new Map();
+  [
+    ['Bonario', 'Bonario'],
+    ['Ordinaire', 'Ordinaire'],
+  ].forEach(([value, label]) => {
+    const option = createElement('option', { value });
+    option.textContent = label;
+    companyFilter.appendChild(option);
+
+    const segBtn = createElement('button', {
+      type: 'button',
+      class: 'company-seg-btn',
+      'data-company-seg': value,
+    });
+    segBtn.innerHTML = `<span class="company-seg-dot" aria-hidden="true"></span><span>${label}</span>`;
+    segBtn.addEventListener('click', () => {
+      if (companyFilter.value === value) return;
+      companyFilter.value = value;
+      syncSegmentedActiveState(value);
+      localStorage.setItem('selectedCompany', value);
+      document.dispatchEvent(new CustomEvent('companyContextChange'));
+    });
+    companySegButtons.set(value, segBtn);
+    companySegmented.appendChild(segBtn);
+  });
+
+  function syncSegmentedActiveState(activeVal) {
+    const current =
+      activeVal || companyFilter.value || localStorage.getItem('selectedCompany') || 'Bonario';
+    companySegButtons.forEach((btn, key) => {
+      const isActive = key === current;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-pressed', String(isActive));
+    });
+  }
 
   const categoryFilter = createElement('select', {
     id: 'categoryFilter',
+    class: 'control control-grow',
     'aria-label': 'Lọc theo nhóm sản phẩm',
   });
-  categoryFilter.style.cssText = `
-        flex: 1;
-        height: 34px;
-        padding: 0 10px;
-        border-radius: 8px;
-        border: 1.5px solid #d4c4b0;
-        background: #ffffff;
-        font-size: 13px;
-        color: #2a231f;
-        outline: none;
-        font-family: inherit;
-        cursor: pointer;
-    `;
   const defaultOpt = createElement('option', { value: '' });
   defaultOpt.textContent = 'Tất cả nhóm sản phẩm';
   categoryFilter.appendChild(defaultOpt);
 
   const sortFilter = createElement('select', {
     id: 'sortFilter',
+    class: 'control',
     'aria-label': 'Sắp xếp sản phẩm',
   });
-  sortFilter.style.cssText = `
-        flex: 0 1 170px;
-        min-width: 145px;
-        height: 34px;
-        padding: 0 10px;
-        border-radius: 8px;
-        border: 1.5px solid #d4c4b0;
-        background: #ffffff;
-        font-size: 13px;
-        color: #2a231f;
-        outline: none;
-        font-family: inherit;
-        cursor: pointer;
-    `;
   [
-    ['quantity_desc', 'Tồn nhiều nhất'],
-    ['quantity_asc', 'Tồn ít nhất'],
-    ['available_asc', 'Khả dụng thấp'],
-    ['incoming_desc', 'Đang đến nhiều'],
-    ['name_asc', 'Tên A-Z'],
+    ['quantity_desc', 'Sắp xếp: Tồn nhiều → ít'],
+    ['quantity_asc', 'Sắp xếp: Tồn ít → nhiều'],
+    ['available_asc', 'Sắp xếp: Khả dụng thấp'],
+    ['incoming_desc', 'Sắp xếp: Đang về nhiều'],
+    ['name_asc', 'Sắp xếp: Tên A → Z'],
   ].forEach(([value, label]) => {
     const option = createElement('option', { value });
     option.textContent = label;
     sortFilter.appendChild(option);
   });
 
-  const clearBtn = createElement('button', {
-    id: 'clearFiltersBtn',
-    type: 'button',
-    'aria-label': 'Xóa bộ lọc',
-  });
-  clearBtn.style.cssText = `
-        height: 34px;
-        padding: 0 12px;
-        border-radius: 8px;
-        border: 1.5px solid #d4c4b0;
-        background: transparent;
-        color: #8b7355;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s, border-color 0.15s;
-        font-family: inherit;
-    `;
-  clearBtn.textContent = '✕ Xóa';
-  clearBtn.addEventListener('mouseenter', () => {
-    clearBtn.style.backgroundColor = '#f5f1ea';
-    clearBtn.style.borderColor = '#c9b99e';
-  });
-  clearBtn.addEventListener('mouseleave', () => {
-    clearBtn.style.backgroundColor = 'transparent';
-    clearBtn.style.borderColor = '#d4c4b0';
-  });
-
-  filtersContent.appendChild(companyFilter);
-  filtersContent.appendChild(categoryFilter);
-  filtersContent.appendChild(sortFilter);
-
-  // Discontinued filter toggle
-  const discontinuedToggle = createElement('label', {});
-  discontinuedToggle.className = 'discontinued-filter-toggle';
-  discontinuedToggle.title = 'Lọc sản phẩm ngưng sản xuất';
-  discontinuedToggle.style.cssText = `
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 34px;
-        padding: 0 10px;
-        border-radius: 8px;
-        border: 1.5px solid #d4c4b0;
-        background: #ffffff;
-        font-size: 13px;
-        color: #5d5044;
-        font-weight: 500;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-        font-family: inherit;
-        user-select: none;
-        flex-shrink: 0;
-    `;
-
+  const discontinuedToggle = createElement('label', { class: 'discontinued-filter-toggle' });
+  discontinuedToggle.title = 'Chỉ hiển thị các mã sản phẩm đã ngưng sản xuất';
   const discontinuedCheckbox = createElement('input', {
     id: 'discontinuedFilter',
     type: 'checkbox',
     'aria-label': 'Chỉ hiển thị sản phẩm ngưng sản xuất',
   });
-  discontinuedCheckbox.style.cssText = `
-        width: 15px;
-        height: 15px;
-        accent-color: #d4a017;
-        cursor: pointer;
-        flex-shrink: 0;
-        margin: 0;
-    `;
-
   const discontinuedLabel = createElement('span', {});
-  discontinuedLabel.textContent = '⚠️ Ngưng SX';
-  discontinuedLabel.style.cssText = 'font-size: 12px; font-weight: 600; line-height: 1;';
-
+  discontinuedLabel.textContent = 'Ngưng sản xuất';
   discontinuedToggle.appendChild(discontinuedCheckbox);
   discontinuedToggle.appendChild(discontinuedLabel);
 
-  function updateDiscontinuedToggleState() {
-    if (discontinuedCheckbox.checked) {
-      discontinuedToggle.style.background = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
-      discontinuedToggle.style.borderColor = '#f0c040';
-      discontinuedToggle.style.color = '#856404';
-      discontinuedToggle.style.boxShadow = '0 2px 8px rgba(255,193,7,0.2)';
-    } else {
-      discontinuedToggle.style.background = '#ffffff';
-      discontinuedToggle.style.borderColor = '#d4c4b0';
-      discontinuedToggle.style.color = '#5d5044';
-      discontinuedToggle.style.boxShadow = 'none';
-    }
-  }
-
-  // Style change when checked
-  discontinuedCheckbox.addEventListener('change', () => {
-    updateDiscontinuedToggleState();
-    triggerFilterChange();
+  const clearBtn = createElement('button', {
+    id: 'clearFiltersBtn',
+    class: 'text-btn',
+    type: 'button',
+    'aria-label': 'Xóa bộ lọc',
   });
+  clearBtn.textContent = 'Đặt lại bộ lọc';
 
-  filtersContent.appendChild(discontinuedToggle);
-  filtersContent.appendChild(clearBtn);
+  filtersContent.append(
+    companySegmented,
+    companyFilter,
+    categoryFilter,
+    sortFilter,
+    discontinuedToggle,
+    clearBtn
+  );
   filtersSection.appendChild(filtersContent);
 
-  // ──────────────────────────────────────────────
-  // WAREHOUSE TABS
-  // ──────────────────────────────────────────────
-  const warehouseTabsSection = createElement('div', {
-    id: 'warehouseTabsPlaceholder',
-    class: 'bg-white',
-  });
-  warehouseTabsSection.style.cssText =
-    'border-bottom: 2px solid #d4c4b0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); width: 100%; box-sizing: border-box;';
+  header.append(topBar, warehouseTabsSection, filtersSection);
 
-  header.appendChild(topBar);
-  header.appendChild(searchSection);
-  header.appendChild(filtersSection);
-  header.appendChild(warehouseTabsSection);
-
-  // ──────────────────────────────────────────────
-  // EVENT LISTENERS (debounced search)
-  // ──────────────────────────────────────────────
   let searchTimeout = null;
   function triggerFilterChange() {
-    const event = new CustomEvent('filterChange');
-    document.dispatchEvent(event);
+    document.dispatchEvent(new CustomEvent('filterChange'));
   }
-  function debounced() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(triggerFilterChange, 300);
+  function updateDiscontinuedToggleState() {
+    discontinuedToggle.classList.toggle('is-on', discontinuedCheckbox.checked);
+  }
+  function updateSearchClearVisibility() {
+    searchClearBtn.classList.toggle('hidden', !searchInput.value);
   }
 
   function hydrateInitialFilters() {
-    if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const searchValue = params.get('q');
     const companyValue = params.get('company');
     const categoryValue = params.get('category');
     const sortValue = params.get('sort');
-    const discontinuedValue = params.get('discontinued');
 
-    if (searchValue !== null) searchInput.value = searchValue;
+    if (searchValue !== null) {
+      searchInput.value = searchValue;
+      updateSearchClearVisibility();
+    }
     if (
       companyValue &&
       Array.from(companyFilter.options).some(option => option.value === companyValue)
     ) {
       companyFilter.value = companyValue;
       localStorage.setItem('selectedCompany', companyValue);
+    } else {
+      const savedCompany = localStorage.getItem('selectedCompany');
+      if (savedCompany) companyFilter.value = savedCompany;
     }
+    syncSegmentedActiveState(companyFilter.value);
+
     if (categoryValue !== null) categoryFilter.setAttribute('data-pending-category', categoryValue);
     if (sortValue && Array.from(sortFilter.options).some(option => option.value === sortValue)) {
       sortFilter.value = sortValue;
     }
-    if (discontinuedValue === '1') {
+    if (params.get('discontinued') === '1') {
       discontinuedCheckbox.checked = true;
       updateDiscontinuedToggleState();
     }
@@ -777,15 +400,39 @@ export default function Header({
 
   hydrateInitialFilters();
 
-  searchInput.addEventListener('input', debounced);
+  searchInput.addEventListener('input', () => {
+    updateSearchClearVisibility();
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerFilterChange, 220);
+  });
+
+  searchClearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    updateSearchClearVisibility();
+    searchInput.focus();
+    triggerFilterChange();
+  });
+
   companyFilter.addEventListener('change', () => {
-    localStorage.setItem('selectedCompany', companyFilter.value || 'Bonario');
+    const val = companyFilter.value || 'Bonario';
+    localStorage.setItem('selectedCompany', val);
+    syncSegmentedActiveState(val);
     document.dispatchEvent(new CustomEvent('companyContextChange'));
   });
+
+  document.addEventListener('companyContextChange', () => {
+    syncSegmentedActiveState(localStorage.getItem('selectedCompany') || companyFilter.value);
+  });
+
   categoryFilter.addEventListener('change', triggerFilterChange);
   sortFilter.addEventListener('change', triggerFilterChange);
+  discontinuedCheckbox.addEventListener('change', () => {
+    updateDiscontinuedToggleState();
+    triggerFilterChange();
+  });
   clearBtn.addEventListener('click', () => {
     searchInput.value = '';
+    updateSearchClearVisibility();
     categoryFilter.value = '';
     sortFilter.value = 'quantity_desc';
     discontinuedCheckbox.checked = false;

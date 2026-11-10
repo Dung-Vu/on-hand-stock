@@ -1,6 +1,5 @@
 import { createElement } from './utils/dom.js';
 import Header from './components/Header.js';
-import Tabs from './components/Tabs.js';
 import Stocktake from './components/Stocktake.js';
 import ArteStock from './components/ArteStock.js';
 import GimmerstaStock from './components/GimmerstaStock.js';
@@ -9,23 +8,29 @@ import AdminDashboard from './components/AdminDashboard.js';
 import {
   loadData,
   applyFilters,
-  clearFilters,
   exportData,
   exportDataPDF,
   refreshCategoryFilter,
   forceRefreshData,
-  clearCache,
   getWarehouseNames,
   getProductsForWarehouse,
   showToast,
   getCurrentGroupedData,
   updateFilterOptions,
 } from './store/dataStore.js';
-import { syncArteWarehouse } from './store/modules/warehouse.js';
-import { auth, stocktake } from './services/apiClient.js';
+import { auth } from './services/apiClient.js';
+import { COMPANY_FILTER_STORAGE_KEY } from './app/catalogQuery.js';
+import {
+  getActiveWarehouse,
+  getScreen,
+  registerViews,
+  resetToWarehouse,
+  screenForWarehouse,
+  showScreen,
+  showWarehouse,
+} from './app/screen.js';
+import { switchToWarehouse } from './app/warehouseTabs.js';
 
-let currentActiveWarehouse = null;
-const COMPANY_FILTER_STORAGE_KEY = 'selectedCompany';
 const COMPANY_OPTIONS = ['Bonario', 'Ordinaire'];
 
 // Warehouse list for keyboard navigation
@@ -44,13 +49,11 @@ export default function App() {
   const container = createElement('div', {
     class: 'min-h-screen',
   });
-  container.style.backgroundColor = '#faf8f5';
 
   // State
   let isLoggedIn = false;
   let currentUser = null;
   let showAdminDashboard = false;
-  let showLoginModal = false;
 
   // Check if already logged in
   function checkAuth() {
@@ -77,31 +80,17 @@ export default function App() {
 
   function renderCompanyChooser(onSelected) {
     const overlay = createElement('div', {
-      class: 'fixed inset-0 z-50 flex items-center justify-center px-4',
+      class: 'company-chooser',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-labelledby': 'companyChooserTitle',
     });
-    overlay.style.cssText = 'background: rgba(42,35,31,0.42); backdrop-filter: blur(2px);';
-
-    const panel = createElement('div', {});
-    panel.style.cssText = `
-      width: min(420px, 100%);
-      background: #ffffff;
-      border: 1.5px solid #e8ddd4;
-      border-radius: 8px;
-      box-shadow: 0 18px 50px rgba(42,35,31,0.22);
-      padding: 22px;
-    `;
-
-    const title = createElement('h2', {});
+    const panel = createElement('div', { class: 'company-panel' });
+    const title = createElement('h2', { id: 'companyChooserTitle' });
     title.textContent = 'Chọn công ty';
-    title.style.cssText =
-      'margin: 0 0 6px; color: #2a231f; font-size: 22px; line-height: 1.2; font-weight: 800;';
-
     const subtitle = createElement('p', {});
-    subtitle.textContent = 'Bạn muốn xem tồn kho của công ty nào?';
-    subtitle.style.cssText = 'margin: 0 0 18px; color: #6b5a45; font-size: 14px;';
-
-    const actions = createElement('div', {});
-    actions.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
+    subtitle.textContent = 'Tồn kho sẽ mở theo công ty bạn chọn.';
+    const actions = createElement('div', { class: 'company-actions' });
 
     function chooseCompany(company) {
       localStorage.setItem(COMPANY_FILTER_STORAGE_KEY, company);
@@ -114,20 +103,10 @@ export default function App() {
     COMPANY_OPTIONS.forEach(company => {
       const button = createElement('button', {
         type: 'button',
-        'aria-label': `Xem tồn kho ${company}`,
+        'aria-label': `${company} — Xem tồn kho`,
       });
       button.textContent = company;
-      button.style.cssText = `
-        min-height: 48px;
-        border: 1.5px solid #d4c4b0;
-        border-radius: 8px;
-        background: ${company === 'Bonario' ? '#6b5a45' : '#ffffff'};
-        color: ${company === 'Bonario' ? '#ffffff' : '#2a231f'};
-        cursor: pointer;
-        font-family: inherit;
-        font-size: 15px;
-        font-weight: 800;
-      `;
+      if (company === 'Bonario') button.classList.add('is-primary');
       button.addEventListener('click', () => chooseCompany(company));
       actions.appendChild(button);
     });
@@ -137,32 +116,31 @@ export default function App() {
     panel.appendChild(actions);
     overlay.appendChild(panel);
     container.appendChild(overlay);
+    requestAnimationFrame(() => actions.querySelector('button')?.focus());
   }
 
   // Render login modal (only when needed for Stocktake/Admin)
   function renderLoginModal(onLoginComplete) {
     const loginOverlay = createElement('div', {
-      class: 'fixed inset-0 z-50 overflow-y-auto',
+      class: 'login-overlay fixed inset-0 z-50 overflow-y-auto',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-label': 'Đăng nhập',
     });
-    loginOverlay.style.backgroundColor = 'rgba(42, 35, 31, 0.5)';
 
     const loginView = Login({
       onLoginSuccess: user => {
         isLoggedIn = true;
         currentUser = user;
         loginOverlay.remove();
-        // Re-render main app để cập nhật header (badge user, nút logout...)
         renderMainApp();
-        // Sau khi renderMainApp() render xong DOM mới, restore lại data đã có
         setTimeout(() => {
           const gd = getCurrentGroupedData();
           if (gd && Object.keys(gd).length > 0) {
-            // Data đã load trước đó → chỉ cần re-render tabs + filters + cards
             updateFilterOptions(gd);
             applyFilters();
             refreshCategoryFilter();
           } else {
-            // Chưa có data → fetch mới
             loadData();
           }
           onLoginComplete?.(user);
@@ -189,10 +167,8 @@ export default function App() {
       onExport: exportData,
       onExportPDF: exportDataPDF,
       onToggleStocktake: () => {
-        // Check login before opening Stocktake
         if (!auth.isAuthenticated()) {
           renderLoginModal(() => {
-            // After login, open stocktake - DOM đã sẵn sàng nhờ setTimeout trong renderLoginModal
             openStocktakeView();
           });
           return;
@@ -202,7 +178,6 @@ export default function App() {
       currentUser,
       onLogout: handleLogout,
       onOpenAdmin: () => {
-        // Admin also requires login
         if (!auth.isAuthenticated()) {
           renderLoginModal(user => {
             currentUser = user;
@@ -217,20 +192,16 @@ export default function App() {
     });
     container.appendChild(header);
 
-    // Main content area
-    const mainContent = createElement('div', {
-      class: 'container mx-auto px-3 sm:px-6 py-4 sm:py-6',
-    });
+    // Main content landmark
+    const mainContent = createElement('main', { id: 'mainContent', class: 'app-main' });
 
     const stockDataContainer = createElement('div', { id: 'stockData' });
     mainContent.appendChild(stockDataContainer);
 
-    // ARTE stock check view (hidden by default)
-    const arteStockView = ArteStock({ onToast: showToast });
-    mainContent.appendChild(arteStockView);
-    mainContent.appendChild(GimmerstaStock());
+    const arteStockView = ArteStock();
+    const gimmerstaStockView = GimmerstaStock();
+    mainContent.append(arteStockView, gimmerstaStockView);
 
-    // Stocktake view (hidden by default)
     const stocktakeView = Stocktake({
       getWarehouses: () => getWarehouseNames(),
       getProductsForWarehouse: warehouseName => getProductsForWarehouse(warehouseName),
@@ -240,50 +211,36 @@ export default function App() {
     mainContent.appendChild(stocktakeView);
 
     container.appendChild(mainContent);
+    registerViews({
+      stock: stockDataContainer,
+      arte: arteStockView,
+      gimmersta: gimmerstaStockView,
+      stocktake: stocktakeView,
+      search: header.querySelector('#headerSearchSection'),
+      filters: header.querySelector('#headerFiltersSection'),
+      tabs: header.querySelector('#warehouseTabsPlaceholder'),
+      category: header.querySelector('#categoryFilter'),
+      sort: header.querySelector('#sortFilter'),
+      clearBtn: header.querySelector('#clearFiltersBtn'),
+      discontinued: header.querySelector('.discontinued-filter-toggle'),
+    });
+    resetToWarehouse(getActiveWarehouse());
   }
 
-  // Helper function to open/close stocktake view - luôn query DOM tươi
   function openStocktakeView() {
-    const stockDataEl = document.getElementById('stockData');
-    const stocktakeEl = document.getElementById('stocktakeView');
-    const headerSearch = document.getElementById('headerSearchSection');
-    const headerFilters = document.getElementById('headerFiltersSection');
-    const headerWarehouseTabs = document.getElementById('warehouseTabsPlaceholder');
-
-    if (!stocktakeEl || !stockDataEl) {
-      console.warn('[openStocktakeView] DOM elements not found');
+    if (getScreen() !== 'stocktake') {
+      showScreen('stocktake');
+      document.getElementById('stocktakeView')?.refresh?.();
+      showToast('Đang mở Kiểm kho', 'info', 1500);
       return;
     }
 
-    const isHidden = stocktakeEl.classList.contains('hidden');
-    if (isHidden) {
-      // Mở kiểm kho
-      stockDataEl.classList.add('hidden');
-      const arteStockEl = document.getElementById('arteStockView');
-      arteStockEl?.classList.add('hidden');
-      document.getElementById('gimmerstaStockView')?.classList.add('hidden');
-      stocktakeEl.classList.remove('hidden');
-      stocktakeEl.refresh?.();
-      headerSearch?.classList.add('hidden');
-      headerFilters?.classList.add('hidden');
-      headerWarehouseTabs?.classList.add('hidden');
-      showToast('Đang mở Kiểm kho', 'info', 1500);
-    } else {
-      // Quay về tra cứu tồn
-      stocktakeEl.classList.add('hidden');
-      headerWarehouseTabs?.classList.remove('hidden');
-      if (['Kho ARTE', 'Kho Gimmersta'].includes(currentActiveWarehouse)) {
-        setSupplierViewActive(currentActiveWarehouse);
-      } else {
-        stockDataEl.classList.remove('hidden');
-        headerSearch?.classList.remove('hidden');
-        headerFilters?.classList.remove('hidden');
-        // Luôn re-render data khi quay về trang kho
-        applyFilters();
-        refreshCategoryFilter();
-      }
-      showToast('Đã quay lại Tra cứu tồn', 'info', 1500);
+    showScreen(screenForWarehouse(getActiveWarehouse()));
+    if (getScreen() === 'stock') {
+      refreshCategoryFilter();
+      applyFilters();
     }
+    showToast('Đã quay lại Tra cứu tồn', 'info', 1500);
   }
 
   // Render admin dashboard modal
@@ -293,11 +250,9 @@ export default function App() {
       onToast: showToast,
       onClose: () => {
         showAdminDashboard = false;
-        // Remove only the overlay, keep main app intact
         adminView.remove();
-        // Re-render the data that was already loaded (tabs + filters)
-        applyFilters();
         refreshCategoryFilter();
+        applyFilters();
       },
     });
     container.appendChild(adminView);
@@ -310,7 +265,6 @@ export default function App() {
     currentUser = null;
     showToast('Đã đăng xuất', 'info', 2000);
     renderMainApp();
-    // Restore data sau khi re-render
     setTimeout(() => {
       const gd = getCurrentGroupedData();
       if (gd && Object.keys(gd).length > 0) {
@@ -323,159 +277,24 @@ export default function App() {
     }, 30);
   }
 
-  function setSupplierViewActive(activeWarehouse) {
-    const stockDataEl = document.getElementById('stockData');
-    const arteStockEl = document.getElementById('arteStockView');
-    const gimmerstaStockEl = document.getElementById('gimmerstaStockView');
-    const headerSearch = document.getElementById('headerSearchSection');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const sortFilter = document.getElementById('sortFilter');
-    const clearBtn = document.getElementById('clearFiltersBtn');
-    const discontinuedToggle = document.querySelector('.discontinued-filter-toggle');
-
-    const isActive = ['Kho ARTE', 'Kho Gimmersta'].includes(activeWarehouse);
-    arteStockEl?.classList.toggle('hidden', activeWarehouse !== 'Kho ARTE');
-    gimmerstaStockEl?.classList.toggle('hidden', activeWarehouse !== 'Kho Gimmersta');
-    if (isActive) {
-      stockDataEl?.classList.add('hidden');
-      headerSearch?.classList.add('hidden');
-      if (categoryFilter) categoryFilter.style.display = 'none';
-      if (sortFilter) sortFilter.style.display = 'none';
-      if (clearBtn) clearBtn.style.display = 'none';
-      if (discontinuedToggle) discontinuedToggle.style.display = 'none';
-    } else {
-      stockDataEl?.classList.remove('hidden');
-      headerSearch?.classList.remove('hidden');
-      if (categoryFilter) categoryFilter.style.display = '';
-      if (sortFilter) sortFilter.style.display = '';
-      if (clearBtn) clearBtn.style.display = '';
-      if (discontinuedToggle) discontinuedToggle.style.display = '';
-    }
-  }
-
-  // When company changes away from Bonario, reset Kho ARTE if active
   document.addEventListener('companyContextChange', () => {
     const selectedCompany = localStorage.getItem(COMPANY_FILTER_STORAGE_KEY) || 'Bonario';
     if (
       selectedCompany !== 'Bonario' &&
-      ['Kho ARTE', 'Kho Gimmersta'].includes(currentActiveWarehouse)
+      ['Kho ARTE', 'Kho Gimmersta'].includes(getActiveWarehouse())
     ) {
-      currentActiveWarehouse = null;
       localStorage.removeItem('lastActiveWarehouse');
-      setSupplierViewActive(null);
+      showWarehouse(null);
     }
   });
-
-  function syncWarehouseUrl(warehouseName) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('warehouse', warehouseName);
-    window.history.replaceState(window.history.state, '', url);
-  }
-
-  // Function to handle tab change
-  window.handleTabChange = warehouseName => {
-    currentActiveWarehouse = warehouseName;
-    localStorage.setItem('lastActiveWarehouse', warehouseName);
-    syncWarehouseUrl(warehouseName);
-
-    if (['Kho ARTE', 'Kho Gimmersta'].includes(warehouseName)) {
-      setSupplierViewActive(warehouseName);
-    } else {
-      setSupplierViewActive(null);
-      applyFilters();
-      refreshCategoryFilter();
-    }
-  };
-
-  // Function to switch warehouse programmatically
-  window.switchToWarehouse = warehouseName => {
-    const tabButton = document.querySelector(`[data-warehouse="${warehouseName}"]`);
-    if (tabButton) {
-      tabButton.click();
-    }
-  };
-
-  // Function to update tabs
-  window.updateTabs = warehouses => {
-    const container = document.getElementById('warehouseTabsPlaceholder');
-    const selectedCompany = localStorage.getItem(COMPANY_FILTER_STORAGE_KEY) || 'Bonario';
-
-    // Both supplier stock views are visible only for Bonario.
-    const warehouseList = syncArteWarehouse(warehouses, selectedCompany);
-    let firstWarehouse = null;
-
-    if (warehouseList && typeof warehouseList === 'object' && !Array.isArray(warehouseList)) {
-      // Get first warehouse from any group
-      firstWarehouse =
-        (warehouseList.productGroup && warehouseList.productGroup[0]) ||
-        (warehouseList.fabricGroup && warehouseList.fabricGroup[0]) ||
-        (warehouseList.otherGroup && warehouseList.otherGroup[0]) ||
-        (warehouseList.all && warehouseList.all[0]) ||
-        null;
-    } else if (Array.isArray(warehouseList)) {
-      firstWarehouse = warehouseList[0];
-    }
-
-    if (!container || !firstWarehouse) {
-      if (container) container.innerHTML = '';
-      return;
-    }
-
-    container.innerHTML = '';
-
-    const availableWarehouses = Array.isArray(warehouseList)
-      ? warehouseList
-      : warehouseList.all || [
-          ...(warehouseList.productGroup || []),
-          ...(warehouseList.fabricGroup || []),
-          ...(warehouseList.otherGroup || []),
-        ];
-
-    if (
-      selectedCompany !== 'Bonario' &&
-      ['Kho ARTE', 'Kho Gimmersta'].includes(currentActiveWarehouse)
-    ) {
-      currentActiveWarehouse = firstWarehouse;
-      localStorage.setItem('lastActiveWarehouse', firstWarehouse);
-      setSupplierViewActive(null);
-    }
-
-    const urlWarehouse =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('warehouse')
-        : null;
-    const savedWarehouse = localStorage.getItem('lastActiveWarehouse');
-    const preferredWarehouse = urlWarehouse || savedWarehouse;
-    const activeWarehouse =
-      preferredWarehouse && availableWarehouses.includes(preferredWarehouse)
-        ? preferredWarehouse
-        : currentActiveWarehouse && availableWarehouses.includes(currentActiveWarehouse)
-          ? currentActiveWarehouse
-          : firstWarehouse;
-
-    const tabs = Tabs({
-      warehouses: warehouseList,
-      activeWarehouse: activeWarehouse,
-      onTabChange: warehouse => {
-        window.handleTabChange(warehouse);
-      },
-    });
-
-    container.appendChild(tabs);
-
-    // Set active warehouse
-    currentActiveWarehouse = activeWarehouse;
-    localStorage.setItem('lastActiveWarehouse', activeWarehouse);
-    if (urlWarehouse && urlWarehouse !== activeWarehouse) syncWarehouseUrl(activeWarehouse);
-    setSupplierViewActive(activeWarehouse);
-  };
 
   // ============================================
   // KEYBOARD SHORTCUTS
   // ============================================
   document.addEventListener('keydown', e => {
-    // Only handle shortcuts when logged in and not in admin dashboard
-    if (!isLoggedIn || showAdminDashboard) return;
+    if (showAdminDashboard || container.querySelector('.company-chooser, .login-overlay')) {
+      return;
+    }
 
     // Ctrl+K or Cmd+K: Focus search
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -506,18 +325,19 @@ export default function App() {
         activeElement &&
         (activeElement.tagName === 'INPUT' ||
           activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT' ||
           activeElement.isContentEditable);
 
       if (!isTyping) {
-        const index = parseInt(e.key) - 1;
+        const index = parseInt(e.key, 10) - 1;
         if (WAREHOUSE_SHORTCUTS[index]) {
-          window.switchToWarehouse(WAREHOUSE_SHORTCUTS[index]);
+          switchToWarehouse(WAREHOUSE_SHORTCUTS[index]);
         }
       }
     }
 
-    // Escape: Clear search and filters
-    if (e.key === 'Escape') {
+    // Escape: Clear search and filters when in stock catalog
+    if (e.key === 'Escape' && getScreen() === 'stock') {
       const searchInput = document.getElementById('searchInput');
       const categoryFilter = document.getElementById('categoryFilter');
       if (searchInput) searchInput.value = '';
@@ -544,7 +364,7 @@ export default function App() {
   });
 
   // Initialize - always show main app (public access)
-  checkAuth(); // Check if already logged in (for showing user badge)
+  checkAuth();
   renderMainApp();
   setTimeout(() => {
     if (hasConfirmedCompanySelection()) {

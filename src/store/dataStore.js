@@ -1,292 +1,55 @@
 // ============================================
-// DATA STORE - State Management & Business Logic
+// DATA STORE - State Coordinator & Real-Time Updates
 // ============================================
 
-import {
-  fetchStock,
-  fetchIncoming,
-  fetchDiscontinuedProducts,
-  clearCache,
-  getCacheStats,
-  markWarehouseLoaded,
-  isWarehouseLoaded,
-  clearLoadedWarehouses,
-} from '../services/api.js';
+import { clearCache, clearLoadedWarehouses } from '../services/api.js';
+import { loadGroupedStock } from '../data/loadStock.js';
 import { initWebSocket } from '../services/websocket.js';
+import { sortWarehouses as sortWarehousesFromModule } from './modules/warehouse.js';
 import {
-  WAREHOUSE_MAP,
-  PRODUCT_WAREHOUSES,
-  FABRIC_WAREHOUSES,
-  sortWarehouses as sortWarehousesFromModule,
-} from './modules/warehouse.js';
+  collectStocktakeProducts,
+  filterAndSearchData,
+  filterGroupedDataByCompany,
+} from '../data/stockPipeline.js';
 import {
-  DEFAULT_SORT_KEY,
-  getProductName,
-  getSortLabel as getStockSortLabel,
-  getVisibleWarehouseCount as countVisibleWarehouses,
-  sortProducts as sortStockProducts,
-} from './modules/stockView.js';
+  getSelectedCompanyName,
+  readCatalogControls,
+  resetCatalogControls,
+  syncCatalogQuery,
+  syncCategoryFilterOptions,
+  syncCompanyFilterOptions,
+} from '../app/catalogQuery.js';
+import { exportStockExcel, exportStockPDF } from '../app/stockExport.js';
+import { getActiveWarehouse } from '../app/screen.js';
+import { updateTabs } from '../app/warehouseTabs.js';
+import {
+  applyLiveStockUpdate,
+  renderStockCatalog,
+  showStockMessage,
+  showStockSkeleton,
+} from '../views/stockCatalog.js';
+import { showToast } from '../views/toast.js';
 
-// ============================================
-// TOAST NOTIFICATION SYSTEM
-// ============================================
+export { showToast };
 
-// Create toast container if not exists
-function getToastContainer() {
-  let container = document.getElementById('toastContainer');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toastContainer';
-    container.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: none;
-        `;
-    container.setAttribute('aria-live', 'polite');
-    container.setAttribute('aria-atomic', 'false');
-    // Mobile: show at bottom for better visibility
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      container.style.top = 'auto';
-      container.style.bottom = '20px';
-      container.style.right = '10px';
-      container.style.left = '10px';
-    }
-    document.body.appendChild(container);
-  }
-  return container;
-}
-
-// Show toast notification
-export function showToast(message, type = 'info', duration = 3000) {
-  const container = getToastContainer();
-
-  const toast = document.createElement('div');
-  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-  toast.style.cssText = `
-        padding: 12px 20px;
-        border-radius: 8px;
-        color: white;
-        font-size: 14px;
-        font-weight: 500;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        pointer-events: auto;
-        transform: translateX(100%);
-        opacity: 0;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        max-width: 350px;
-    `;
-
-  // Set color based on type
-  const colors = {
-    success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    error: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-    warning: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-    info: 'linear-gradient(135deg, #6b5a45 0%, #8b7355 100%)',
-  };
-  toast.style.background = colors[type] || colors.info;
-
-  // Set icon based on type
-  const icons = {
-    success: '✅',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️',
-  };
-
-  const icon = document.createElement('span');
-  icon.textContent = icons[type] || icons.info;
-  const text = document.createElement('span');
-  text.textContent = String(message ?? '');
-  toast.appendChild(icon);
-  toast.appendChild(text);
-  container.appendChild(toast);
-
-  // Animate in
-  requestAnimationFrame(() => {
-    toast.style.transform = 'translateX(0)';
-    toast.style.opacity = '1';
-  });
-
-  // Auto remove
-  setTimeout(() => {
-    toast.style.transform = 'translateX(100%)';
-    toast.style.opacity = '0';
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-const HIDDEN_CATEGORIES = new Set(['BON', 'REM', 'PHUKIEN']);
-const BONAP_VISIBLE_CATEGORY_ALLOWLIST = new Set([
-  'BON / GDT / JP',
-  'BON / GDT / LM',
-  'BON / GDT / ROLL',
-  'BON / GDT / MURALS - CLOTH',
-  'BON / NVL / VAISOFA',
-  'BON / REM / TPREM',
-]);
-const FABRIC_VISIBLE_CATEGORY_ALLOWLIST = new Set(['BON / NVL / VAISOFA']);
-
-const COMPANY_FILTER_STORAGE_KEY = 'selectedCompany';
-const COMPANY_FILTERS = [
-  {
-    key: 'Bonario',
-    label: 'Bonario',
-    aliases: ['bonario'],
-    categoryPrefixes: ['BON'],
-    productPrefixes: ['BON-', '[BON-'],
-    productTokens: ['BONARIO'],
-  },
-  {
-    key: 'Ordinaire',
-    label: 'Ordinaire',
-    aliases: ['ordinaire'],
-    categoryPrefixes: ['ORD'],
-    productPrefixes: ['ORD-', '[ORD-'],
-    productTokens: ['ORDINAIRE'],
-  },
-];
-const DEFAULT_COMPANY_FILTER = COMPANY_FILTERS[0].key;
-const KNOWN_COMPANY_CATEGORY_PREFIXES = new Set(
-  COMPANY_FILTERS.flatMap(company => company.categoryPrefixes || [])
-);
-
-function normalizeCompanyName(companyName = '') {
-  return String(companyName || '').trim();
-}
-
-function getProductCompanyName(product = {}) {
-  return normalizeCompanyName(
-    product.product_company_name ||
-      product.company_name ||
-      (Array.isArray(product.company_id) ? product.company_id[1] : '')
-  );
-}
-
-function getProductCategoryName(product = {}) {
-  if (product.category_name) return product.category_name;
-  if (Array.isArray(product.product_categ_id)) return product.product_categ_id[1] || '';
-  return product.product_categ_id || '';
-}
-
-function getProductNameForCompanyMatch(product = {}) {
-  if (product.product_name) return product.product_name;
-  if (Array.isArray(product.product_id)) return product.product_id[1] || '';
-  return product.product_id || '';
-}
-
-function isAllowedCompanyKey(companyKey) {
-  return COMPANY_FILTERS.some(company => company.key === companyKey);
-}
-
-function productMatchesCompany(product, companyKey) {
-  const company = COMPANY_FILTERS.find(item => item.key === companyKey);
-  if (!company) return false;
-
-  const categoryPrefix = normalizeCategoryName(getProductCategoryName(product)).split(' / ')[0];
-  if (KNOWN_COMPANY_CATEGORY_PREFIXES.has(categoryPrefix)) {
-    return (company.categoryPrefixes || []).includes(categoryPrefix);
-  }
-
-  const productName = String(getProductNameForCompanyMatch(product)).trim().toUpperCase();
-  const productHasCompanyPrefix = (company.productPrefixes || []).some(prefix =>
-    productName.startsWith(prefix)
-  );
-  const productHasCompanyToken = (company.productTokens || []).some(token =>
-    productName.includes(token)
-  );
-  if (productHasCompanyPrefix || productHasCompanyToken) return true;
-
-  const matchesOtherCompanyByProduct = COMPANY_FILTERS.filter(
-    item => item.key !== company.key
-  ).some(
-    item =>
-      (item.productPrefixes || []).some(prefix => productName.startsWith(prefix)) ||
-      (item.productTokens || []).some(token => productName.includes(token))
-  );
-  if (matchesOtherCompanyByProduct) return false;
-
-  const productCompanyName = getProductCompanyName(product).toLowerCase();
-  if (!productCompanyName) return false;
-
-  return company.aliases.some(alias => productCompanyName.includes(alias));
-}
-
-function normalizeCategoryName(categoryName = '') {
-  return categoryName
-    .split('/')
-    .map(segment => segment.trim().toUpperCase())
-    .join(' / ');
-}
-
-function shouldHideCategory(categoryName = '', warehouseName = '') {
-  const normalizedCategoryName = normalizeCategoryName(categoryName);
-
-  // ACENB: không ẩn category (chỉ ẩn F-DACINCO ở bước group).
-  // Toàn bộ tồn ACENB đang nằm ở BON / NVL / VAIREM — nếu áp HIDDEN_CATEGORIES
-  // thì kho biến mất dù vẫn còn vải non-F-DACINCO.
-  if (warehouseName === 'ACENB/Stock') {
-    return false;
-  }
-
-  if (
-    warehouseName === 'BONAP/Stock' &&
-    BONAP_VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)
-  ) {
-    return false;
-  }
-
-  if (
-    warehouseName === 'Kho Vải' &&
-    FABRIC_VISIBLE_CATEGORY_ALLOWLIST.has(normalizedCategoryName)
-  ) {
-    return false;
-  }
-
-  return normalizedCategoryName.split(' / ').some(segment => HIDDEN_CATEGORIES.has(segment));
-}
-
-// ============================================
-// WAREHOUSE MAPPING & CONFIGURATION
-// ============================================
-
-// Warehouse mapping
-// WAREHOUSE_MAP, PRODUCT_WAREHOUSES, FABRIC_WAREHOUSES đã được import từ './modules/warehouse.js'
-// Đã xóa duplicate code để tránh inconsistency
-
-// sortWarehouses đã được import từ './modules/warehouse.js' (alias: sortWarehousesFromModule)
-// Sử dụng wrapper để tương thích với code hiện tại
-function sortWarehouses(warehouses) {
-  const result = sortWarehousesFromModule(warehouses);
-  // Trả về array đơn giản để tương thích với code cũ
-  return result.all || result;
-}
-
-// NOTE: SAMPLE_DATA moved to src/store/sampleData.js
-
-// Global state
 let currentGroupedData = null;
-let allProcessedData = null;
 let isLoading = false;
-const CARD_RENDER_LIMIT = 300;
+let wsClient = null;
 
-// Expose grouped data for other features (e.g. monthly stocktake)
+function readActiveWarehouse() {
+  return (
+    getActiveWarehouse() ||
+    (typeof document !== 'undefined'
+      ? document.querySelector('.tab-active[data-warehouse]')?.getAttribute('data-warehouse')
+      : null) ||
+    null
+  );
+}
+
+function getCompanyScopedGroupedData() {
+  return filterGroupedDataByCompany(currentGroupedData, getSelectedCompanyName());
+}
+
 export function getCurrentGroupedData() {
   return currentGroupedData;
 }
@@ -297,1381 +60,171 @@ export function getWarehouseNames() {
 }
 
 export function getProductsForWarehouse(warehouseName) {
-  const scopedData = getCompanyScopedGroupedData();
-  if (!scopedData || !warehouseName || !scopedData[warehouseName]) return [];
-  const wh = scopedData[warehouseName];
-  const products = [];
-  Object.entries(wh.categories || {}).forEach(([categoryName, category]) => {
-    if (shouldHideCategory(categoryName, warehouseName)) {
-      return;
-    }
-    Object.values(category.products || {}).forEach(p => {
-      products.push({
-        productId: p.product_id?.[0],
-        name: p.product_name || p.product_id?.[1] || String(p.product_id?.[0] ?? ''),
-        systemQty: Number(p.quantity || 0),
-        availableQty: Number(p.available_quantity || 0),
-        categoryName,
-      });
-    });
-  });
-  // Stable sort by name
-  products.sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
-  return products.filter(p => p.productId != null);
+  return collectStocktakeProducts(getCompanyScopedGroupedData(), warehouseName);
 }
 
-// Process Odoo data format
-function processOdooData(data) {
-  return data.map(item => ({
-    id: item.id,
-    product_id: Array.isArray(item.product_id)
-      ? item.product_id
-      : [item.product_id, String(item.product_id ?? '')],
-    location_id: Array.isArray(item.location_id)
-      ? item.location_id
-      : [item.location_id, String(item.location_id ?? '')],
-    quantity: item.quantity || 0,
-    available_quantity: item.available_quantity || 0,
-    incoming_qty: 0,
-    lot_id: item.lot_id ? (Array.isArray(item.lot_id) ? item.lot_id : [item.lot_id, '']) : false,
-    package_id: item.package_id || false,
-    owner_id: item.owner_id || false,
-    product_categ_id: item.product_categ_id
-      ? Array.isArray(item.product_categ_id)
-        ? item.product_categ_id
-        : [item.product_categ_id, '']
-      : [0, 'Uncategorized'],
-    uom_id: item.product_uom_id
-      ? Array.isArray(item.product_uom_id)
-        ? item.product_uom_id
-        : [item.product_uom_id, '']
-      : false,
-    product_company_id: item.product_company_id || null,
-    product_company_name: normalizeCompanyName(item.product_company_name),
-  }));
-}
-
-function processIncomingData(incomingData, onhandProcessed) {
-  // incomingData is grouped by product_id and represents Incoming locations (location_dest_id = 8, 244)
-  // We project these incoming quantities onto fabric warehouses (217, 324, 184, 325) by product_id
-
-  const incomingByProduct = new Map();
-  (incomingData || []).forEach(item => {
-    const productId = Array.isArray(item.product_id) ? item.product_id[0] : item.product_id;
-    if (productId == null) return;
-
-    const qty = item.incoming_qty || 0;
-    const date = item.incoming_date || null;
-
-    const existing = incomingByProduct.get(productId);
-
-    // Logic xử lý incoming: chỉ lấy đợt đến gần nhất (ngày sớm nhất)
-    // - Nếu chưa có: lưu lại
-    // - Nếu ngày mới sớm hơn: thay thế bằng ngày/số lượng mới
-    // - Nếu cùng ngày ETA: cộng dồn số lượng (giữ logic cộng dồn khi cùng ngày)
-    // - Nếu ngày muộn hơn: bỏ qua (không dùng để hiển thị)
-    if (!existing) {
-      incomingByProduct.set(productId, {
-        incoming_qty: qty,
-        incoming_date: date,
-        product_id: item.product_id,
-        uom_id: item.product_uom || false,
-        product_company_id: item.product_company_id || null,
-        product_company_name: normalizeCompanyName(item.product_company_name),
-      });
-    } else if (date && existing.incoming_date) {
-      // So sánh ngày (chỉ so sánh phần ngày, bỏ qua giờ)
-      const existingDateOnly = new Date(existing.incoming_date).setHours(0, 0, 0, 0);
-      const itemDateOnly = new Date(date).setHours(0, 0, 0, 0);
-
-      if (itemDateOnly < existingDateOnly) {
-        // Đợt mới sớm hơn -> thay thế
-        existing.incoming_qty = qty;
-        existing.incoming_date = date;
-      } else if (itemDateOnly === existingDateOnly) {
-        // Cùng ngày -> cộng dồn số lượng
-        existing.incoming_qty += qty;
-      }
-      // Nếu muộn hơn thì bỏ qua (giữ lại đợt sớm nhất)
-    } else if (date && !existing.incoming_date) {
-      // Trước đó chưa có ngày, giờ có ngày -> dùng bản mới
-      existing.incoming_qty = qty;
-      existing.incoming_date = date;
-    } else if (!date && existing.incoming_date) {
-      // Item không có ngày nhưng existing có ngày -> bỏ qua item này
-    } else if (!date && !existing.incoming_date) {
-      // Cả hai đều không có ngày -> cộng dồn số lượng
-      existing.incoming_qty += qty;
-    }
-  });
-
-  // Build onhand index by product_id for the two fabric warehouses
-  const fabricLocationIds = [217, 324, 184, 325];
-  const onhandByFabric = new Map();
-
-  (onhandProcessed || []).forEach(item => {
-    const productId = item.product_id?.[0];
-    const locationId = item.location_id?.[0];
-    if (productId == null || locationId == null) return;
-    if (!fabricLocationIds.includes(locationId)) return;
-
-    onhandByFabric.set(`${productId}_${locationId}`, item);
-  });
-
-  const merged = [];
-
-  // Track which products have already been added to avoid duplicates
-  const addedProducts = new Set();
-
-  // 1) For products already shown in fabric warehouses (onhand > 0), create incoming-only records
-  // IMPORTANT: Do NOT clone the onhand record here, otherwise quantity/available_quantity will be double-counted.
-  // CHỈ THÊM MỘT RECORD INCOMING CHO MỖI PRODUCT_ID (đợt đến gần nhất đã được xử lý trong incomingByProduct)
-  onhandByFabric.forEach(item => {
-    const productId = item.product_id[0];
-    const incoming = incomingByProduct.get(productId);
-    if (!incoming || addedProducts.has(productId)) return;
-
-    // Đánh dấu đã thêm để tránh duplicate
-    addedProducts.add(productId);
-
-    merged.push({
-      id: `vai_incoming_attach_${productId}_${item.location_id[0]}`,
-      product_id: item.product_id,
-      location_id: item.location_id,
-      quantity: 0,
-      available_quantity: 0,
-      incoming_qty: incoming.incoming_qty || 0,
-      incoming_date: incoming.incoming_date || null,
-      lot_id: false,
-      package_id: false,
-      owner_id: false,
-      product_categ_id: item.product_categ_id || [0, 'Uncategorized'],
-      uom_id: item.uom_id || false,
-      product_company_id: item.product_company_id || null,
-      product_company_name: getProductCompanyName(item),
-    });
-  });
-
-  // 2) For products in MID incoming but not present in either fabric warehouse (onhand=0), create "Vải Incoming" records
-  const VAI_INCOMING_LOCATION_ID = 'Incomming';
-  const VAI_INCOMING_LOCATION_NAME = 'Kho Vải'; // Gộp vào Kho Vải
-
-  incomingByProduct.forEach((incoming, productId) => {
-    const existsInJak =
-      onhandByFabric.has(`${productId}_217`) || onhandByFabric.has(`${productId}_324`);
-    const existsInBonapVai =
-      onhandByFabric.has(`${productId}_184`) || onhandByFabric.has(`${productId}_325`);
-
-    if (existsInJak || existsInBonapVai) return;
-
-    // Only include products whose name contains F-SF or F-ORD (backend already filters, but keep safe)
-    const productName = Array.isArray(incoming.product_id) ? incoming.product_id[1] : '';
-    if (!productName || (!productName.includes('F-SF') && !productName.includes('F-ORD'))) return;
-
-    merged.push({
-      id: `vai_incoming_${productId}`,
-      product_id: Array.isArray(incoming.product_id)
-        ? incoming.product_id
-        : [productId, String(productId ?? '')],
-      location_id: [VAI_INCOMING_LOCATION_ID, VAI_INCOMING_LOCATION_NAME],
-      quantity: 0,
-      available_quantity: 0,
-      incoming_qty: incoming.incoming_qty || 0,
-      incoming_date: incoming.incoming_date || null,
-      lot_id: false,
-      package_id: false,
-      owner_id: false,
-      product_categ_id: [0, 'Vải Incoming'],
-      uom_id: incoming.uom_id || false,
-      product_company_id: incoming.product_company_id || null,
-      product_company_name: getProductCompanyName(incoming),
-    });
-  });
-
-  return merged;
-}
-
-// Group data by warehouse, then by category, and merge products by product_id
-function groupDataByWarehouseAndCategory(data, discontinuedIds = new Set()) {
-  const grouped = {};
-
-  data.forEach(item => {
-    const locationId = item.location_id[0];
-    const warehouseName = WAREHOUSE_MAP[locationId] || `Kho ${locationId}`;
-    const productId = item.product_id[0];
-    const productName = item.product_id[1] || `Sản phẩm ID: ${productId}`;
-    const categoryId = item.product_categ_id[0];
-    const categoryName = item.product_categ_id[1] || 'Chưa phân loại';
-
-    // Filter out "F-Khăn tay (Mẫu)" as requested by user
-    if (productName.includes('F-Khăn tay (Mẫu)')) {
-      return;
-    }
-
-    // ACENB: ẩn sản phẩm mã bắt đầu bằng F-DACINCO
-    if (warehouseName === 'ACENB/Stock') {
-      const nameUpper = productName.toUpperCase().trim();
-      if (nameUpper.startsWith('F-DACINCO') || nameUpper.startsWith('[F-DACINCO')) {
-        return;
-      }
-    }
-
-    // Filter Kho Vải: chỉ hiển thị sản phẩm có chứa F-SF hoặc F-ORD trong tên
-    if (
-      warehouseName === 'Kho Vải' &&
-      !productName.includes('F-SF') &&
-      !productName.includes('F-ORD')
-    ) {
-      return;
-    }
-
-    if (shouldHideCategory(categoryName, warehouseName)) {
-      return;
-    }
-
-    // Skip categories that start with "all" or "rev" (case-insensitive)
-    const categoryLower = categoryName.toLowerCase();
-    if (categoryLower.startsWith('all') || categoryLower.startsWith('rev')) {
-      return;
-    }
-
-    if (!grouped[warehouseName]) {
-      grouped[warehouseName] = {
-        locationId: locationId,
-        categories: {},
-      };
-    }
-
-    // Group by category
-    if (!grouped[warehouseName].categories[categoryName]) {
-      grouped[warehouseName].categories[categoryName] = {
-        categoryId: categoryId,
-        products: {},
-      };
-    }
-
-    // Merge products by product_id - each product appears only once per category
-    const productKey = `${productId}`;
-    if (!grouped[warehouseName].categories[categoryName].products[productKey]) {
-      grouped[warehouseName].categories[categoryName].products[productKey] = {
-        product_id: item.product_id,
-        product_name: productName,
-        category_id: categoryId,
-        category_name: categoryName,
-        quantity: 0,
-        available_quantity: 0,
-        incoming_qty: 0,
-        incoming_date: null,
-        lot_ids: [], // Collect all lot IDs
-        uom_id: item.uom_id || false, // Unit of measure
-        product_company_id: item.product_company_id || null,
-        product_company_name: getProductCompanyName(item),
-        isDiscontinued: discontinuedIds.has(productId), // Sản phẩm ngưng sản xuất
-      };
-    }
-
-    // Sum up quantities for the same product
-    const product = grouped[warehouseName].categories[categoryName].products[productKey];
-    product.quantity += item.quantity || 0;
-    product.available_quantity += item.available_quantity || 0;
-
-    // ĐANG ĐẾN: chỉ lấy số lượng của đợt có ETA gần nhất
-    // Logic: cùng ngày thì cộng dồn, khác ngày thì chỉ lấy đợt sớm nhất
-    if (item.incoming_qty && item.incoming_qty !== 0) {
-      const itemDate = item.incoming_date || null;
-      const existingDate = product.incoming_date || null;
-
-      if (!itemDate) {
-        // Nếu không có ngày đến thì bỏ qua để không làm sai lệch so với ETA hiển thị
-      } else if (!existingDate) {
-        // Chưa có ETA nào -> dùng bản hiện tại
-        product.incoming_qty = item.incoming_qty;
-        product.incoming_date = itemDate;
-      } else {
-        // So sánh ngày (chỉ so sánh phần ngày, bỏ qua giờ)
-        const existingDateOnly = new Date(existingDate).setHours(0, 0, 0, 0);
-        const itemDateOnly = new Date(itemDate).setHours(0, 0, 0, 0);
-
-        if (itemDateOnly < existingDateOnly) {
-          // Đợt mới sớm hơn -> thay thế bằng ngày & số lượng mới
-          product.incoming_qty = item.incoming_qty;
-          product.incoming_date = itemDate;
-        } else if (itemDateOnly === existingDateOnly) {
-          // Cùng ngày ETA -> cộng dồn số lượng
-          product.incoming_qty += item.incoming_qty;
-        }
-        // Nếu itemDate > existingDate thì bỏ qua, để giữ lại đợt sớm nhất
-      }
-    }
-
-    // Collect lot IDs if exists
-    if (item.lot_id && item.lot_id[1]) {
-      const lotName = item.lot_id[1];
-      if (
-        !grouped[warehouseName].categories[categoryName].products[productKey].lot_ids.includes(
-          lotName
-        )
-      ) {
-        grouped[warehouseName].categories[categoryName].products[productKey].lot_ids.push(lotName);
-      }
-    }
-  });
-
-  return grouped;
-}
-
-// Filter and search data
-function filterAndSearchData(
-  groupedData,
-  searchTerm,
-  warehouseFilter,
-  categoryFilter,
-  { discontinuedOnly = false } = {}
-) {
-  if (!groupedData || Object.keys(groupedData).length === 0) {
-    return {};
-  }
-
-  const filtered = {};
-  const searchLower = (searchTerm || '').toLowerCase().trim();
-
-  // Get active warehouse from tab (if available)
-  const activeWarehouse =
-    typeof window !== 'undefined' && window.handleTabChange
-      ? (() => {
-          const tabs = document.querySelectorAll('[data-warehouse]');
-          for (let tab of tabs) {
-            if (tab.classList.contains('tab-active')) {
-              return tab.getAttribute('data-warehouse');
-            }
-          }
-          return null;
-        })()
-      : null;
-
-  // Always respect the active warehouse tab - search only within selected warehouse
-  const effectiveWarehouseFilter = warehouseFilter || activeWarehouse;
-
-  Object.keys(groupedData).forEach(warehouseName => {
-    if (effectiveWarehouseFilter && warehouseName !== effectiveWarehouseFilter) {
-      return;
-    }
-
-    const warehouse = groupedData[warehouseName];
-    const filteredCategories = {};
-
-    Object.keys(warehouse.categories || {}).forEach(categoryName => {
-      if (categoryFilter && categoryName !== categoryFilter) {
-        return;
-      }
-
-      const category = warehouse.categories[categoryName];
-      const filteredProducts = {};
-
-      Object.keys(category.products || {}).forEach(productKey => {
-        const product = category.products[productKey];
-
-        // Filter by search term
-        if (searchLower) {
-          const productName = (product.product_name || '').toLowerCase();
-          const lotIds = product.lot_ids.join(' ').toLowerCase();
-          if (!productName.includes(searchLower) && !lotIds.includes(searchLower)) {
-            return;
-          }
-        }
-
-        // Filter by discontinued status
-        if (discontinuedOnly && !product.isDiscontinued) {
-          return;
-        }
-
-        filteredProducts[productKey] = product;
-      });
-
-      if (Object.keys(filteredProducts).length > 0) {
-        filteredCategories[categoryName] = {
-          categoryId: category.categoryId,
-          products: filteredProducts,
-        };
-      }
-    });
-
-    if (Object.keys(filteredCategories).length > 0) {
-      filtered[warehouseName] = {
-        locationId: warehouse.locationId,
-        categories: filteredCategories,
-      };
-    }
-  });
-
-  return filtered;
-}
-
-function getSelectedCompanyName() {
-  let selectedCompany = '';
-
-  if (typeof document !== 'undefined') {
-    const companyFilter = document.getElementById('companyFilter');
-    if (companyFilter) {
-      selectedCompany = normalizeCompanyName(companyFilter.value);
-    }
-  }
-
-  if (!selectedCompany && typeof localStorage !== 'undefined') {
-    selectedCompany = normalizeCompanyName(localStorage.getItem(COMPANY_FILTER_STORAGE_KEY));
-  }
-
-  return isAllowedCompanyKey(selectedCompany) ? selectedCompany : DEFAULT_COMPANY_FILTER;
-}
-
-function getCompanyOptions(groupedData) {
-  const companies = new Set();
-
-  Object.values(groupedData || {}).forEach(warehouse => {
-    Object.values(warehouse.categories || {}).forEach(category => {
-      Object.values(category.products || {}).forEach(product => {
-        const companyName = getProductCompanyName(product);
-        if (companyName) companies.add(companyName);
-      });
-    });
-  });
-
-  return Array.from(companies).sort((a, b) => a.localeCompare(b, 'vi'));
-}
-
-function filterGroupedDataByCompany(groupedData, companyName) {
-  const selectedCompany = normalizeCompanyName(companyName);
-  const effectiveCompany = isAllowedCompanyKey(selectedCompany)
-    ? selectedCompany
-    : DEFAULT_COMPANY_FILTER;
-
-  const filtered = {};
-
-  Object.entries(groupedData || {}).forEach(([warehouseName, warehouse]) => {
-    const filteredCategories = {};
-
-    Object.entries(warehouse.categories || {}).forEach(([categoryName, category]) => {
-      const filteredProducts = {};
-
-      Object.entries(category.products || {}).forEach(([productKey, product]) => {
-        if (productMatchesCompany(product, effectiveCompany)) {
-          filteredProducts[productKey] = product;
-        }
-      });
-
-      if (Object.keys(filteredProducts).length > 0) {
-        filteredCategories[categoryName] = {
-          ...category,
-          products: filteredProducts,
-        };
-      }
-    });
-
-    if (Object.keys(filteredCategories).length > 0) {
-      filtered[warehouseName] = {
-        ...warehouse,
-        categories: filteredCategories,
-      };
-    }
-  });
-
-  return filtered;
-}
-
-function getCompanyScopedGroupedData() {
-  return filterGroupedDataByCompany(currentGroupedData, getSelectedCompanyName());
-}
-
-function updateCompanyFilterOptions(groupedData) {
-  if (typeof document === 'undefined') return;
-
-  const companySelect = document.getElementById('companyFilter');
-  if (!companySelect) return;
-
-  const savedCompany = normalizeCompanyName(
-    companySelect.value || localStorage.getItem(COMPANY_FILTER_STORAGE_KEY)
-  );
-  const nextValue = isAllowedCompanyKey(savedCompany) ? savedCompany : DEFAULT_COMPANY_FILTER;
-
-  companySelect.innerHTML = '';
-  COMPANY_FILTERS.forEach(company => {
-    const option = document.createElement('option');
-    option.value = company.key;
-    option.textContent = `Công ty: ${company.label}`;
-    companySelect.appendChild(option);
-  });
-
-  companySelect.value = nextValue;
-  localStorage.setItem(COMPANY_FILTER_STORAGE_KEY, nextValue);
-}
-
-// Calculate statistics
-function calculateStats(groupedData) {
-  let totalProducts = 0;
-  let totalQuantity = 0;
-  let totalWarehouses = Object.keys(groupedData).length;
-
-  Object.values(groupedData).forEach(warehouse => {
-    Object.values(warehouse.categories || {}).forEach(category => {
-      const productsList = Object.values(category.products || {});
-      totalProducts += productsList.length;
-      productsList.forEach(product => {
-        totalQuantity += product.quantity || 0;
-      });
-    });
-  });
-
-  return { totalProducts, totalQuantity, totalWarehouses };
-}
-
-// NOTE: API functions (callOdooAPI, callFabricProductsAPI, callIncomingAPI)
-// have been moved to src/services/api.js for better separation of concerns
-
-// Update filter options and tabs
 export function updateFilterOptions(groupedData) {
   if (groupedData === currentGroupedData) {
-    updateCompanyFilterOptions(currentGroupedData);
+    syncCompanyFilterOptions();
   }
 
   const effectiveGroupedData =
     groupedData === currentGroupedData ? getCompanyScopedGroupedData() : groupedData || {};
 
-  // Update tabs first
-  if (typeof window !== 'undefined' && window.updateTabs) {
-    const warehouses = Object.keys(effectiveGroupedData || {});
-    const sortedWarehouses = sortWarehouses(warehouses);
-    window.updateTabs(sortedWarehouses);
-  }
-
-  const categorySelect = document.getElementById('categoryFilter');
-
-  if (!categorySelect) {
-    return;
-  }
-
-  categorySelect.innerHTML = '<option value="">Tất cả nhóm sản phẩm</option>';
-
-  if (!effectiveGroupedData || Object.keys(effectiveGroupedData).length === 0) {
-    return;
-  }
-
-  // Determine active warehouse (from tabs)
-  let warehousesToUse = [];
   if (typeof document !== 'undefined') {
-    const activeTab = document.querySelector('.tab-active[data-warehouse]');
-    const activeName = activeTab ? activeTab.getAttribute('data-warehouse') : null;
-    if (activeName && effectiveGroupedData[activeName]) {
-      warehousesToUse.push(effectiveGroupedData[activeName]);
-    }
-  }
-  // Fallback: use all warehouses
-  if (warehousesToUse.length === 0) {
-    warehousesToUse = Object.values(effectiveGroupedData);
+    const warehouses = Object.keys(effectiveGroupedData || {});
+    updateTabs(sortWarehousesFromModule(warehouses), effectiveGroupedData);
   }
 
-  // Collect categories only from selected warehouses
-  const categoriesSet = new Set();
-  warehousesToUse.forEach(warehouse => {
-    Object.keys(warehouse.categories || {}).forEach(categoryName => {
-      categoriesSet.add(categoryName);
-    });
-  });
-
-  const categories = Array.from(categoriesSet).sort();
-
-  categories.forEach(categoryName => {
-    const option = document.createElement('option');
-    option.value = categoryName;
-    option.textContent = categoryName;
-    categorySelect.appendChild(option);
-  });
-
-  const pendingCategory = categorySelect.getAttribute('data-pending-category');
-  if (pendingCategory) {
-    const hasPendingCategory = Array.from(categorySelect.options).some(
-      option => option.value === pendingCategory
-    );
-    if (hasPendingCategory) {
-      categorySelect.value = pendingCategory;
-    }
-    categorySelect.removeAttribute('data-pending-category');
-  }
+  syncCategoryFilterOptions(effectiveGroupedData, readActiveWarehouse());
 }
 
-// Helper to refresh category filter based on currentGroupedData and active tab
 export function refreshCategoryFilter() {
   if (!currentGroupedData) return;
-  updateFilterOptions(getCompanyScopedGroupedData());
+  syncCategoryFilterOptions(getCompanyScopedGroupedData(), readActiveWarehouse());
 }
 
-// Load data with caching and retry support
 export async function loadData(options = {}) {
   const { forceRefresh = false } = options;
-  const config = typeof window !== 'undefined' ? window.ODOO_CONFIG : null;
   if (isLoading) return;
 
   isLoading = true;
   const stockDataContainer = document.getElementById('stockData');
   const loadBtn = document.getElementById('loadDataBtn');
 
-  // Show loading state on button
   if (loadBtn) {
     loadBtn.disabled = true;
-    loadBtn.innerHTML =
-      '<span class="animate-spin">⏳</span><span class="hidden sm:inline">Đang tải...</span>';
-    loadBtn.style.opacity = '0.7';
-    loadBtn.style.cursor = 'not-allowed';
+    const span = loadBtn.querySelector('span') || loadBtn;
+    span.textContent = 'Đang tải...';
   }
 
-  // Show skeleton cards instead of simple loading indicator
   if (stockDataContainer) {
-    stockDataContainer.innerHTML = '';
-    stockDataContainer.appendChild(createSkeletonCards(6));
+    stockDataContainer.replaceChildren();
+    showStockSkeleton(stockDataContainer, 6);
   }
 
   try {
-    // Check cache stats BEFORE fetching to determine if data will come from cache
-    const cacheStatsBefore = getCacheStats();
-    const willUseCache = !forceRefresh && cacheStatsBefore.validEntries > 0;
+    const loaded = await loadGroupedStock({ forceRefresh });
 
-    // Fetch onhand and incoming data in parallel using API service
-    // API service handles caching, retry, and graceful degradation
-    const [onhandData, incomingData, discontinuedIds] = await Promise.all([
-      fetchStock({ useCache: !forceRefresh, forceRefresh }),
-      fetchIncoming({ useCache: !forceRefresh, forceRefresh }),
-      fetchDiscontinuedProducts({ useCache: !forceRefresh, forceRefresh }),
-    ]);
-
-    if (!onhandData || onhandData.length === 0) {
+    if (loaded.empty) {
       if (stockDataContainer) {
-        stockDataContainer.innerHTML = '';
-        stockDataContainer.appendChild(createEmptyState('Không tìm thấy bản ghi tồn kho phù hợp'));
+        stockDataContainer.replaceChildren();
+        showStockMessage(stockDataContainer, 'empty', 'Không tìm thấy bản ghi tồn kho phù hợp');
       }
-      // Show toast notification
       showToast('Không tìm thấy dữ liệu', 'warning');
       return;
     }
 
-    // Use pre-fetch cache check result
-    const fromCache = willUseCache;
+    currentGroupedData = loaded.groupedData;
 
-    // Process onhand and incoming data separately
-    const processedOnhand = processOdooData(onhandData);
-    const processedIncoming = processIncomingData(incomingData, processedOnhand);
-
-    // Combine both datasets
-    const combinedData = [...processedOnhand, ...processedIncoming];
-
-    // NOTE: Removed "Add missing fabric products" logic
-    // Không hiển thị sản phẩm không có tồn kho và không có incoming
-
-    allProcessedData = combinedData;
-
-    const groupedData = groupDataByWarehouseAndCategory(combinedData, discontinuedIds);
-
-    currentGroupedData = groupedData;
-
-    // Mark all warehouses as loaded
-    Object.keys(groupedData).forEach(wh => markWarehouseLoaded(wh));
-
-    updateCompanyFilterOptions(groupedData);
+    syncCompanyFilterOptions();
     updateFilterOptions(getCompanyScopedGroupedData());
     applyFilters();
 
-    // Show success toast with cache indicator
-    const totalProducts = Object.values(groupedData).reduce((acc, wh) => {
-      return (
-        acc +
-        Object.values(wh.categories || {}).reduce((catAcc, cat) => {
-          return catAcc + Object.keys(cat.products || {}).length;
-        }, 0)
-      );
-    }, 0);
-    const cacheIndicator = fromCache ? ' (từ cache)' : '';
-    showToast(`Đã tải ${totalProducts.toLocaleString()} sản phẩm${cacheIndicator}`, 'success');
+    const cacheIndicator = loaded.fromCache ? ' (từ cache)' : '';
+    showToast(
+      `Đã tải ${loaded.totalProducts.toLocaleString()} sản phẩm${cacheIndicator}`,
+      'success'
+    );
   } catch (error) {
     if (stockDataContainer) {
-      stockDataContainer.innerHTML = '';
-      stockDataContainer.appendChild(createErrorState(error.message));
+      stockDataContainer.replaceChildren();
+      showStockMessage(stockDataContainer, 'error', error.message);
     }
     showToast('Lỗi khi tải dữ liệu: ' + error.message, 'error');
   } finally {
     isLoading = false;
 
-    // Reset button state
-    const loadBtn = document.getElementById('loadDataBtn');
-    if (loadBtn) {
-      loadBtn.disabled = false;
-      loadBtn.innerHTML = '<span>🔄</span><span class="hidden sm:inline">Tải dữ liệu</span>';
-      loadBtn.style.opacity = '1';
-      loadBtn.style.cursor = 'pointer';
+    const resetBtn = document.getElementById('loadDataBtn');
+    if (resetBtn) {
+      resetBtn.disabled = false;
+      const span = resetBtn.querySelector('span') || resetBtn;
+      span.textContent = 'Tải lại';
     }
   }
 }
 
-// Force refresh data (clear cache and reload)
 export async function forceRefreshData() {
   clearCache();
   clearLoadedWarehouses();
   await loadData({ forceRefresh: true });
 }
 
-function getActiveWarehouseName() {
-  const activeTab = document.querySelector('.tab-active[data-warehouse]');
-  return activeTab?.getAttribute('data-warehouse') || '';
-}
-
-function syncFilterStateToUrl() {
-  if (typeof window === 'undefined') return;
-
-  const params = new URLSearchParams(window.location.search);
-  params.delete('view');
-  params.delete('density');
-
-  const query = document.getElementById('searchInput')?.value?.trim() || '';
-  const values = {
-    q: query,
-    company: document.getElementById('companyFilter')?.value || '',
-    category: document.getElementById('categoryFilter')?.value || '',
-    sort: document.getElementById('sortFilter')?.value || '',
-    discontinued: document.getElementById('discontinuedFilter')?.checked ? '1' : '',
-    warehouse: getActiveWarehouseName(),
-  };
-
-  Object.entries(values).forEach(([key, value]) => {
-    const isDefault =
-      (key === 'company' && value === DEFAULT_COMPANY_FILTER) ||
-      (key === 'sort' && value === DEFAULT_SORT_KEY);
-
-    if (!value || isDefault) {
-      params.delete(key);
-    } else {
-      params.set(key, value);
-    }
+function renderStockData(groupedData, companyScopedData) {
+  renderStockCatalog(document.getElementById('stockData'), {
+    groupedData,
+    unfilteredGroupedData: companyScopedData || getCompanyScopedGroupedData(),
+    activeWarehouse: readActiveWarehouse(),
+    sortKey: readCatalogControls().sortKey,
+    onShowAll: () => renderStockData(groupedData, companyScopedData),
   });
-
-  const nextQuery = params.toString();
-  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
-  if (nextUrl !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-    window.history.replaceState(null, '', nextUrl);
-  }
 }
 
-// Apply filters
 export function applyFilters() {
-  if (!currentGroupedData) {
-    return;
-  }
+  if (!currentGroupedData) return;
 
-  const searchInput = document.getElementById('searchInput');
-  const warehouseFilter = document.getElementById('warehouseFilter');
-  const categoryFilter = document.getElementById('categoryFilter');
-
-  const searchTerm = searchInput?.value || '';
-  const warehouseValue = warehouseFilter?.value || '';
-  const categoryValue = categoryFilter?.value || '';
-
-  const discontinuedFilter = document.getElementById('discontinuedFilter');
-  const discontinuedOnly = discontinuedFilter?.checked || false;
-
+  const controls = readCatalogControls();
+  const activeWarehouse = readActiveWarehouse();
+  const companyScopedData = getCompanyScopedGroupedData();
   document.getElementById('stockData')?.setAttribute('data-show-all-cards', 'false');
 
-  const scopedData = getCompanyScopedGroupedData();
-  const filteredData = filterAndSearchData(scopedData, searchTerm, warehouseValue, categoryValue, {
-    discontinuedOnly,
-  });
+  const filteredData = filterAndSearchData(
+    companyScopedData,
+    controls.searchTerm,
+    controls.warehouseValue,
+    controls.categoryValue,
+    {
+      discontinuedOnly: controls.discontinuedOnly,
+      activeWarehouse,
+    }
+  );
 
-  renderStockData(filteredData);
-  syncFilterStateToUrl();
+  renderStockData(filteredData, companyScopedData);
+  syncCatalogQuery(activeWarehouse || '');
 }
 
-// Clear filters
 export function clearFilters() {
-  const searchInput = document.getElementById('searchInput');
-  const warehouseFilter = document.getElementById('warehouseFilter');
-  const categoryFilter = document.getElementById('categoryFilter');
-  const sortFilter = document.getElementById('sortFilter');
-  const discontinuedFilter = document.getElementById('discontinuedFilter');
-
-  if (searchInput) searchInput.value = '';
-  if (warehouseFilter) warehouseFilter.value = '';
-  if (categoryFilter) categoryFilter.value = '';
-  if (sortFilter) sortFilter.value = DEFAULT_SORT_KEY;
-  if (discontinuedFilter) discontinuedFilter.checked = false;
-
+  resetCatalogControls();
   applyFilters();
 }
 
-// Export data
 export function exportData() {
   if (!currentGroupedData) {
     showToast('Vui lòng tải dữ liệu trước', 'warning');
     return;
   }
-
-  const exportGroupedData = getCompanyScopedGroupedData();
-  showToast('Dang chuan bi file Excel...', 'info');
-
-  // Use ExcelJS for professional Excel export
-  import('../utils/export.js')
-    .then(({ exportToExcel }) =>
-      exportToExcel(exportGroupedData, {
-        filename: `stock_data_${new Date().toISOString().split('T')[0]}`,
-        includeStats: true,
-        includeSummary: true,
-      })
-    )
-    .then(() => {
-      showToast('Đã xuất file Excel thành công!', 'success');
-    })
-    .catch(error => {
-      console.error('Export error:', error);
-      showToast('Lỗi khi xuất file: ' + error.message, 'error');
-
-      // Fallback to CSV export
-      fallbackExportCSV();
-    });
+  exportStockExcel(getCompanyScopedGroupedData());
 }
 
-// Fallback CSV export (in case ExcelJS fails)
-function fallbackExportCSV() {
-  if (!currentGroupedData) return;
-  const exportGroupedData = getCompanyScopedGroupedData();
-
-  let csv = 'Kho,Nhóm,Sản phẩm,Số lượng tồn,Số lượng khả dụng,Đang đến,Số lô\n';
-
-  Object.keys(exportGroupedData)
-    .sort()
-    .forEach(warehouseName => {
-      const warehouse = exportGroupedData[warehouseName];
-
-      Object.keys(warehouse.categories || {})
-        .sort()
-        .forEach(categoryName => {
-          if (shouldHideCategory(categoryName, warehouseName)) {
-            return;
-          }
-          const category = warehouse.categories[categoryName];
-          const productsList = Object.values(category.products || {});
-
-          productsList.sort((a, b) => {
-            const nameA = (a.product_name || '').toLowerCase();
-            const nameB = (b.product_name || '').toLowerCase();
-            return nameA.localeCompare(nameB, 'vi');
-          });
-
-          productsList.forEach(product => {
-            const productName = product.product_name || `Sản phẩm ID: ${product.product_id[0]}`;
-            const lotIds =
-              product.lot_ids && product.lot_ids.length > 0 ? product.lot_ids.join(', ') : '-';
-
-            csv += `"${warehouseName}","${categoryName}","${productName}",${
-              product.quantity || 0
-            },${product.available_quantity || 0},${product.incoming_qty || 0},"${lotIds}"\n`;
-          });
-        });
-    });
-
-  const blob = new Blob(['\ufeff' + csv], {
-    type: 'text/csv;charset=utf-8;',
-  });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-
-  link.setAttribute('href', url);
-  link.setAttribute('download', `stock_data_${new Date().toISOString().split('T')[0]}.csv`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  showToast('Đã xuất file CSV (fallback)', 'info');
-}
-
-// Export data to PDF
 export function exportDataPDF() {
   if (!currentGroupedData) {
     showToast('Vui lòng tải dữ liệu trước', 'warning');
     return;
   }
-
-  showToast('Đang tạo PDF...', 'info');
-
-  import('../utils/export.js')
-    .then(({ exportToPDF }) =>
-      exportToPDF(getCompanyScopedGroupedData(), {
-        filename: `stock_report_${new Date().toISOString().split('T')[0]}`,
-        includeStats: true,
-        includeSummary: true,
-      })
-    )
-    .then(() => {
-      showToast('Đã xuất file PDF thành công!', 'success');
-    })
-    .catch(error => {
-      console.error('PDF export error:', error);
-      showToast('Lỗi khi xuất PDF: ' + error.message, 'error');
-    });
+  exportStockPDF(getCompanyScopedGroupedData());
 }
 
-// Render statistics
-function renderStats(stats) {
-  const statsSummary = document.getElementById('statsSummary');
-  if (!statsSummary) return;
-
-  statsSummary.innerHTML = `
-        <div class="flex items-center gap-1.5">
-            <span class="font-bold text-base" style="color: #2a231f;">${stats.totalProducts}</span>
-            <span class="text-xs" style="color: #5d5044;">sản phẩm</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-            <span class="font-bold text-base" style="color: #2a231f;">${stats.totalQuantity.toLocaleString()}</span>
-            <span class="text-xs" style="color: #5d5044;">tổng tồn</span>
-        </div>
-    `;
-}
-
-// Create loading indicator
-function createLoadingIndicator() {
-  const div = document.createElement('div');
-  div.className = 'flex flex-col items-center justify-center py-20';
-  div.innerHTML = `
-        <div class="relative">
-            <div class="w-12 h-12 rounded-full animate-spin" style="border: 3px solid #d4c4b0; border-top-color: #8b6b4f;"></div>
-        </div>
-        <p class="mt-4 text-base" style="color: #5d5044;">Đang tải dữ liệu...</p>
-    `;
-  return div;
-}
-
-// Create skeleton cards for loading state
-function createSkeletonCards(count = 6) {
-  const container = document.createElement('div');
-  container.className = 'max-w-7xl mx-auto px-4 py-6';
-
-  const grid = document.createElement('div');
-  grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
-
-  for (let i = 0; i < count; i++) {
-    const card = document.createElement('div');
-    card.className = 'stock-card animate-pulse';
-    card.innerHTML = `
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex-1 pr-2">
-                    <div class="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div class="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-                <div class="h-6 bg-gray-200 rounded-full w-16"></div>
-            </div>
-            <div class="grid grid-cols-3 gap-2 mt-4 pt-4" style="border-top: 1px solid #e8ddd4;">
-                <div class="text-center p-2.5 rounded-lg" style="background-color: #faf8f5;">
-                    <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                    <div class="h-6 bg-gray-300 rounded w-2/3 mx-auto"></div>
-                </div>
-                <div class="text-center p-2.5 rounded-lg" style="background-color: #f5f9f5;">
-                    <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                    <div class="h-6 bg-gray-300 rounded w-2/3 mx-auto"></div>
-                </div>
-                <div class="text-center p-2.5 rounded-lg" style="background-color: #e8f4f8;">
-                    <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                    <div class="h-6 bg-gray-300 rounded w-2/3 mx-auto"></div>
-                </div>
-            </div>
-        `;
-    grid.appendChild(card);
-  }
-
-  container.appendChild(grid);
-  return container;
-}
-
-// Create empty state
-function createEmptyState(message) {
-  const div = document.createElement('div');
-  div.className = 'flex flex-col items-center justify-center py-20 text-center';
-  const safeMessage = escapeHtml(message);
-  div.innerHTML = `
-        <div class="text-5xl mb-4">📭</div>
-        <h2 class="text-xl font-semibold mb-2" style="color: #2a231f;">Không có dữ liệu</h2>
-        <p style="color: #5d5044;">${safeMessage}</p>
-    `;
-  return div;
-}
-
-// Create error state
-function createErrorState(message) {
-  const div = document.createElement('div');
-  div.className = 'flex flex-col items-center justify-center py-20 text-center';
-  const safeMessage = escapeHtml(message);
-  div.innerHTML = `
-        <div class="text-5xl mb-4">⚠️</div>
-        <h2 class="text-xl font-semibold text-red-700 mb-2">Tải thất bại</h2>
-        <p style="color: #5d5044;">${safeMessage}</p>
-    `;
-  return div;
-}
-
-// Helper function to determine stock status
-function getStockStatus(quantity, availableQuantity) {
-  if (quantity === 0) return 'out';
-  if (quantity <= 10 || availableQuantity < quantity * 0.3) return 'low';
-  return 'in';
-}
-
-// Helper function to get stock status badge
-function getStockBadge(status) {
-  if (status === 'out') {
-    return '<span class="badge-out-stock">Hết hàng</span>';
-  } else if (status === 'low') {
-    return '<span class="badge-low-stock">Sắp hết</span>';
-  } else {
-    return '<span class="badge-in-stock">Còn hàng</span>';
-  }
-}
-
-function getSelectedSortKey() {
-  const sortFilter = document.getElementById('sortFilter');
-  return sortFilter?.value || DEFAULT_SORT_KEY;
-}
-
-function getSortLabel(sortKey) {
-  const labels = {
-    quantity_desc: 'Sắp xếp: tồn nhiều nhất',
-    quantity_asc: 'Sắp xếp: tồn ít nhất',
-    available_asc: 'Sắp xếp: khả dụng thấp',
-    incoming_desc: 'Sắp xếp: đang đến nhiều',
-    name_asc: 'Sắp xếp: tên A-Z',
-  };
-  return labels[sortKey] || labels.quantity_desc;
-}
-
-function sortProducts(products, sortKey) {
-  const sorted = [...products];
-  const byName = (a, b) => getProductName(a).localeCompare(getProductName(b), 'vi');
-
-  sorted.sort((a, b) => {
-    switch (sortKey) {
-      case 'quantity_asc':
-        return (
-          getNumericStockValue(a, 'quantity') - getNumericStockValue(b, 'quantity') || byName(a, b)
-        );
-      case 'available_asc':
-        return (
-          getNumericStockValue(a, 'available_quantity') -
-            getNumericStockValue(b, 'available_quantity') || byName(a, b)
-        );
-      case 'incoming_desc':
-        return (
-          getNumericStockValue(b, 'incoming_qty') - getNumericStockValue(a, 'incoming_qty') ||
-          byName(a, b)
-        );
-      case 'name_asc':
-        return byName(a, b);
-      case 'quantity_desc':
-      default:
-        return (
-          getNumericStockValue(b, 'quantity') - getNumericStockValue(a, 'quantity') || byName(a, b)
-        );
-    }
-  });
-
-  return sorted;
-}
-
-function getVisibleWarehouseCount(products) {
-  return new Set(products.map(product => product.warehouseName).filter(Boolean)).size;
-}
-
-// Render stock data - Card-based layout for sales team
-function renderStockData(groupedData) {
-  const container = document.getElementById('stockData');
-  if (!container) return;
-
-  if (Object.keys(groupedData).length === 0) {
-    container.innerHTML = '';
-    container.appendChild(createEmptyState('Không tìm thấy dữ liệu phù hợp'));
-    return;
-  }
-
-  // Get active warehouse from tab - always render only selected warehouse
-  let activeWarehouse = null;
-  if (typeof document !== 'undefined') {
-    const activeTab = document.querySelector('.tab-active[data-warehouse]');
-    if (activeTab) {
-      activeWarehouse = activeTab.getAttribute('data-warehouse');
-    } else {
-      // Fallback: use first warehouse
-      const sortedWarehouses = Object.keys(groupedData).sort();
-      activeWarehouse = sortedWarehouses[0];
-    }
-  }
-
-  const warehousesToRender =
-    activeWarehouse && groupedData[activeWarehouse]
-      ? [[activeWarehouse, groupedData[activeWarehouse]]]
-      : [];
-
-  // Only render active warehouse unless the user is searching globally
-  if (warehousesToRender.length === 0) {
-    container.innerHTML = '';
-    container.appendChild(createEmptyState('Vui lòng chọn kho'));
-    return;
-  }
-
-  const hideIncomingWarehouses = new Set([
-    'BONAP/Stock',
-    'O-BAP/Stock',
-    'ACENB/Stock',
-    'ORDAP/Stock',
-    'ORDHL/Stock',
-    'ORDHY/Stock',
-    'ORDST/Stock',
-  ]);
-
-  // Collect all products across categories for card display
-  const allProducts = [];
-  warehousesToRender.forEach(([warehouseName, warehouse]) => {
-    Object.entries(warehouse.categories || {}).forEach(([categoryName, category]) => {
-      Object.values(category.products || {}).forEach(product => {
-        allProducts.push({
-          ...product,
-          warehouseName,
-          categoryName: categoryName,
-        });
-      });
-    });
-  });
-
-  const sortKey = getSelectedSortKey();
-  const sortedProducts = sortStockProducts(allProducts, sortKey);
-  const showAllCards = container.getAttribute('data-show-all-cards') === 'true';
-  const cardProducts = showAllCards ? sortedProducts : sortedProducts.slice(0, CARD_RENDER_LIMIT);
-  const hiddenCardCount = Math.max(sortedProducts.length - cardProducts.length, 0);
-  const visibleWarehouseCount = countVisibleWarehouses(sortedProducts);
-
-  // Build HTML with card-based layout
-  let html = `
-        <div class="max-w-7xl mx-auto px-4 py-6">
-            <div class="stock-results-summary">
-                <div>
-                    <span class="stock-results-count">${sortedProducts.length.toLocaleString('vi-VN')}</span>
-                    <span>sản phẩm</span>
-                    <span class="stock-results-divider">/</span>
-                    <span>${visibleWarehouseCount.toLocaleString('vi-VN')} kho</span>
-                </div>
-                <div class="stock-results-sort-label">${escapeHtml(getStockSortLabel(sortKey))}</div>
-            </div>
-            <!-- Product cards grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch" id="productCardsGrid">
-    `;
-
-  cardProducts.forEach((product, index) => {
-    const productName = product.product_name || `Sản phẩm ID: ${product.product_id[0]}`;
-    const lotIds =
-      product.lot_ids && product.lot_ids.length > 0
-        ? product.lot_ids
-            .map(l => {
-              if (typeof l === 'string') return l;
-              if (l && typeof l === 'object') {
-                if (typeof l.name === 'string') return l.name;
-                if (Array.isArray(l) && typeof l[1] === 'string') return l[1];
-              }
-              return null;
-            })
-            .filter(Boolean)
-            .join(', ')
-        : null;
-    const status = getStockStatus(product.quantity, product.available_quantity);
-    const badge = getStockBadge(status);
-    const unit = product.uom_id && product.uom_id[1] ? product.uom_id[1] : '';
-    const safeProductName = escapeHtml(productName);
-    const safeCategoryName = escapeHtml(product.categoryName);
-    const safeWarehouseName = escapeHtml(product.warehouseName || '');
-    const safeUnit = escapeHtml(unit);
-    const safeLotIds = escapeHtml(lotIds);
-    const safeProductId = escapeHtml(product.product_id?.[0] ?? '');
-    const hideIncoming = hideIncomingWarehouses.has(product.warehouseName);
-
-    html += `
-            <div class="stock-card animate-slide-down flex flex-col" data-category="${safeCategoryName}" data-product-id="${safeProductId}" style="animation-delay: ${Math.min(
-              index * 0.02,
-              0.5
-            )}s; height: 100%;">
-                ${product.isDiscontinued ? `<div class="discontinued-badge">⚠️ Sản phẩm ngưng sản xuất</div>` : ''}
-                <div class="flex items-start justify-between mb-4" style="min-height: 70px;">
-                    <div class="flex-1 pr-2">
-                        <h3 class="text-sm font-semibold mb-1 line-clamp-2" style="color: #2a231f; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                            ${safeProductName}
-                        </h3>
-                        <span class="category-badge">${safeCategoryName}</span>
-                    </div>
-                    ${badge}
-                </div>
-
-                <div class="grid ${hideIncoming ? 'grid-cols-2' : 'grid-cols-3'} gap-2 mt-auto pt-4" style="border-top: 1px solid #e8ddd4;">
-                    <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #faf8f5; min-height: 90px;">
-                        <p class="quantity-label mb-1.5">Tồn kho</p>
-                        <p class="quantity-display product-quantity mb-1">${(
-                          product.quantity || 0
-                        ).toLocaleString()}</p>
-                        ${
-                          unit
-                            ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${safeUnit}</p>`
-                            : `<div style="height: 16px;"></div>`
-                        }
-                    </div>
-                    <div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: ${
-                      status === 'low' ? '#fff8e6' : '#f5f9f5'
-                    }; min-height: 90px;">
-                        <p class="quantity-label mb-1.5">Khả dụng</p>
-                        <p class="quantity-display mb-1" style="color: ${
-                          status === 'low' ? '#856404' : '#2a231f'
-                        };">${(product.available_quantity || 0).toLocaleString()}</p>
-                        ${
-                          unit
-                            ? `<p class="text-xs" style="color: #8b7355; margin-top: auto;">${safeUnit}</p>`
-                            : `<div style="height: 16px;"></div>`
-                        }
-                    </div>
-                    ${
-                      hideIncoming
-                        ? ''
-                        : `<div class="text-center p-2.5 rounded-lg flex flex-col justify-center" style="background-color: #e8f4f8; min-height: 90px;">
-                        <p class="quantity-label mb-1.5">Đang đến</p>
-                        <p class="quantity-display mb-1" style="color: #0066cc;">
-                            ${(Number.isFinite(product.incoming_qty) ? product.incoming_qty : Number(product.incoming_qty) || 0).toLocaleString()}
-                        </p>
-                        <div class="flex flex-col" style="margin-top: auto;">
-                        ${
-                          product.incoming_date
-                            ? `<p class="text-[10px] mb-1" style="color: #4b83a6;">ETA: ${new Date(product.incoming_date).toLocaleDateString('vi-VN')}</p>`
-                            : `<div style="height: 12px;"></div>`
-                        }
-                        ${
-                          unit
-                            ? `<p class="text-xs" style="color: #8b7355;">${safeUnit}</p>`
-                            : `<div style="height: 16px;"></div>`
-                        }
-                        </div>
-                    </div>`
-                    }
-                </div>
-
-                ${
-                  lotIds
-                    ? `
-                <div class="mt-3 pt-3" style="border-top: 1px solid #f5f1ea;">
-                    <p class="text-xs" style="color: #7d6d5a;">
-                        <strong>Số lô:</strong> ${safeLotIds}
-                    </p>
-                </div>
-                `
-                    : ''
-                }
-            </div>
-        `;
-  });
-
-  html += `
-            </div>
-            ${
-              hiddenCardCount > 0
-                ? `<div class="stock-show-more-wrap">
-                        <button type="button" class="stock-show-more-btn" id="showMoreStockCards">
-                            Hiển thị thêm ${hiddenCardCount.toLocaleString('vi-VN')} sản phẩm
-                        </button>
-                    </div>`
-                : ''
-            }
-        </div>
-    `;
-
-  container.innerHTML = html;
-  const showMoreButton = document.getElementById('showMoreStockCards');
-  if (showMoreButton) {
-    showMoreButton.addEventListener('click', () => {
-      container.setAttribute('data-show-all-cards', 'true');
-      renderStockData(groupedData);
-    });
-  }
-}
-
-// Toggle category expand/collapse
-function toggleCategory(categoryId) {
-  const content = document.getElementById(`${categoryId}-content`);
-  const icon = document.getElementById(`${categoryId}-icon`);
-
-  if (!content || !icon) return;
-
-  const isHidden = content.style.display === 'none';
-
-  if (isHidden) {
-    // Expand
-    content.style.display = '';
-    icon.style.transform = 'rotate(0deg)';
-  } else {
-    // Collapse
-    content.style.display = 'none';
-    icon.style.transform = 'rotate(90deg)';
-  }
-}
-
-// Initialize categories - all expanded by default
-function initializeCategories() {
-  const categoryContents = document.querySelectorAll('[id$="-content"]');
-  categoryContents.forEach(content => {
-    content.style.display = '';
-  });
-
-  const categoryIcons = document.querySelectorAll('[id$="-icon"]');
-  categoryIcons.forEach(icon => {
-    icon.style.transform = 'rotate(0deg)';
-    icon.style.transition = 'transform 0.2s ease';
+if (typeof document !== 'undefined') {
+  document.addEventListener('filterChange', applyFilters);
+  document.addEventListener('companyContextChange', () => {
+    if (!currentGroupedData) return;
+    updateFilterOptions(getCompanyScopedGroupedData());
+    applyFilters();
   });
 }
 
-// Make toggleCategory available globally
-window.toggleCategory = toggleCategory;
-
-// Removed toggleCategory functions as we no longer use collapsible categories
-
-// Listen for filter change events
-document.addEventListener('filterChange', applyFilters);
-document.addEventListener('companyContextChange', () => {
-  if (!currentGroupedData) return;
-  updateFilterOptions(getCompanyScopedGroupedData());
-  applyFilters();
-});
-
-// ============================================
-// WEBSOCKET INTEGRATION
-// ============================================
-
-let wsClient = null;
-
-/**
- * Initialize WebSocket for real-time updates
- */
 export function initializeWebSocket() {
   try {
     wsClient = initWebSocket();
 
-    // Handle connection events
     wsClient.on('open', () => {
-      console.log('[Store] WebSocket connected');
-      showToast('🔌 Kết nối real-time thành công', 'success', 2000);
+      showToast('Kết nối real-time thành công', 'success', 2000);
     });
 
-    wsClient.on('close', () => {
-      console.log('[Store] WebSocket disconnected');
+    wsClient.on('reconnect', () => {
+      showToast('Đang kết nối lại...', 'info', 2000);
     });
 
-    wsClient.on('reconnect', data => {
-      console.log(`[Store] WebSocket reconnecting (attempt ${data.attempt})...`);
-      showToast('🔄 Đang kết nối lại...', 'info', 2000);
-    });
-
-    // Handle stock updates
     wsClient.on('stock_update', message => {
       handleStockUpdate(message.data);
     });
@@ -1679,141 +232,32 @@ export function initializeWebSocket() {
     wsClient.on('stock_updates', message => {
       handleBatchStockUpdates(message.data);
     });
-
-    console.log('[Store] WebSocket client initialized');
   } catch (error) {
     console.error('[Store] Failed to initialize WebSocket:', error);
   }
 }
 
-/**
- * Handle single stock update
- * @param {Object} update - Stock update data
- */
 function handleStockUpdate(update) {
-  console.log('[Store] Received stock update:', update);
+  if (!update?.product_id && !update?.productId) return;
+  applyLiveStockUpdate(update);
 
-  // Find and update the product card
-  const productId = update.product_id || update.productId;
-  if (!productId) return;
-
-  // Find all cards for this product (may exist in multiple warehouses)
-  const cards = document.querySelectorAll(`[data-product-id="${productId}"]`);
-
-  cards.forEach(card => {
-    // Update quantity
-    const quantityEl = card.querySelector('.product-quantity');
-    if (quantityEl && update.quantity !== undefined) {
-      const oldQuantity = parseFloat(quantityEl.textContent) || 0;
-      quantityEl.textContent = update.quantity.toFixed(1);
-
-      // Add update indicator
-      addUpdateIndicator(card, oldQuantity, update.quantity);
-    }
-
-    // Update other fields if provided
-    if (update.location) {
-      const locationEl = card.querySelector('.product-location');
-      if (locationEl) locationEl.textContent = update.location;
-    }
-  });
-
-  // Show notification for significant changes
   if (update.product_name) {
-    showToast(`📦 ${update.product_name}: ${update.quantity} cập nhật`, 'info', 3000);
+    showToast(`${update.product_name}: ${update.quantity} cập nhật`, 'info', 3000);
   }
 }
 
-/**
- * Handle batch stock updates
- * @param {Array} updates - Array of stock updates
- */
 function handleBatchStockUpdates(updates) {
-  console.log(`[Store] Received ${updates.length} stock updates`);
-
   updates.forEach(update => {
     handleStockUpdate(update);
   });
 
-  showToast(`📊 Đã cập nhật ${updates.length} sản phẩm`, 'success', 3000);
+  showToast(`Đã cập nhật ${updates.length} sản phẩm`, 'success', 3000);
 }
 
-/**
- * Add visual indicator for updated item
- * @param {HTMLElement} card - Product card element
- * @param {number} oldValue - Old quantity
- * @param {number} newValue - New quantity
- */
-function addUpdateIndicator(card, oldValue, newValue) {
-  // Add flash animation
-  card.style.transition = 'background-color 0.5s ease';
-  const originalBg = card.style.backgroundColor;
-
-  // Determine color based on change direction
-  const isIncrease = newValue > oldValue;
-  card.style.backgroundColor = isIncrease ? '#d1fae5' : '#fee2e2'; // green or red tint
-
-  // Add update badge
-  const badge = document.createElement('div');
-  badge.className = 'update-badge';
-  badge.style.cssText = `
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: ${isIncrease ? '#10b981' : '#ef4444'};
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        z-index: 10;
-        animation: fadeInOut 3s ease;
-    `;
-  badge.textContent = isIncrease ? '↑ CẬP NHẬT' : '↓ CẬP NHẬT';
-
-  // Make card position relative if not already
-  if (window.getComputedStyle(card).position === 'static') {
-    card.style.position = 'relative';
-  }
-
-  // Remove existing badges
-  const oldBadges = card.querySelectorAll('.update-badge');
-  oldBadges.forEach(b => b.remove());
-
-  card.appendChild(badge);
-
-  // Remove after animation
-  setTimeout(() => {
-    card.style.backgroundColor = originalBg;
-    badge.remove();
-  }, 3000);
-}
-
-// Add CSS for fade animation
-if (!document.getElementById('ws-update-styles')) {
-  const style = document.createElement('style');
-  style.id = 'ws-update-styles';
-  style.textContent = `
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: scale(0.8); }
-            10% { opacity: 1; transform: scale(1); }
-            90% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(0.8); }
-        }
-    `;
-  document.head.appendChild(style);
-}
-
-/**
- * Subscribe to warehouse updates
- * @param {string} warehouseName - Warehouse name
- */
 export function subscribeToWarehouse(warehouseName) {
   if (wsClient && wsClient.isConnected()) {
     wsClient.subscribe([warehouseName]);
-    console.log(`[Store] Subscribed to ${warehouseName} updates`);
   }
 }
 
-// Export cache management functions from API service
 export { clearCache, getCacheStats } from '../services/api.js';

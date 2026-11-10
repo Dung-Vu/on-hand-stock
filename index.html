@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Hệ thống quản lý tồn kho và kiểm kho Bonario" />
-    <meta name="theme-color" content="#6b5a45" />
+    <meta name="theme-color" content="#0f766e" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Bonario Stock" />
@@ -42,10 +42,8 @@
                 const newWorker = registration.installing;
                 newWorker.addEventListener('statechange', () => {
                   if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    if (confirm('Có bản cập nhật mới. Tải lại trang?')) {
-                      newWorker.postMessage({ type: 'SKIP_WAITING' });
-                      window.location.reload();
-                    }
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
                   }
                 });
               });
@@ -67,7 +65,7 @@
           installBtn.textContent = 'Cài đặt App';
           installBtn.className =
             'fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium z-50 animate-bounce';
-          installBtn.style.cssText = 'background: linear-gradient(135deg, #6b5a45, #8b7355);';
+          installBtn.style.cssText = 'background: #0f766e;';
           installBtn.onclick = async () => {
             if (deferredPrompt) {
               deferredPrompt.prompt();

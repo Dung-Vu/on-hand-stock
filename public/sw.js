@@ -1,5 +1,5 @@
 const CACHE_NAME = 'bonario-stock-v1';
-const CACHE_VERSION = '3.2.2';
+const CACHE_VERSION = '4.1.0';
 const FULL_CACHE_NAME = `${CACHE_NAME}-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -49,6 +49,14 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(request.url);
 
     if (request.method !== 'GET' || !url.protocol.startsWith('http')) {
+        return;
+    }
+
+    if (
+        url.pathname.startsWith('/src/') ||
+        url.pathname.startsWith('/@') ||
+        url.pathname.startsWith('/node_modules/')
+    ) {
         return;
     }
 
